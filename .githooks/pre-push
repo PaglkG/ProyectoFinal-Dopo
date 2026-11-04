@@ -1,25 +1,17 @@
-cat << 'EOF' > .githooks/pre-push
 #!/bin/sh
 
 echo "---------------------------------------------------------"
-echo "Ejecutando pruebas y análisis de cobertura de código..."
+echo "Ejecutando pruebas con Maven antes del push..."
 echo "---------------------------------------------------------"
 
 mvn clean verify
 STATUS=$?
 
 if [ $STATUS -ne 0 ]; then
-    echo ""
     echo "---------------------------------------------------------"
-    echo "❌ ERROR: Las pruebas fallaron o no cumplen la cobertura."
-    echo "El git push ha sido cancelado."
+    echo "ERROR: Las pruebas fallaron. Push cancelado."
     echo "---------------------------------------------------------"
     exit 1
 fi
 
-echo ""
-echo "---------------------------------------------------------"
-echo "✅ Pruebas pasadas exitosamente. Procediendo con el push..."
-echo "---------------------------------------------------------"
 exit 0
-EOF
