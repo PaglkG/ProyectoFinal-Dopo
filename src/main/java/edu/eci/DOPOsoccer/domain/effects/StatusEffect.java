@@ -1,4 +1,4 @@
-package edu.eci.DOPOsoccer.domain.effects;
+package edu.eci.DOPOSoccer.domain.effects;
 
 /**
  * @author Pablo Andres Gualdron Lindo
@@ -12,14 +12,12 @@ public abstract class StatusEffect {
     /**
      * Updates the remaining effect duration.
      */
-    // Actualiza el tiempo restante del efecto.
     public void update() {
     }
 
     /**
      * Checks whether the effect has expired.
      */
-    // Comprueba si el efecto ha terminado.
     public boolean isExpired() {
         return false;
     }
@@ -27,14 +25,12 @@ public abstract class StatusEffect {
     /**
      * Refreshes the effect duration.
      */
-    // Renueva la duración del efecto.
     public void refresh() {
     }
 
     /**
      * Returns the speed factor applied by the effect.
      */
-    // Devuelve el factor de velocidad aplicado por el efecto.
     public double getSpeedFactor() {
         return 0.0;
     }
@@ -42,7 +38,6 @@ public abstract class StatusEffect {
     /**
      * Returns the jump factor applied by the effect.
      */
-    // Devuelve el factor de salto aplicado por el efecto.
     public double getJumpFactor() {
         return 0.0;
     }
@@ -50,7 +45,6 @@ public abstract class StatusEffect {
     /**
      * Indicates whether the effect blocks movement.
      */
-    // Indica si el efecto bloquea el movimiento.
     public boolean blocksMovement() {
         return false;
     }

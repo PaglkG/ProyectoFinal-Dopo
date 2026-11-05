@@ -1,6 +1,6 @@
-package edu.eci.DOPOsoccer.domain.rules;
+package edu.eci.DOPOSoccer.domain.rules;
 
-import edu.eci.DOPOsoccer.domain.SessionParticipant;
+import edu.eci.DOPOSoccer.domain.SessionParticipant;
 
 /**
  * @author Pablo Andres Gualdron Lindo
@@ -12,14 +12,12 @@ public class Rule {
     /**
      * Creates a rule with a name and an effect.
      */
-    // Inicializa una regla con un nombre y un efecto.
     public Rule(String name, String efect) {
     }
 
     /**
      * Applies the rule effect to a participant.
      */
-    // Aplica el efecto de la regla al participante.
     public void efect(SessionParticipant player) {
     }
 }

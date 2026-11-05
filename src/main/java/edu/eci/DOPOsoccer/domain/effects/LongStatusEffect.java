@@ -1,4 +1,4 @@
-package edu.eci.DOPOsoccer.domain.effects;
+package edu.eci.DOPOSoccer.domain.effects;
 
 /**
  * @author Pablo Andres Gualdron Lindo

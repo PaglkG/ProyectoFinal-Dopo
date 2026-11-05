@@ -1,4 +1,4 @@
-package edu.eci.DOPOsoccer.exception;
+package edu.eci.DOPOSoccer.exception;
 
 public class GameException extends Exception {
     

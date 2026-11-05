@@ -1,4 +1,4 @@
-package edu.eci.DOPOsoccer.presentation;
+package edu.eci.DOPOSoccer.presentation;
 
 import javax.swing.JFrame;
 

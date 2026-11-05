@@ -1,4 +1,4 @@
-package edu.eci.DOPOsoccer.domain;
+package edu.eci.DOPOSoccer.domain;
 
 /**
  * @author Pablo Andres Gualdron Lindo
@@ -12,7 +12,6 @@ public class Outfit {
     /**
      * Returns the head included in the outfit.
      */
-    // Devuelve la cabeza asociada al atuendo.
     public Head getHead() {
         return null;
     }
@@ -20,7 +19,6 @@ public class Outfit {
     /**
      * Returns the shoe included in the outfit.
      */
-    // Devuelve el calzado asociado al atuendo.
     public Shoe getShoe() {
         return null;
     }

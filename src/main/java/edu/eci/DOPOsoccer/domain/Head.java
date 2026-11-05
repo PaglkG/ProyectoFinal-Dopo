@@ -1,4 +1,4 @@
-package edu.eci.DOPOsoccer.domain;
+package edu.eci.DOPOSoccer.domain;
 
 /**
  * @author Pablo Andres Gualdron Lindo
@@ -11,7 +11,6 @@ public class Head {
     /**
      * Returns the image path.
      */
-    // Devuelve la ruta de la imagen.
     public String getImagePath() {
         return null;
     }
@@ -19,7 +18,6 @@ public class Head {
     /**
      * Returns the head name.
      */
-    // Devuelve el nombre de la cabeza.
     public String getName() {
         return null;
     }

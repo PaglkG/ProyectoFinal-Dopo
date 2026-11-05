@@ -1,4 +1,4 @@
-package edu.eci.DOPOsoccer.domain.enums;
+package edu.eci.DOPOSoccer.domain.enums;
 
 /**
  * @author Pablo Andres Gualdron Lindo
