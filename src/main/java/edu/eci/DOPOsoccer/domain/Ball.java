@@ -1,42 +1,51 @@
 package edu.eci.DOPOSoccer.domain;
 
 /**
+ * Representa el balón, su estado físico, posición y velocidad.
+ * La guía establece gravedad y rebotes contra suelo, arcos y límites de la cancha.
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class Ball {
 
+    private boolean physical;
     private double x;
     private double y;
     private double velocityX;
     private double velocityY;
     private double radius;
 
+    /** Crea el balón. */
+    public Ball() {
+    }
+
     /**
-     * Updates the ball state using the elapsed time.
+     * Actualiza la posición física según el tiempo transcurrido.
+     * @param dt intervalo de actualización
      */
     public void update(double dt) {
     }
 
-    /**
-     * Changes the horizontal direction of the ball.
-     */
+    /** Invierte la dirección horizontal del movimiento. */
     public void bounceX() {
     }
 
-    /**
-     * Changes the vertical direction of the ball.
-     */
+    /** Invierte la dirección vertical del movimiento. */
     public void bounceY() {
     }
 
     /**
-     * Applies the velocity produced by a kick.
+     * Asigna la velocidad producida por un golpe.
+     * @param vx componente horizontal
+     * @param vy componente vertical
      */
     public void kick(double vx, double vy) {
     }
 
     /**
-     * Places the ball at the specified coordinates.
+     * Restablece la posición del balón.
+     * @param x coordenada horizontal
+     * @param y coordenada vertical
      */
     public void resetTo(double x, double y) {
     }

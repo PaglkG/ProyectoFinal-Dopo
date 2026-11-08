@@ -1,7 +1,9 @@
 package edu.eci.DOPOSoccer.domain.configuration;
 
 /**
+ * Asigna teclas a las acciones disponibles del jugador.
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class KeyBindings {
 
@@ -10,84 +12,93 @@ public class KeyBindings {
     private String jump;
     private String power;
 
-    /**
-     * Creates the default key bindings.
-     */
+    /** Crea las asignaciones predeterminadas. */
     public KeyBindings() {
     }
 
     /**
-     * Changes one of the key bindings.
+     * Cambia una asignación.
+     * @param change acción que se reasignará
      */
     public void changeConfiguration(String change) {
     }
 
-    /**
-     * Restores the default key bindings.
-     */
+    /** Restablece las asignaciones predeterminadas. */
     public void reboot() {
     }
 
     /**
-     * Sets the key for moving right.
+     * Asigna la tecla de movimiento a la derecha.
+     * @param key tecla asignada
      */
     private void setRight(String key) {
     }
 
     /**
-     * Sets the key for moving left.
+     * Asigna la tecla de movimiento a la izquierda.
+     * @param key tecla asignada
      */
     private void setLeft(String key) {
     }
 
     /**
-     * Sets the key for jumping.
+     * Asigna la tecla de salto.
+     * @param key tecla asignada
      */
     private void setJump(String key) {
     }
 
     /**
-     * Sets the key for using a power.
+     * Asigna la tecla de poder.
+     * @param key tecla asignada
      */
     private void setPower(String key) {
     }
 
     /**
-     * Changes the selected action key.
+     * Cambia la tecla de una acción.
+     * @param change acción
+     * @param key nueva tecla
      */
     private void change(String change, String key) {
     }
 
     /**
-     * Returns the key for moving right.
+     * Devuelve la tecla de movimiento a la derecha.
+     * @return tecla asignada
      */
     public String getRight() {
         return null;
     }
 
     /**
-     * Returns the key for moving left.
+     * Devuelve la tecla de movimiento a la izquierda.
+     * @return tecla asignada
      */
     public String getLeft() {
         return null;
     }
 
     /**
-     * Returns the key for jumping.
+     * Devuelve la tecla de salto.
+     * @return tecla asignada
      */
     public String getJump() {
         return null;
     }
 
     /**
-     * Returns the key for using a power.
+     * Devuelve la tecla de poder.
+     * @return tecla asignada
      */
     public String getPower() {
         return null;
     }
 
     /**
-     * Checks whether the specified key is available.
+     * Comprueba si la tecla está libre.
+     * @param key código de tecla
+     * @return indica si se puede asignar
      */
     private boolean isKeyFree(int key) {
         return false;

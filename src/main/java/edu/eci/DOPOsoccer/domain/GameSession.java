@@ -1,13 +1,14 @@
 package edu.eci.DOPOSoccer.domain;
 
 import java.util.List;
-
-import edu.eci.DOPOSoccer.domain.powers.Power;
 import edu.eci.DOPOSoccer.domain.rules.Rule;
 import edu.eci.DOPOSoccer.domain.rules.TypeOfMatche;
 
 /**
+ * Mantiene el estado de una sesión y sus dos lados de juego.
+ * El balón está sometido a gravedad y rebota en el suelo, los arcos y los bordes de la cancha.
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class GameSession {
 
@@ -16,113 +17,83 @@ public class GameSession {
     private int xBaseRight;
     private int yBaseLeft;
     private int xBaseLeft;
-
+    private double GRAVITY;
     private SoccerField field;
     private Scoreboard scoreboard;
     private List<SessionParticipant> participantsRight;
     private List<SessionParticipant> participantsLeft;
     private TypeOfMatche typeOfMatche;
 
-    /**
-     * Creates a game session.
-     */
+    /** Crea una sesión de juego. */
     public GameSession() {
     }
 
     /**
-     * Starts the game session.
-     */
-    public void start() {
-    }
-
-    /**
-     * Updates the game session using the elapsed time.
-     */
-    public void update(double dt) {
-    }
-
-    /**
-     * Aborts the current game session.
-     */
-    public void abort() {
-    }
-
-    /**
-     * Removes a participant from the session.
+     * Retira al participante de la sesión.
+     * @param participant participante que se retirará
      */
     public void removeParticipant(SessionParticipant participant) {
     }
 
     /**
-     * Requests movement for a participant.
+     * Solicita el movimiento del participante.
+     * @param user participante
+     * @param direction dirección
      */
     public void movePlayer(SessionParticipant user, char direction) {
     }
 
-    /**
-     * Restarts the current round.
-     */
+    /** Reinicia la ronda en el centro de la cancha después de un gol. */
     public void restartRound() {
     }
 
     /**
-     * Applies a power selected by a participant.
-     */
-    public void applyPower(Power power, SessionParticipant picker) {
-    }
-
-    /**
-     * Indicates whether the session has a winner.
-     */
-    public boolean getWinner() {
-        return false;
-    }
-
-    /**
-     * Checks the completion state of the session.
-     */
-    public void isFinished() {
-    }
-
-    /**
-     * Handles the minimum participant condition.
+     * Comprueba si se cumple la cantidad mínima de participantes.
+     * @return sesión con participantes suficientes o estado pendiente
      */
     public GameSession minParticipants() {
         return null;
     }
 
     /**
-     * Assigns the rules for the selected match type.
+     * Asigna las reglas del tipo de partido indicado.
+     * @param typeMatche identificador del tipo de partido
      */
     public void assignRules(String typeMatche) {
     }
 
     /**
-     * Adds a rule to the session.
+     * Agrega una regla a la sesión.
+     * @param rule regla que se agregará
      */
     public void addRule(Rule rule) {
     }
 
     /**
-     * Registers a goal for the specified side.
+     * Registra un gol para el lado indicado.
+     * @param side lado que anotó
      */
-    public void gool(String side) {
+    public void goal(String side) {
     }
 
     /**
-     * Requests a jump for the selected participant.
+     * Solicita un salto al participante.
+     * @param player participante que saltará
      */
     public void jumpPlayer(SessionParticipant player) {
     }
 
     /**
-     * Requests power activation for the selected participant.
+     * Solicita la activación del poder del participante.
+     * @param player participante que usará el poder
      */
     public void powerPlayer(SessionParticipant player) {
     }
 
     /**
-     * Finds the rules associated with a game type.
+     * Busca las reglas asociadas al tipo de juego indicado.
+     * @param typeGame identificador del tipo de juego
+     * @return tipo de partido correspondiente
      */
     private TypeOfMatche whatsRules(String typeGame) {
         return null;

@@ -3,7 +3,9 @@ package edu.eci.DOPOSoccer.domain;
 import edu.eci.DOPOSoccer.domain.enums.Side;
 
 /**
+ * Mantiene los marcadores y las barras de poder de ambos lados.
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class Scoreboard {
 
@@ -12,36 +14,22 @@ public class Scoreboard {
     private int leftPowerBar;
     private int rightPowerBar;
 
+    /** Crea un marcador. */
+    public Scoreboard() {
+    }
+
     /**
-     * Adds a goal to the score of the specified side.
+     * Incrementa el marcador del lado indicado. Un gol agrega un cuarto (25 %) a la barra de poder del lado anotador; la barra se llena en 10 segundos.
+     * @param side lado que anotó
      */
     public void addGoal(Side side) {
     }
 
     /**
-     * Returns the score for the specified side.
-     */
-    public int getScore(Side side) {
-        return 0;
-    }
-
-    /**
-     * Checks whether both sides have the same score.
-     */
-    public boolean isTied() {
-        return false;
-    }
-
-    /**
-     * Returns the side currently leading the match.
+     * Devuelve el lado que lidera el partido.
+     * @return lado ganador o empate
      */
     public Side getLeader() {
         return null;
-    }
-
-    /**
-     * Resets the scoreboard values.
-     */
-    public void reset() {
     }
 }

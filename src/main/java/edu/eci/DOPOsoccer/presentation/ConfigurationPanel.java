@@ -4,6 +4,7 @@ import javax.swing.JPanel;
 
 /**
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class ConfigurationPanel extends JPanel {
 }

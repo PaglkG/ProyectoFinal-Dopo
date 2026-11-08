@@ -1,22 +1,23 @@
 package edu.eci.DOPOSoccer.domain;
 
 import java.util.Set;
-
 import edu.eci.DOPOSoccer.domain.enums.Action;
 
 /**
+ * Define el comportamiento común de los perfiles controlados por la máquina.
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class BotPlayer extends SessionParticipant {
 
-    /**
-     * Creates a bot participant.
-     */
+    /** Crea un participante controlado por la máquina. */
     public BotPlayer() {
     }
 
     /**
-     * Returns the actions selected by the bot for the field.
+     * Decide las acciones del bot según el estado de la cancha.
+     * @param field cancha actual
+     * @return conjunto de acciones
      */
     public Set<Action> decideAction(SoccerField field) {
         return null;

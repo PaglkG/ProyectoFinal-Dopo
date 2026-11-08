@@ -1,125 +1,50 @@
 package edu.eci.DOPOSoccer.domain;
 
 import java.util.List;
-import java.util.Set;
-
 import edu.eci.DOPOSoccer.domain.effects.StatusEffect;
 import edu.eci.DOPOSoccer.domain.enums.Action;
-import edu.eci.DOPOSoccer.domain.powers.Power;
 
 /**
+ * Define el estado compartido por jugadores y bots durante una sesión.
+ * La vida máxima sigue vidaMáxima = 100 × (1 + 0,10 × (supervivencia - 1)).
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public abstract class SessionParticipant {
 
     private int side;
+    private int goal;
     private double x;
     private double y;
     private int speed;
     private int jump;
     private int power;
-
+    private double kick;
+    private int survival;
     private Outfit outfit;
+    private Stats stats;
     private List<StatusEffect> status;
 
-    /**
-     * Creates a session participant.
-     */
+    /** Crea un participante de la sesión. */
     public SessionParticipant() {
     }
 
     /**
-     * Performs the actions received from the participant.
-     */
-    public void perform(Set<Action> actions) {
-    }
-
-    /**
-     * Moves the participant in the selected direction.
+     * Desplaza al participante según la acción indicada.
+     * @param dir acción de movimiento
      */
     public void move(Action dir) {
     }
 
-    /**
-     * Requests a participant jump.
-     */
+    /** Inicia el salto del participante. */
     public void jump() {
     }
 
     /**
-     * Requests the use of the stored power.
-     */
-    public void power() {
-    }
-
-    /**
-     * Kicks the specified ball.
-     */
-    public void kick(Ball ball) {
-    }
-
-    /**
-     * Attempts to pick up the specified power.
-     */
-    public boolean pickUp(Power power) {
-        return false;
-    }
-
-    /**
-     * Indicates whether the participant can store a power.
-     */
-    public boolean canStorePower() {
-        return false;
-    }
-
-    /**
-     * Uses the power stored by the participant.
-     */
-    public void takeStoredPower() {
-    }
-
-    /**
-     * Adds a status effect to the participant.
-     */
-    public void addEffect(StatusEffect effect) {
-    }
-
-    /**
-     * Updates the participant effects using elapsed time.
-     */
-    public void updateEffects(double dt) {
-    }
-
-    /**
-     * Removes the active effects from the participant.
-     */
-    public void clearEffects() {
-    }
-
-    /**
-     * Sets the participant position to the specified coordinates.
+     * Restablece la posición del participante.
+     * @param x coordenada horizontal
+     * @param y coordenada vertical
      */
     public void resetPosition(double x, double y) {
-    }
-
-    /**
-     * Returns the participant speed.
-     */
-    public int getSpeed() {
-        return 0;
-    }
-
-    /**
-     * Returns the participant jump power.
-     */
-    public int getJumpPower() {
-        return 0;
-    }
-
-    /**
-     * Indicates whether the participant can move.
-     */
-    public boolean canMove() {
-        return false;
     }
 }

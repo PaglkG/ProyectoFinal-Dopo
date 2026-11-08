@@ -3,21 +3,30 @@ package edu.eci.DOPOSoccer.domain.rules;
 import edu.eci.DOPOSoccer.domain.SessionParticipant;
 
 /**
+ * Regla que aplica un efecto a un participante.
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class Rule {
 
     private String name;
 
-    /**
-     * Creates a rule with a name and an effect.
-     */
-    public Rule(String name, String efect) {
+    /** Crea una regla sin parámetros. */
+    public Rule() {
     }
 
     /**
-     * Applies the rule effect to a participant.
+     * Crea una regla con nombre y efecto.
+     * @param name nombre de la regla
+     * @param effect descripción del efecto
      */
-    public void efect(SessionParticipant player) {
+    public Rule(String name, String effect) {
+    }
+
+    /**
+     * Aplica el efecto de esta regla al participante.
+     * @param player participante afectado
+     */
+    public void effect(SessionParticipant player) {
     }
 }

@@ -6,11 +6,12 @@ import edu.eci.DOPOSoccer.presentation.GameGUI;
 
 /**
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class App {
 
     /**
-     * Starts the POOBSoccer graphical application.
+     * Inicia la aplicación gráfica de POOBSoccer.
      */
     public static void main(String[] args) {
 

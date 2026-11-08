@@ -1,7 +1,9 @@
 package edu.eci.DOPOSoccer.domain.effects;
 
 /**
+ * Efecto temporal que modifica el estado de un participante.
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public abstract class StatusEffect {
 
@@ -9,41 +11,41 @@ public abstract class StatusEffect {
     private double duration;
     private double remaining;
 
-    /**
-     * Updates the remaining effect duration.
-     */
+    /** Actualiza el tiempo restante del efecto. */
     public void update() {
     }
 
     /**
-     * Checks whether the effect has expired.
+     * Comprueba si el efecto terminó.
+     * @return indica si venció
      */
     public boolean isExpired() {
         return false;
     }
 
-    /**
-     * Refreshes the effect duration.
-     */
+    /** Renueva la duración del efecto. */
     public void refresh() {
     }
 
     /**
-     * Returns the speed factor applied by the effect.
+     * Devuelve el multiplicador de velocidad aplicado por el efecto.
+     * @return factor de velocidad
      */
     public double getSpeedFactor() {
         return 0.0;
     }
 
     /**
-     * Returns the jump factor applied by the effect.
+     * Devuelve el multiplicador de salto aplicado por el efecto.
+     * @return factor de salto
      */
     public double getJumpFactor() {
         return 0.0;
     }
 
     /**
-     * Indicates whether the effect blocks movement.
+     * Indica si el efecto impide moverse.
+     * @return indica si bloquea el movimiento
      */
     public boolean blocksMovement() {
         return false;

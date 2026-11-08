@@ -4,49 +4,38 @@ import edu.eci.DOPOSoccer.domain.configuration.Configuration;
 
 /**
  * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
  */
 public class User {
 
     private String name;
     private Configuration configuration;
 
-    /**
-     * Creates a user.
-     */
+    /** * Crea un usuario. */
     public User() {
     }
 
-    /**
-     * Returns the user name.
-     */
+    /** * Devuelve el nombre del usuario. */
     public String getName() {
         return null;
     }
 
-    /**
-     * Returns the user configuration.
-     */
+    /** * Devuelve la configuración del usuario. */
     public Configuration getConfiguration() {
         return null;
     }
 
-    /**
-     * Changes the user name.
-     */
+    /** * Cambia el nombre del usuario. */
     public void setName(String name) {
     }
 
-    /**
-     * Changes the user configuration or key bindings.
-     */
+    /** * Cambia la configuración del usuario o sus controles. */
     public void changeConfiguration(
             boolean configurationOrKeyBindings,
             String change) {
     }
 
-    /**
-     * Restores the user default configuration.
-     */
+    /** * Restablece la configuración predeterminada del usuario. */
     public void resetConfiguration() {
     }
 }
