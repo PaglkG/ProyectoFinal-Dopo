@@ -9,7 +9,7 @@
 [![Compilación](https://github.com/PaglkG/ProyectoFinal-Dopo/actions/workflows/build.yml/badge.svg)](https://github.com/PaglkG/ProyectoFinal-Dopo/actions/workflows/build.yml)
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
 ![Maven](https://img.shields.io/badge/Maven-compilación-C71A36?logo=apachemaven&logoColor=white)
-![JUnit](https://img.shields.io/badge/JUnit-5-25A162?logo=junit5&logoColor=white)
+![JUnit Jupiter](https://img.shields.io/badge/JUnit%20Jupiter-6.1.3-25A162?logo=junit5&logoColor=white)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-yellow)
 ![Licencia](https://img.shields.io/badge/uso-acad%C3%A9mico-blue)
 
@@ -23,21 +23,22 @@ Este repositorio contiene el **proyecto final** de la asignatura, desarrollado e
 
 Es un trabajo **académico y sin fines comerciales**. Su objetivo es aplicar análisis de requisitos, diseño orientado a objetos, pruebas automáticas y trabajo colaborativo con Git.
 
-El juego que implementamos es una versión propia inspirada en **Head Soccer**, el juego ganador de la convocatoria *Juego 2026-2*.
+El proyecto desarrolla una versión académica inspirada en **Head Soccer**, seleccionada en la convocatoria *Juego 2026-2*. El estado actual se centra en el esqueleto del dominio y la interfaz; todavía no hay una partida jugable.
 
 > ⚠️ **Aviso:** *Head Soccer* es un juego creado por **D&D Dream Corp.** Este proyecto es una reinterpretación educativa; no está afiliado ni respaldado por sus creadores y no se distribuye con fines comerciales.
 
-## 📂 Documentación y trabajo colaborativo
+## 📂 Documentación y recursos
 
-Aquí se encuentran los documentos y recursos compartidos para que todos los integrantes puedan consultar, editar y mantener actualizada la información del proyecto.
+Los enlaces llevan a los documentos compartidos del proyecto y al repositorio de código.
 
 | Recurso | Enlace | Descripción |
 |---|---|---|
-| 📝 Documento principal | [Abrir Google Docs](https://docs.google.com/document/d/1i9cOyOaORip1lEBSSzXO6fPmAldYHS1KjRxTYh8H3WA/edit?usp=sharing) | Documentación escrita y trabajo colaborativo. |
+| 📝 Documento colaborativo | [Abrir en Google Docs](https://docs.google.com/document/d/1i9cOyOaORip1lEBSSzXO6fPmAldYHS1KjRxTYh8H3WA/edit?usp=sharing) | Documento compartido del proyecto. |
+| 📄 Archivo complementario | [Abrir en Google Drive](https://drive.google.com/file/d/1dhQskSDOwRWgXCxy5vZDP-IV2ra9s9VO/view?usp=sharing) | Archivo compartido por el equipo. |
 | 📐 Diagrama de clases | [Abrir en diagrams.net](https://viewer.diagrams.net/?tags=%7B%7D&lightbox=1&highlight=0000ff&edit=_blank&layers=1&link-icons=1&tooltip-icons=1&nav=1&title=Head_Soccer.drawio&dark=auto#Uhttps%3A%2F%2Fdrive.google.com%2Fuc%3Fid%3D1kuQxyHiroSopLOlZwFoC23GFreDoKCrz%26export%3Ddownload) | Visualización y edición del diagrama de clases. |
 | 💻 Código fuente | [Repositorio GitHub](https://github.com/PaglkG/ProyectoFinal-Dopo) | Código, versiones, ramas y seguimiento del desarrollo. |
 
-> **Importante:** Los integrantes deben contar con permisos de edición en Google Docs y en el archivo de diagrams.net almacenado en Google Drive. Se recomienda trabajar sobre los documentos originales para evitar duplicados y mantener una única versión actualizada.
+> El acceso a los archivos de Google depende de los permisos compartidos para cada integrante.
 
 ## 🎮 ¿De qué trata Head Soccer?
 
@@ -65,18 +66,20 @@ La idea es simple y se aprende en segundos:
 
 > Las versiones web del juego se controlan con las **flechas del teclado** para moverse y la **barra espaciadora** para saltar.
 
-## 🕹️ Características de nuestra versión
+## 🧩 Estado actual del proyecto
 
-> 🚧 *Esta sección se irá completando a medida que se definan e implementen los requisitos del proyecto.*
+El código contiene clases de dominio y de presentación como esqueletos. Los métodos documentan las responsabilidades previstas, pero la lógica del juego aún está pendiente.
 
-- [ ] Partida 1 vs 1 con temporizador y marcador.
-- [ ] Movimiento, salto y golpe del balón.
-- [ ] Física del balón y colisiones.
-- [ ] Selección de personajes.
-- [ ] Tiros especiales.
-- [ ] Modo contra la máquina.
-- [ ] Modo dos jugadores en el mismo equipo.
-- [ ] Pruebas unitarias con JUnit 5.
+- [x] Esqueleto del modelo de dominio basado en el diagrama de clases.
+- [x] Punto de entrada `App.java` y clases iniciales de interfaz Swing.
+- [x] Clases de prueba preparadas para el dominio.
+- [ ] Lógica de partida, controles y reglas de victoria.
+- [ ] Física del balón, colisiones y goles.
+- [ ] Poderes, efectos y comportamiento de los bots.
+- [ ] Interfaz de juego y configuración funcionales.
+- [ ] Casos de prueba automatizados.
+
+> Las 32 clases de prueba actuales son esqueletos vacíos. Por eso `mvn clean verify` compila el proyecto, pero todavía informa cero pruebas ejecutadas.
 
 ## 🧰 Tecnologías
 
@@ -84,7 +87,7 @@ La idea es simple y se aprende en segundos:
 |---|---|
 | ☕ **Java 21** | Lenguaje principal. |
 | 📦 **Maven** | Gestión de dependencias y compilación. |
-| 🧪 **JUnit 5** | Pruebas unitarias. |
+| 🧪 **JUnit Jupiter 6.1.3** | Dependencia configurada para las pruebas unitarias. |
 | 🤖 **GitHub Actions** | Integración continua (`build-and-test`). |
 | 🔀 **Git / GitHub** | Control de versiones y revisión de código. |
 
@@ -96,7 +99,7 @@ La idea es simple y se aprende en segundos:
 - Maven 3.9 o superior.
 - Git.
 
-### Instalación
+### Compilación y verificación
 
 ```bash
 # 1. Clonar el repositorio
@@ -105,11 +108,11 @@ git clone https://github.com/PaglkG/ProyectoFinal-Dopo.git
 # 2. Entrar al directorio
 cd ProyectoFinal-Dopo
 
-# 3. Compilar el proyecto y ejecutar las pruebas
-mvn clean verify
+# 3. Compilar y ejecutar la verificación
+mvn --batch-mode --no-transfer-progress clean verify
 ```
 
-> La instrucción para lanzar el videojuego se añadirá cuando esté implementada la clase principal.
+El punto de entrada está configurado con `mvn exec:java`. La interfaz gráfica sigue en construcción y todavía no permite jugar una partida.
 
 ## 🌿 Flujo de trabajo
 
@@ -125,13 +128,13 @@ gitGraph
     branch pablo
     branch samuel
     checkout pablo
-    commit id: "feature Pablo"
+    commit id: "funcionalidad Pablo"
     checkout develop
-    merge pablo id: "PR + revisión"
+    merge pablo id: "solicitud + revisión"
     checkout samuel
-    commit id: "feature Samuel"
+    commit id: "funcionalidad Samuel"
     checkout develop
-    merge samuel id: "PR + revisión"
+    merge samuel id: "solicitud + revisión"
     checkout main
     merge develop id: "entrega"
 ```
@@ -154,10 +157,10 @@ gitGraph
 
 ## 👥 Equipo de desarrollo
 
-| Integrante | GitHub | Responsabilidad |
-|---|---|---|
-| Pablo Andres Gualdron Lindo | [@PaglkG](https://github.com/PaglkG) | Desarrollo y coordinación. |
-| Samuel Ahumada Florez | [@usuario-samuel](https://github.com/) | Desarrollo y colaboración. |
+| Integrante |
+|---|
+| Pablo Andres Gualdron Lindo |
+| Samuel Ahumada Florez |
 
 ## 🎓 Contexto académico
 
