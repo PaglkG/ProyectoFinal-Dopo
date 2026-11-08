@@ -10,12 +10,12 @@
     <packaging>jar</packaging>
 
     <name>POOBSoccer</name>
-    <description>Videojuego arcade de futbol 2D desarrollado en Java 24.</description>
+    <description>Videojuego arcade de fútbol 2D desarrollado en Java 21.</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.release>24</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <junit.version>6.1.3</junit.version>
         <jacoco.version>0.8.16</jacoco.version>
