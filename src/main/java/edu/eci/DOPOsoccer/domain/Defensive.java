@@ -6,4 +6,8 @@ package edu.eci.DOPOSoccer.domain;
  * @author Samuel Ahumada Florez
  */
 public class Defensive extends BotPlayer {
+
+    /** Crea el perfil de bot defensivo. */
+    public Defensive() {
+    }
 }

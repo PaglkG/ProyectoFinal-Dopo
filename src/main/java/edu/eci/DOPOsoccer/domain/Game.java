@@ -157,7 +157,7 @@ public class Game {
      * @param stats estadística que se mejorará
      * @param points puntos que se asignarán a la mejora
      */
-    public void ImproveStatistics(
+    public void improveStatistics(
             GameSession session,
             boolean player,
             String stats,

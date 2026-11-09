@@ -17,7 +17,7 @@ public class GameSession {
     private int xBaseRight;
     private int yBaseLeft;
     private int xBaseLeft;
-    private double GRAVITY;
+    private static double GRAVITY;
     private SoccerField field;
     private Scoreboard scoreboard;
     private List<SessionParticipant> participantsRight;
@@ -97,5 +97,9 @@ public class GameSession {
      */
     private TypeOfMatche whatsRules(String typeGame) {
         return null;
+    }
+
+    /** Comprueba el estado del tipo de partido asociado a la sesión. */
+    public void checkTypeOfMatch() {
     }
 }

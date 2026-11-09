@@ -50,7 +50,15 @@ public class Player extends SessionParticipant {
      * @param other asignaciones que se compararán
      * @return indica si hay conflicto
      */
-    private boolean conflictsWith(KeyBindings other) {
+    public boolean conflictsWith(KeyBindings other) {
+        return false;
+    }
+
+    /**
+     * Comprueba si hay una tecla activa.
+     * @return indica si alguna tecla está activa
+     */
+    public boolean isKey() {
         return false;
     }
 }

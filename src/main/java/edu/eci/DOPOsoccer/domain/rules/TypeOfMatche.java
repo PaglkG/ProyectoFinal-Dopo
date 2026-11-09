@@ -17,25 +17,10 @@ public abstract class TypeOfMatche {
     }
 
     /**
-     * Agrega una regla por su identificador.
-     * @param rule identificador de la regla
-     */
-    public void addRule(String rule) {
-    }
-
-    /**
      * Agrega la regla indicada.
      * @param rule regla que se agregará
      */
     public void addRule(Rule rule) {
-    }
-
-    /**
-     * Aplica una regla a un participante.
-     * @param player participante
-     * @param rule regla que se aplicará
-     */
-    public void apply(SessionParticipant player, Rule rule) {
     }
 
     /**
@@ -48,5 +33,9 @@ public abstract class TypeOfMatche {
 
     /** Aplica las reglas de este tipo de partido. */
     public void applyTypeGame() {
+    }
+
+    /** Comprueba las condiciones asociadas a este tipo de partido. */
+    public void check() {
     }
 }
