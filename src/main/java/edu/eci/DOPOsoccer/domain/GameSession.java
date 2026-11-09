@@ -1,6 +1,9 @@
 package edu.eci.DOPOSoccer.domain;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+
+import edu.eci.DOPOSoccer.domain.exception.GameException;
 import edu.eci.DOPOSoccer.domain.rules.Rule;
 import edu.eci.DOPOSoccer.domain.rules.TypeOfMatche;
 
@@ -59,7 +62,7 @@ public class GameSession {
      * Asigna las reglas del tipo de partido indicado.
      * @param typeMatche identificador del tipo de partido
      */
-    public void assignRules(String typeMatche) {
+    public void assignRules(String typeMatche) throws GameException {
     }
 
     /**
@@ -95,8 +98,27 @@ public class GameSession {
      * @param typeGame identificador del tipo de juego
      * @return tipo de partido correspondiente
      */
-    private TypeOfMatche whatsRules(String typeGame) {
-        return null;
+    private Object whatsRules(String typeGame) throws GameException{
+        try {
+            Class<?> targetClass = Class.forName(typeGame);
+            Object newInstance = targetClass.getDeclaredConstructor().newInstance();
+            return newInstance;
+        }
+        catch (ClassNotFoundException e) {
+            throw new GameException(GameException.NO_FOUND_SESSION);
+        }
+        catch (NoSuchMethodException  e) {
+            throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
+        }
+        catch (InstantiationException  e) {
+            throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
+        }
+        catch (IllegalAccessException  e) {
+            throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
+        }
+        catch (InvocationTargetException  e) {
+            throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
+        }
     }
 
     /** Comprueba el estado del tipo de partido asociado a la sesión. */

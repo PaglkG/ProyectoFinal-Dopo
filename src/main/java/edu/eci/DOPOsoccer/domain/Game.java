@@ -1,8 +1,12 @@
 package edu.eci.DOPOSoccer.domain;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
+import edu.eci.DOPOSoccer.domain.exception.GameException;
 import edu.eci.DOPOSoccer.domain.rules.TypeOfMatche;
 
 /**
@@ -15,8 +19,11 @@ import edu.eci.DOPOSoccer.domain.rules.TypeOfMatche;
  */
 public class Game {
 
+    Map<String, Integer> sessions = new HashMap<>();
+
     /** Crea el coordinador de las partidas. */
     public Game() {
+        sessions = new HashMap<>();
     }
 
     /**
@@ -28,11 +35,17 @@ public class Game {
      * @param typeMatche modalidad del partido, por tiempo o por goles
      * @return sesión creada
      */
-    public GameSession startSession(
+    public GameSession startSession (
             List<User> users,
             boolean bots,
             String typeGame,
-            String typeMatche) {
+            String typeMatche) throws GameException {
+
+
+        Object sessionObject = whatSession(typeGame);
+        GameSession session = (GameSession) sessionObject;
+        session.assignRules(typeMatche);
+
         return null;
     }
 
@@ -114,7 +127,7 @@ public class Game {
      * @param session sesión activa
      * @param player participante que usará el poder
      */
-    public void powerPlayer(GameSession session, SessionParticipant player) {
+    public void powerPlayer(GameSession session, SessionParticipant player) throws GameException {
     }
 
     /**
@@ -123,8 +136,27 @@ public class Game {
      * @param session sesión solicitada
      * @return sesión correspondiente
      */
-    private GameSession whatSession(GameSession session) {
-        return null;
+    private Object whatSession(String name) throws GameException {
+        try {
+            Class<?> targetClass = Class.forName(name);
+            Object newInstance = targetClass.getDeclaredConstructor().newInstance();
+            return newInstance;
+        }
+        catch (ClassNotFoundException e) {
+            throw new GameException(GameException.NO_FOUND_SESSION);
+        }
+        catch (NoSuchMethodException  e) {
+            throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
+        }
+        catch (InstantiationException  e) {
+            throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
+        }
+        catch (IllegalAccessException  e) {
+            throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
+        }
+        catch (InvocationTargetException  e) {
+            throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
+        }
     }
 
     /**
