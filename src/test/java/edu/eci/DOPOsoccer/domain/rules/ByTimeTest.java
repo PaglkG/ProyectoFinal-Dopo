@@ -26,4 +26,14 @@ class ByTimeTest {
 
         assertEquals(GameException.MINUTES_NOT_NEGATIVE, exception.getMessage());
     }
+
+    @Test
+    void constructorRejectsNonNumericMinutes() {
+        assertThrows(NumberFormatException.class, () -> new ByTime(List.of("five")));
+    }
+
+    @Test
+    void constructorRejectsMissingMinutes() {
+        assertThrows(IndexOutOfBoundsException.class, () -> new ByTime(List.of()));
+    }
 }

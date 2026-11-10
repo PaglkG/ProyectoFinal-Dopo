@@ -1,8 +1,32 @@
 package edu.eci.DOPOSoccer.domain;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-/** Esqueleto de pruebas para PlayerVsBot; aún no contiene casos de prueba. */
-public class PlayerVsBotTest {
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import edu.eci.DOPOSoccer.domain.rules.ByGoals;
+
+/** Pruebas de la composición de participantes de una sesión jugador contra bot. */
+class PlayerVsBotTest {
+
+    @Test
+    void constructorCreatesOneHumanAndOneBot() throws Exception {
+        PlayerVsBot session = new PlayerVsBot(true, ByGoals.class.getName(), List.of("5"));
+
+        assertEquals(1, session.participantsRight.size());
+        assertEquals(1, session.participantsLeft.size());
+        assertInstanceOf(Player.class, session.participantsRight.get(0));
+        assertInstanceOf(BotPlayer.class, session.participantsLeft.get(0));
+    }
+
+    @Test
+    void constructorCreatesSameParticipantKindsForEitherPlayerOption() throws Exception {
+        PlayerVsBot session = new PlayerVsBot(false, ByGoals.class.getName(), List.of("5"));
+
+        assertInstanceOf(Player.class, session.participantsRight.get(0));
+        assertInstanceOf(BotPlayer.class, session.participantsLeft.get(0));
+    }
 }

@@ -1,15 +1,20 @@
 package edu.eci.DOPOSoccer.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import edu.eci.DOPOSoccer.domain.exception.GameException;
 import edu.eci.DOPOSoccer.domain.rules.ByGoals;
+import edu.eci.DOPOSoccer.domain.rules.ByTime;
+import edu.eci.DOPOSoccer.domain.rules.TypeOfMatch;
 
 /** Pruebas para las rutas de error implementadas en el constructor de sesión. */
 class GameSessionTest {
@@ -24,20 +29,163 @@ class GameSessionTest {
     }
 
     @Test
-    void constructorReportsWhenTheMatchTypeHasNoDefaultConstructor() {
+    void constructorCreatesByGoalsWithItsListConstructor() {
+        assertDoesNotThrow(() -> new GameSession(false, ByGoals.class.getName(), List.of("5")));
+    }
+
+    @Test
+    void constructorReportsTheCustomExceptionWhenNoListConstructorExists() {
         GameException exception = assertThrows(
                 GameException.class,
-                () -> new GameSession(false, ByGoals.class.getName(), List.of("5")));
+                () -> new GameSession(false, String.class.getName(), List.of()));
 
         assertEquals(GameException.NO_CONSTRUCTOR_FOUND, exception.getMessage());
     }
 
     @Test
-    void constructorCurrentlyFailsWhenParametersArePassedToANoArgumentConstructor() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+    void constructorCreatesByGoalsTypeAndInitializesSessionState() {
+        GameSession session = new GameSession(false, ByGoals.class.getName(), List.of("5"));
+
+        assertEquals(0.0, session.timeLeft);
+        assertEquals(3.14, GameSession.GRAVITY);
+        assertNotNull(session.typeOfMatch);
+        assertNotNull(session.field);
+        assertNotNull(session.scoreboard);
+        assertNotNull(session.participantsLeft);
+        assertNotNull(session.participantsRight);
+    }
+
+    @Test
+    void constructorCreatesByTimeType() {
+        GameSession session = new GameSession(false, ByTime.class.getName(), List.of("10"));
+
+        assertNotNull(session.typeOfMatch);
+        assertEquals(ByTime.class, session.typeOfMatch.getClass());
+    }
+
+    @Test
+    void constructorReportsWhenMatchTypeClassDoesNotExist() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, "missing.match.Type", List.of()));
+
+        assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
+    }
+
+    @Test
+    void constructorReportsWhenMatchTypeHasNoListConstructor() {
+        GameException exception = assertThrows(
+                GameException.class,
                 () -> new GameSession(false, String.class.getName(), List.of()));
 
-        assertNotNull(exception.getMessage());
+        assertEquals(GameException.NO_CONSTRUCTOR_FOUND, exception.getMessage());
     }
+
+    @Test
+    void constructorReportsWhenMatchTypeCannotBeInstantiated() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, AbstractMatchType.class.getName(), List.of()));
+
+        assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
+        assertNotNull(exception.getCause());
+    }
+
+    @Test
+    void constructorReportsWhenMatchTypeConstructorIsNotAccessible() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, MatchTypeWithPrivateConstructor.class.getName(), List.of()));
+
+        assertEquals(GameException.NO_CONSTRUCTOR_FOUND, exception.getMessage());
+    }
+
+    @Test
+    void constructorReportsAnExceptionThrownByMatchTypeConstructor() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, MatchTypeWithFailingConstructor.class.getName(), List.of()));
+
+        assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
+        InvocationTargetException invocationException =
+                assertInstanceOf(InvocationTargetException.class, exception.getCause());
+        assertInstanceOf(IllegalStateException.class, invocationException.getCause());
+    }
+
+    @Test
+    void constructorReportsInvalidGoalParameters() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, ByGoals.class.getName(), List.of("-1")));
+
+        assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
+        InvocationTargetException invocationException =
+                assertInstanceOf(InvocationTargetException.class, exception.getCause());
+        GameException cause = assertInstanceOf(GameException.class, invocationException.getCause());
+        assertEquals(GameException.GOALS_NOT_NEGATIVE, cause.getMessage());
+    }
+
+    @Test
+    void constructorReportsInvalidTimeParameters() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, ByTime.class.getName(), List.of("-1")));
+
+        assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
+        InvocationTargetException invocationException =
+                assertInstanceOf(InvocationTargetException.class, exception.getCause());
+        GameException cause = assertInstanceOf(GameException.class, invocationException.getCause());
+        assertEquals(GameException.MINUTES_NOT_NEGATIVE, cause.getMessage());
+    }
+
+    @Test
+    void constructorReportsMissingRuleParameters() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, ByTime.class.getName(), List.of()));
+
+        assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
+    }
+
+    @Test
+    void constructorReportsTheCustomSessionNotFoundExceptionForAnEmptyTypeName() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, "", List.of("5")));
+
+        assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
+    }
+
+    /** Tipo de partido abstracto para comprobar el error de instanciación. */
+    public abstract static class AbstractMatchType extends TypeOfMatch {
+
+        public AbstractMatchType(List<String> parameters) {
+        }
+    }
+
+    /** Tipo de partido con constructor privado para comprobar el acceso. */
+    public static class MatchTypeWithPrivateConstructor extends TypeOfMatch {
+
+        private MatchTypeWithPrivateConstructor(List<String> parameters) {
+        }
+
+        @Override
+        public boolean check(List<String> parameters) {
+            return false;
+        }
+    }
+
+    /** Tipo de partido cuyo constructor falla para comprobar la causa reflejada. */
+    public static class MatchTypeWithFailingConstructor extends TypeOfMatch {
+
+        public MatchTypeWithFailingConstructor(List<String> parameters) {
+            throw new IllegalStateException("Constructor failure");
+        }
+
+        @Override
+        public boolean check(List<String> parameters) {
+            return false;
+        }
+    }
+
 }

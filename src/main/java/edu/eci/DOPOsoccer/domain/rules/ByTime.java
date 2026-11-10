@@ -21,7 +21,7 @@ public class ByTime extends TypeOfMatch {
 
     @Override 
     public boolean check(List<String> parameters) {
-        int minutesInGame = Integer.parseInt(parameters.get(3));
+        int minutesInGame = Integer.parseInt(parameters.get(2));
         if (isTime(minutesInGame)) {
             if (isSudenDeath(minutesInGame, minutesInGame)) {
                 return false;

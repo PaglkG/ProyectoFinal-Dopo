@@ -1,6 +1,7 @@
 package edu.eci.DOPOSoccer.domain;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 import edu.eci.DOPOSoccer.domain.rules.*;
 import edu.eci.DOPOSoccer.domain.rules.TypeOfMatch;
@@ -25,14 +26,19 @@ public class GameSession {
     protected TypeOfMatch typeOfMatch;
     protected SoccerField field;
     protected Scoreboard scoreboard;
-    protected  List<SessionParticipant> participantsRight;
+    protected List<SessionParticipant> participantsRight;
     protected List<SessionParticipant> participantsLeft;
     protected TypeOfMatch TypeOfMatch;
+    
 
     /** Crea una sesión de juego. */
     public GameSession(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
+        participantsRight = new ArrayList<>();
+        participantsLeft = new ArrayList<>();
         Object typeMatcheObject = whatsRules(typeMatche, parametersRules);
         TypeOfMatch typeMatcheFinal = (TypeOfMatch) typeMatcheObject;
+        scoreboard = new Scoreboard();
+        field = new SoccerField();
         timeLeft = 0;
         GRAVITY = 3.14;
         typeOfMatch = typeMatcheFinal;
@@ -72,12 +78,7 @@ public class GameSession {
     public void assignRules(String typeMatche) throws GameException {
     }
 
-    /**
-     * Agrega una regla a la sesión.
-     * @param rule regla que se agregará
-     */
-    public void addRule(Rule rule) {
-    }
+    
 
     /**
      * Registra un gol para el lado indicado.
@@ -108,7 +109,7 @@ public class GameSession {
     private Object whatsRules(String typeGame, List<String> parametersRules) throws GameException{
         try {
             Class<?> targetClass = Class.forName(typeGame);
-            Object newInstance = targetClass.getDeclaredConstructor().newInstance(parametersRules);
+            Object newInstance = targetClass.getDeclaredConstructor(List.class).newInstance(parametersRules);
             return newInstance;
         }
         catch (ClassNotFoundException e) {

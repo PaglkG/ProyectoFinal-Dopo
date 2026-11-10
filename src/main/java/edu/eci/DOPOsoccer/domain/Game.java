@@ -55,6 +55,7 @@ public class Game {
      * @param closeSession sesión que se cerrará
      */
     public void closeSession(GameSession closeSession) {
+        sessions.remove(0);
     }
 
     /**
@@ -65,14 +66,6 @@ public class Game {
     public void resetSession(GameSession session) {
     }
 
-    /**
-     * Asigna a la sesión las reglas correspondientes al tipo de partido.
-     *
-     * @param session sesión que recibirá las reglas
-     * @param rules tipo de partido cuyas reglas se asignarán
-     */
-    public void addRules(GameSession session, TypeOfMatch rules) {
-    }
 
     /**
      * Restablece la configuración del usuario identificado por su índice.
@@ -139,7 +132,7 @@ public class Game {
     private Object whatSession(String name,List<String> parametersRules, String typeMatche) throws GameException {
         try {
             Class<?> targetClass = Class.forName(name);
-            Object newInstance = targetClass.getDeclaredConstructor().newInstance(typeMatche,parametersRules);
+            Object newInstance = targetClass.getDeclaredConstructor(String.class,List.class,String.class).newInstance(typeMatche,parametersRules);
             return newInstance;
         }
         catch (ClassNotFoundException e) {
