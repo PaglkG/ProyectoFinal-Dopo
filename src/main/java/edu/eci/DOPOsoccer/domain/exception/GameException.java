@@ -12,6 +12,7 @@ public class GameException extends IllegalArgumentException {
     public final static String NO_INSTANTIATE_CLASS = "no se puede instancia la clase";
     public final static String NO_ACCESSIBLE_CONSTRUCTOR = "no se puede acceder al  método";
     public final static String EXCEPTION_IN_METHOD = "El constructor de la clase lanzó una excepción interna";
+    public final static String MINUTES_NOT_NEGATIVE= "Los minutos no pueden ser negativos";
 
     /** * Crea una excepción con el mensaje indicado. */
     public GameException(String message) {

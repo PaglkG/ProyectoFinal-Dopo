@@ -1,5 +1,5 @@
 package edu.eci.DOPOSoccer.domain.rules;
-
+import edu.eci.DOPOSoccer.domain.exception.GameException;
 import java.util.List;
 import edu.eci.DOPOSoccer.domain.SessionParticipant;
 
@@ -8,12 +8,12 @@ import edu.eci.DOPOSoccer.domain.SessionParticipant;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public abstract class TypeOfMatche {
+public abstract class TypeOfMatch {
 
     private List<Rule> rules;
 
     /** Crea un tipo de partido. */
-    public TypeOfMatche() {
+    public TypeOfMatch() {
     }
 
     /**
@@ -36,6 +36,5 @@ public abstract class TypeOfMatche {
     }
 
     /** Comprueba las condiciones asociadas a este tipo de partido. */
-    public void check() {
-    }
+    public abstract boolean check(List<String> parameters);
 }

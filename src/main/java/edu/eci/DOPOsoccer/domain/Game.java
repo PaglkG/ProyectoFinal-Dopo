@@ -3,11 +3,12 @@ package edu.eci.DOPOSoccer.domain;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 import edu.eci.DOPOSoccer.domain.exception.GameException;
-import edu.eci.DOPOSoccer.domain.rules.TypeOfMatche;
+import edu.eci.DOPOSoccer.domain.rules.TypeOfMatch;
 
 /**
  * Coordina la creación y administración de partidas, participantes,
@@ -19,11 +20,11 @@ import edu.eci.DOPOSoccer.domain.rules.TypeOfMatche;
  */
 public class Game {
 
-    Map<String, Integer> sessions = new HashMap<>();
+    List<GameSession> sessions = new ArrayList<>();
 
     /** Crea el coordinador de las partidas. */
     public Game() {
-        sessions = new HashMap<>();
+        sessions = new ArrayList<>();
     }
 
     /**
@@ -35,18 +36,17 @@ public class Game {
      * @param typeMatche modalidad del partido, por tiempo o por goles
      * @return sesión creada
      */
-    public GameSession startSession (
-            List<User> users,
-            boolean bots,
+    public void startSession(
+            List<String> parametersRules,
             String typeGame,
             String typeMatche) throws GameException {
 
 
-        Object sessionObject = whatSession(typeGame);
+        Object sessionObject = whatSession(typeGame,parametersRules,typeMatche);
         GameSession session = (GameSession) sessionObject;
         session.assignRules(typeMatche);
 
-        return null;
+        sessions.add(session);
     }
 
     /**
@@ -71,7 +71,7 @@ public class Game {
      * @param session sesión que recibirá las reglas
      * @param rules tipo de partido cuyas reglas se asignarán
      */
-    public void addRules(GameSession session, TypeOfMatche rules) {
+    public void addRules(GameSession session, TypeOfMatch rules) {
     }
 
     /**
@@ -136,10 +136,10 @@ public class Game {
      * @param session sesión solicitada
      * @return sesión correspondiente
      */
-    private Object whatSession(String name) throws GameException {
+    private Object whatSession(String name,List<String> parametersRules, String typeMatche) throws GameException {
         try {
             Class<?> targetClass = Class.forName(name);
-            Object newInstance = targetClass.getDeclaredConstructor().newInstance();
+            Object newInstance = targetClass.getDeclaredConstructor().newInstance(typeMatche,parametersRules);
             return newInstance;
         }
         catch (ClassNotFoundException e) {

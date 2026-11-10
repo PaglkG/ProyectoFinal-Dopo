@@ -2,10 +2,11 @@ package edu.eci.DOPOSoccer.domain;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
+import edu.eci.DOPOSoccer.domain.rules.*;
+import edu.eci.DOPOSoccer.domain.rules.TypeOfMatch;
 import edu.eci.DOPOSoccer.domain.exception.GameException;
 import edu.eci.DOPOSoccer.domain.rules.Rule;
-import edu.eci.DOPOSoccer.domain.rules.TypeOfMatche;
+import edu.eci.DOPOSoccer.domain.rules.TypeOfMatch;
 
 /**
  * Mantiene el estado de una sesión y sus dos lados de juego.
@@ -15,20 +16,26 @@ import edu.eci.DOPOSoccer.domain.rules.TypeOfMatche;
  */
 public class GameSession {
 
-    private double timeLeft;
-    private int yBaseRight;
-    private int xBaseRight;
-    private int yBaseLeft;
-    private int xBaseLeft;
-    private static double GRAVITY;
-    private SoccerField field;
-    private Scoreboard scoreboard;
-    private List<SessionParticipant> participantsRight;
-    private List<SessionParticipant> participantsLeft;
-    private TypeOfMatche typeOfMatche;
+    protected double timeLeft;
+    protected int yBaseRight;
+    protected int xBaseRight;
+    protected int yBaseLeft;
+    protected int xBaseLeft;
+    protected static double GRAVITY;
+    protected TypeOfMatch typeOfMatch;
+    protected SoccerField field;
+    protected Scoreboard scoreboard;
+    protected  List<SessionParticipant> participantsRight;
+    protected List<SessionParticipant> participantsLeft;
+    protected TypeOfMatch TypeOfMatch;
 
     /** Crea una sesión de juego. */
-    public GameSession() {
+    public GameSession(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
+        Object typeMatcheObject = whatsRules(typeMatche, parametersRules);
+        TypeOfMatch typeMatcheFinal = (TypeOfMatch) typeMatcheObject;
+        timeLeft = 0;
+        GRAVITY = 3.14;
+        typeOfMatch = typeMatcheFinal;
     }
 
     /**
@@ -98,10 +105,10 @@ public class GameSession {
      * @param typeGame identificador del tipo de juego
      * @return tipo de partido correspondiente
      */
-    private Object whatsRules(String typeGame) throws GameException{
+    private Object whatsRules(String typeGame, List<String> parametersRules) throws GameException{
         try {
             Class<?> targetClass = Class.forName(typeGame);
-            Object newInstance = targetClass.getDeclaredConstructor().newInstance();
+            Object newInstance = targetClass.getDeclaredConstructor().newInstance(parametersRules);
             return newInstance;
         }
         catch (ClassNotFoundException e) {

@@ -1,19 +1,33 @@
 package edu.eci.DOPOSoccer.domain;
-import edu.eci.DOPOSoccer.domain.Game;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.jupiter.api.BeforeAll;
+import edu.eci.DOPOSoccer.domain.exception.GameException;
+import edu.eci.DOPOSoccer.domain.rules.ByGoals;
 
-/** Esqueleto de pruebas para Game */
-public class GameTest {
+/** Pruebas del comportamiento implementado actualmente en {@link Game}. */
+class GameTest {
+
     private Game game;
 
-    @BeforeAll
-    public void createGame() {
+    @BeforeEach
+    void setUp() {
         game = new Game();
-        assertEquals(Game.class, game.getClass());
     }
 
-    
+    @Test
+    void startSessionReportsAnUnknownSessionClassAndDoesNotStoreASession() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> game.startSession(List.of(), "missing.session.Class", ByGoals.class.getName()));
+
+        assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
+        assertEquals(0, game.sessions.size());
+    }
 }
