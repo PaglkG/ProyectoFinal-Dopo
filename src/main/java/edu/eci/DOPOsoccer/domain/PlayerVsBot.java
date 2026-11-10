@@ -11,7 +11,15 @@ import edu.eci.DOPOSoccer.domain.exception.GameException;
  */
 public class PlayerVsBot extends GameSession {
 
-    /** Crea una sesión de jugador contra máquina. */
+    /**
+     * Crea una sesión con un jugador humano y un bot.
+     *
+     * @param player selecciona el identificador del jugador humano: {@code true}
+     *        agrega al jugador 1 y {@code false} agrega al jugador 2
+     * @param typeMatche nombre completo de la clase de modalidad del partido
+     * @param parametersRules parámetros entregados a la modalidad del partido
+     * @throws GameException si la modalidad no existe o no se puede instanciar
+     */
     public PlayerVsBot(boolean player, String typeMatche, List<String> parametersRules) throws GameException {
         super(player, typeMatche, parametersRules);
         if (player) {

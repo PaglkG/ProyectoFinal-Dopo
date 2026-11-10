@@ -2,7 +2,9 @@ package edu.eci.DOPOSoccer.domain.rules;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -35,5 +37,61 @@ class ByTimeTest {
     @Test
     void constructorRejectsMissingMinutes() {
         assertThrows(IndexOutOfBoundsException.class, () -> new ByTime(List.of()));
+    }
+
+    @Test
+    void checkRejectsANonNumericElapsedTime() {
+        ByTime match = new ByTime(List.of("5"));
+
+        assertThrows(NumberFormatException.class, () -> match.check(List.of("2", "1", "not-a-time")));
+    }
+
+    @Test
+    void checkRejectsMissingElapsedTime() {
+        ByTime match = new ByTime(List.of("5"));
+
+        assertThrows(IndexOutOfBoundsException.class, () -> match.check(List.of("2", "1")));
+    }
+
+    @Test
+    void checkContinuesBeforeTheTimeLimit() {
+        ByTime match = new ByTime(List.of("5"));
+
+        assertTrue(match.check(List.of("2", "1", "4")));
+    }
+
+    @Test
+    void checkContinuesInSuddenDeathWhenTheScoreIsTiedAtTheTimeLimit() {
+        ByTime match = new ByTime(List.of("5"));
+
+        assertTrue(match.check(List.of("2", "2", "5")));
+    }
+
+    @Test
+    void checkEndsTheMatchAtTheTimeLimitWhenThereIsAWinner() {
+        ByTime match = new ByTime(List.of("5"));
+
+        assertFalse(match.check(List.of("3", "2", "5")));
+    }
+
+    @Test
+    void checkContinuesInSuddenDeathAfterTheTimeLimitWhenTheScoreIsTied() {
+        ByTime match = new ByTime(List.of("5"));
+
+        assertTrue(match.check(List.of("2", "2", "7")));
+    }
+
+    @Test
+    void checkEndsTheMatchAfterTheTimeLimitWhenThereIsAWinner() {
+        ByTime match = new ByTime(List.of("5"));
+
+        assertFalse(match.check(List.of("3", "2", "7")));
+    }
+
+    @Test
+    void checkRejectsNonNumericScores() {
+        ByTime match = new ByTime(List.of("5"));
+
+        assertThrows(NumberFormatException.class, () -> match.check(List.of("x", "2", "5")));
     }
 }

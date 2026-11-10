@@ -10,8 +10,8 @@ import edu.eci.DOPOSoccer.domain.rules.Rule;
 import edu.eci.DOPOSoccer.domain.rules.TypeOfMatch;
 
 /**
- * Mantiene el estado de una sesión y sus dos lados de juego.
- * El balón está sometido a gravedad y rebota en el suelo, los arcos y los bordes de la cancha.
+ * Mantiene el estado de una sesión, sus participantes, la cancha, el marcador
+ * y la modalidad que determina cuándo termina el partido.
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
@@ -31,7 +31,16 @@ public class GameSession {
     protected TypeOfMatch TypeOfMatch;
     
 
-    /** Crea una sesión de juego. */
+    /**
+     * Crea una sesión e instancia reflectivamente su modalidad de partido.
+     *
+     * @param player indicador que la modalidad concreta puede usar para elegir
+     *        el jugador humano; no determina el lado de la cancha
+     * @param typeMatche nombre completo de la clase de modalidad, como
+     *        {@code ByGoals} o {@code ByTime}
+     * @param parametersRules parámetros requeridos por el constructor de esa modalidad
+     * @throws GameException si la clase no existe o no se puede instanciar
+     */
     public GameSession(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
         participantsRight = new ArrayList<>();
         participantsLeft = new ArrayList<>();
@@ -71,12 +80,6 @@ public class GameSession {
         return null;
     }
 
-    /**
-     * Asigna las reglas del tipo de partido indicado.
-     * @param typeMatche identificador del tipo de partido
-     */
-    public void assignRules(String typeMatche) throws GameException {
-    }
 
     
 
@@ -102,15 +105,21 @@ public class GameSession {
     }
 
     /**
-     * Busca las reglas asociadas al tipo de juego indicado.
-     * @param typeGame identificador del tipo de juego
-     * @return tipo de partido correspondiente
+     * Crea la modalidad de partido indicada usando su constructor que recibe
+     * la lista de parámetros.
+     * @param typeGame nombre completo de la clase de modalidad
+     * @param parametersRules argumentos de configuración de la modalidad
+     * @return instancia de la modalidad creada
+     * @throws GameException si la clase no existe o no se puede instanciar
      */
     private Object whatsRules(String typeGame, List<String> parametersRules) throws GameException{
         try {
             Class<?> targetClass = Class.forName(typeGame);
-            Object newInstance = targetClass.getDeclaredConstructor(List.class).newInstance(parametersRules);
-            return newInstance;
+            if (!TypeOfMatch.class.isAssignableFrom(targetClass)) {
+                throw new GameException(GameException.NO_FOUND_TYPE_GAME);
+            }
+            return TypeOfMatch.class.cast(
+                    targetClass.getDeclaredConstructor(List.class).newInstance(parametersRules));
         }
         catch (ClassNotFoundException e) {
             throw new GameException(GameException.NO_FOUND_SESSION);

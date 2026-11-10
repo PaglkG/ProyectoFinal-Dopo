@@ -11,9 +11,8 @@ import edu.eci.DOPOSoccer.domain.exception.GameException;
 import edu.eci.DOPOSoccer.domain.rules.TypeOfMatch;
 
 /**
- * Coordina la creación y administración de partidas, participantes,
- * estadísticas y persistencia. Sus métodos permanecen como esqueletos
- * documentados, sin lógica de ejecución.
+ * Coordina la creación y administración de sesiones, participantes,
+ * estadísticas y persistencia de las partidas.
  *
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
@@ -28,23 +27,26 @@ public class Game {
     }
 
     /**
-     * Inicia una sesión con los usuarios, bots y modalidades seleccionados.
+     * Crea una sesión de la clase indicada, le pasa la modalidad del partido
+     * y sus parámetros, y la agrega a la lista de sesiones administradas.
      *
-     * @param users usuarios disponibles para la sesión
-     * @param bots indica si se incluirán participantes controlados por la máquina
-     * @param typeGame modalidad de juego seleccionada
-     * @param typeMatche modalidad del partido, por tiempo o por goles
-     * @return sesión creada
+     * @param player selecciona el jugador humano cuando la modalidad lo requiere
+     *        ({@code true}: jugador 1; {@code false}: jugador 2); no selecciona el lado
+     * @param parametersRules parámetros que recibe la modalidad del partido
+     * @param typeGame nombre completo de la clase concreta de sesión, como
+     *        {@link PlayerVsBot} o {@link PlayerVsPlayer}
+     * @param typeMatche nombre completo de la clase que define la modalidad
+     *        del partido, como {@code ByGoals} o {@code ByTime}
+     * @throws GameException si no se encuentra o no se puede construir la clase de sesión
      */
-    public void startSession(
+    public void startSession( boolean player,
             List<String> parametersRules,
             String typeGame,
             String typeMatche) throws GameException {
 
 
-        Object sessionObject = whatSession(typeGame,parametersRules,typeMatche);
+        Object sessionObject = whatSession(typeGame,player,parametersRules,typeMatche);
         GameSession session = (GameSession) sessionObject;
-        session.assignRules(typeMatche);
 
         sessions.add(session);
     }
@@ -124,16 +126,24 @@ public class Game {
     }
 
     /**
-     * Obtiene la referencia a la sesión que debe procesarse.
+     * Construye reflectivamente una sesión de la clase indicada.
      *
-     * @param session sesión solicitada
-     * @return sesión correspondiente
+     * @param name nombre completo de la clase concreta de sesión
+     * @param player indicador que se pasa al constructor de la sesión
+     * @param parametersRules parámetros de la modalidad del partido
+     * @param typeMatche nombre completo de la clase de modalidad del partido
+     * @return instancia creada
+     * @throws GameException si la clase no existe o no se puede instanciar
      */
-    private Object whatSession(String name,List<String> parametersRules, String typeMatche) throws GameException {
+    private Object whatSession(String name,boolean player,List<String> parametersRules, String typeMatche) throws GameException {
         try {
             Class<?> targetClass = Class.forName(name);
-            Object newInstance = targetClass.getDeclaredConstructor(String.class,List.class,String.class).newInstance(typeMatche,parametersRules);
-            return newInstance;
+            if (!GameSession.class.isAssignableFrom(targetClass)) {
+                throw new GameException(GameException.NO_FOUND_SESSION);
+            }
+            return GameSession.class.cast(
+                    targetClass.getDeclaredConstructor(boolean.class, String.class, List.class)
+                            .newInstance(player, typeMatche, parametersRules));
         }
         catch (ClassNotFoundException e) {
             throw new GameException(GameException.NO_FOUND_SESSION);

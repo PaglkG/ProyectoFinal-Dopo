@@ -9,7 +9,16 @@ import java.util.List;
  */
 public class PlayerVsPlayer extends GameSession {
 
-    /** Crea una sesión de jugador contra jugador. */
+    /**
+     * Crea una sesión entre dos jugadores humanos y construye la modalidad
+     * del partido solicitada.
+     *
+     * @param player indicador reenviado al constructor base; esta clase agrega
+     *        ambos jugadores humanos independientemente de su valor
+     * @param typeMatche nombre completo de la clase de modalidad del partido
+     * @param parametersRules parámetros entregados a la modalidad del partido
+     * @throws GameException si la modalidad no existe o no se puede instanciar
+     */
     public PlayerVsPlayer(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
         super(player,typeMatche,parametersRules);
         Player player1 = new Player(1);

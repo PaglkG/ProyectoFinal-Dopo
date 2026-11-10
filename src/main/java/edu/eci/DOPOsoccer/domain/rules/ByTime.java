@@ -21,24 +21,23 @@ public class ByTime extends TypeOfMatch {
 
     @Override 
     public boolean check(List<String> parameters) {
+        int goalLeft = Integer.parseInt(parameters.get(0));
+        int goalRight = Integer.parseInt(parameters.get(1));
         int minutesInGame = Integer.parseInt(parameters.get(2));
-        if (isTime(minutesInGame)) {
-            if (isSudenDeath(minutesInGame, minutesInGame)) {
-                return false;
-            }
+        if (!isTime(minutesInGame)) {
             return true;
         }
-        return true;
+        return isSudenDeath(goalLeft, goalRight);
     }
 
     private boolean isSudenDeath(int goalLeft, int goalRight) {
-        if (goalLeft == goalRight ) {
-            return false;
-        }
-        return true;
+        return goalLeft == goalRight;
     }
 
     private boolean isTime(int minutesInGame) {
+        if (minutesInGame >= minutes) {
+            return true;
+        }
         return false;
     }
 

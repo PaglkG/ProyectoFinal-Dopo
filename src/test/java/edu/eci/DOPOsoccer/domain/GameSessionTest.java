@@ -37,9 +37,18 @@ class GameSessionTest {
     void constructorReportsTheCustomExceptionWhenNoListConstructorExists() {
         GameException exception = assertThrows(
                 GameException.class,
-                () -> new GameSession(false, String.class.getName(), List.of()));
+                () -> new GameSession(false, MatchTypeWithoutListConstructor.class.getName(), List.of()));
 
         assertEquals(GameException.NO_CONSTRUCTOR_FOUND, exception.getMessage());
+    }
+
+    @Test
+    void constructorReportsTheCustomExceptionWhenTheClassIsNotAMatchType() {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> new GameSession(false, NonMatchType.class.getName(), List.of()));
+
+        assertEquals(GameException.NO_FOUND_TYPE_GAME, exception.getMessage());
     }
 
     @Test
@@ -76,7 +85,7 @@ class GameSessionTest {
     void constructorReportsWhenMatchTypeHasNoListConstructor() {
         GameException exception = assertThrows(
                 GameException.class,
-                () -> new GameSession(false, String.class.getName(), List.of()));
+                () -> new GameSession(false, MatchTypeWithoutListConstructor.class.getName(), List.of()));
 
         assertEquals(GameException.NO_CONSTRUCTOR_FOUND, exception.getMessage());
     }
@@ -160,6 +169,25 @@ class GameSessionTest {
     public abstract static class AbstractMatchType extends TypeOfMatch {
 
         public AbstractMatchType(List<String> parameters) {
+        }
+    }
+
+    /** Clase con constructor de lista que no representa una modalidad de partido. */
+    public static class NonMatchType {
+
+        public NonMatchType(List<String> parameters) {
+        }
+    }
+
+    /** Modalidad válida cuyo constructor no recibe la lista solicitada por la fábrica. */
+    public static class MatchTypeWithoutListConstructor extends TypeOfMatch {
+
+        public MatchTypeWithoutListConstructor() {
+        }
+
+        @Override
+        public boolean check(List<String> parameters) {
+            return false;
         }
     }
 
