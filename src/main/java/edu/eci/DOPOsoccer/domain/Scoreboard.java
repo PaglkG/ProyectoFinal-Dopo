@@ -11,8 +11,8 @@ public class Scoreboard {
 
     private int leftScore;
     private int rightScore;
-    private int leftPowerBar;
-    private int rightPowerBar;
+    private double leftPowerBar;
+    private double rightPowerBar;
 
     /** Crea un marcador. */
     public Scoreboard() {
@@ -23,6 +23,10 @@ public class Scoreboard {
      * @param side lado que anotó
      */
     public void addGoal(Side side) {
+        leftScore = 0;
+        rightScore = 0;
+        leftPowerBar = 0;
+        rightPowerBar = 0;
     }
 
     /**

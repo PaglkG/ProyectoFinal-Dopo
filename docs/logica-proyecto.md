@@ -22,6 +22,11 @@
 - El tiempo del juego representa tiempo transcurrido y comienza en cero.
 - En `ByTime.check`, `true` significa que la partida continúa.
 - Si se alcanza el límite y el marcador está empatado, la partida continúa en muerte súbita.
+- Si se alcanza el límite y el marcador está desigual, `ByTime.check` devuelve `false` y el partido termina.
+
+### Reinicio del balón
+
+- `Ball.resetBall(width, height)` sitúa el balón en el centro geométrico de la cancha (`x = width / 2`, `y = height / 2`) y deja `velocityX` y `velocityY` en cero.
 
 ## Estado actual del código (no equivale a una regla confirmada)
 
@@ -44,7 +49,6 @@
 ### Victoria, goles y tiempo
 
 - ¿`ByGoals.check` debe terminar el partido al igualar el límite (`==`) o al alcanzarlo/superarlo (`>=`)?
-- Al llegar al límite de tiempo con marcador desigual, ¿`ByTime.check` debe devolver `false` para indicar que terminó?
 - ¿Qué evento termina la muerte súbita cuando el partido está empatado al agotarse el tiempo?
 - ¿Los minutos se manejan como minutos enteros, segundos o tiempo fraccionario? ¿Qué formato usa `check` para el tiempo transcurrido?
 - ¿Qué estructura exacta debe tener la lista que `GameSession.checkTypeOfMatch` enviará a cada tipo de partido?
@@ -79,3 +83,4 @@
 | Fecha | Decisión | Confirmada por |
 |---|---|---|
 | 2026-11-10 | Las posiciones de `PlayerVsPlayer` son fijas; en `PlayerVsBot`, el humano siempre ocupa la derecha y el bot la izquierda, mientras `player` selecciona la identidad humana. El tiempo transcurrido inicia en cero; `ByTime.check` devuelve `true` para continuar y mantiene empate en muerte súbita. | Pablo |
+| 2026-11-11 | `Ball.resetBall(width, height)` centra el balón geométricamente y pone ambas componentes de velocidad en cero. | Pablo |

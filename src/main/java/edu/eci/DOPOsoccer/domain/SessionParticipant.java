@@ -12,15 +12,8 @@ import edu.eci.DOPOSoccer.domain.enums.Action;
  */
 public abstract class SessionParticipant {
 
-    private int side;
-    private int goal;
     private double x;
     private double y;
-    private int speed;
-    private int jump;
-    private int power;
-    private double kick;
-    private int survival;
     private Outfit outfit;
     private Stats stats;
     private List<StatusEffect> status;
@@ -36,6 +29,9 @@ public abstract class SessionParticipant {
     public void move(Action dir) {
     }
 
+    public void resetConfiguration() {
+    }
+
     /** Inicia el salto del participante. */
     public void jump() {
     }
@@ -46,5 +42,10 @@ public abstract class SessionParticipant {
      * @param y coordenada vertical
      */
     public void resetPosition(double x, double y) {
+        this.x = x;
+        this.y = y;
     }
+
+
+    
 }

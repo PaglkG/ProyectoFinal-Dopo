@@ -5,7 +5,7 @@ package edu.eci.DOPOSoccer.domain.effects;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public abstract class StatusEffect {
+public class StatusEffect {
 
     private String type;
     private double duration;

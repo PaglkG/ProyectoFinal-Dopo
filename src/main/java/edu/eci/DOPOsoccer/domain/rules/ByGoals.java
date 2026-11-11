@@ -19,13 +19,26 @@ public class ByGoals extends TypeOfMatch {
         }
     }
 
-    @Override 
+    /**
+     * Compara los marcadores recibidos con el límite de goles configurado.
+     *
+     * @param parameters marcadores del jugador izquierdo y derecho, en ese orden
+     * @return {@code true} si alguno de los marcadores es igual al límite
+     */
+    @Override
     public boolean check(List<String> parameters) {
         int playerLeft = Integer.parseInt(parameters.get(0));
         int playerRight = Integer.parseInt(parameters.get(1));
         return isGoals(playerLeft, playerRight);
     }
 
+    /**
+     * Determina si alguno de los participantes alcanzó exactamente el límite.
+     *
+     * @param playerLeft marcador del jugador izquierdo
+     * @param playerRight marcador del jugador derecho
+     * @return {@code true} si uno de los marcadores coincide con el límite
+     */
     private boolean isGoals(int playerLeft,int playerRight) {
         if (playerLeft == goals || playerRight == goals ) {
             return true;

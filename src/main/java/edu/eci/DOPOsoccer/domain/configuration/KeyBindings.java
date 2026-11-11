@@ -13,7 +13,19 @@ public class KeyBindings {
     private String power;
 
     /** Crea las asignaciones predeterminadas. */
-    public KeyBindings() {
+    public KeyBindings(int user) {
+        if (user == 1) {
+            right = "a";
+            left = "d";
+            jump = "w";
+            power = "e";
+        }
+        else {
+            right = "j";
+            left = "l";
+            jump = "i";
+            power = "o";
+        }
     }
 
     /**
@@ -24,7 +36,19 @@ public class KeyBindings {
     }
 
     /** Restablece las asignaciones predeterminadas. */
-    public void reboot() {
+    public void reboot(int user) {
+        if (user == 1) {
+            right = "a";
+            left = "d";
+            jump = "w";
+            power = "e";
+        }
+        else {
+            right = "j";
+            left = "l";
+            jump = "i";
+            power = "o";
+        }
     }
 
     /**

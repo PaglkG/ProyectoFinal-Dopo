@@ -20,6 +20,13 @@ public class Player extends SessionParticipant {
      * @param user identificador del usuario
      */
     public Player(int user) {
+        this.user = user;
+        configuration = new Configuration(user);
+    }
+
+    @Override 
+    public void resetConfiguration() {
+        configuration.reboot(user);
     }
 
     /**

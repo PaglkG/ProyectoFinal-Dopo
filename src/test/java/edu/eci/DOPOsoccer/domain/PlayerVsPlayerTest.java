@@ -21,4 +21,45 @@ class PlayerVsPlayerTest {
         assertInstanceOf(Player.class, session.participantsRight.get(0));
         assertInstanceOf(Player.class, session.participantsLeft.get(0));
     }
+
+    @Test
+    void resetConfigurationResetsPlayerOneWhenSelected() throws Exception {
+        PlayerVsPlayer session = new PlayerVsPlayer(true, ByGoals.class.getName(), List.of("5"));
+        ConfigurationTrackingPlayer player1 = new ConfigurationTrackingPlayer(1);
+        ConfigurationTrackingPlayer player2 = new ConfigurationTrackingPlayer(2);
+        session.participantsRight.set(0, player1);
+        session.participantsLeft.set(0, player2);
+
+        session.resetConfiguration(true);
+
+        assertEquals(1, player1.resetCount);
+        assertEquals(0, player2.resetCount);
+    }
+
+    @Test
+    void resetConfigurationResetsPlayerTwoWhenSelected() throws Exception {
+        PlayerVsPlayer session = new PlayerVsPlayer(true, ByGoals.class.getName(), List.of("5"));
+        ConfigurationTrackingPlayer player1 = new ConfigurationTrackingPlayer(1);
+        ConfigurationTrackingPlayer player2 = new ConfigurationTrackingPlayer(2);
+        session.participantsRight.set(0, player1);
+        session.participantsLeft.set(0, player2);
+
+        session.resetConfiguration(false);
+
+        assertEquals(0, player1.resetCount);
+        assertEquals(1, player2.resetCount);
+    }
+
+    private static class ConfigurationTrackingPlayer extends Player {
+        private int resetCount;
+
+        ConfigurationTrackingPlayer(int user) {
+            super(user);
+        }
+
+        @Override
+        public void resetConfiguration() {
+            resetCount++;
+        }
+    }
 }

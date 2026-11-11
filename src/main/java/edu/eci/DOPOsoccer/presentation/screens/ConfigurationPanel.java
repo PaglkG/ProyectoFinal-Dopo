@@ -16,14 +16,17 @@ public class ConfigurationPanel extends JPanel implements Screen {
     public ConfigurationPanel() {
     }
 
+    /** Prepara el panel de configuración cuando se muestra. */
     @Override
     public void onShow() {
     }
 
+    /** Ejecuta las tareas de ocultamiento del panel de configuración. */
     @Override
     public void onHide() {
     }
 
+    /** Libera los recursos asociados al panel de configuración. */
     @Override
     public void dispose() {
     }

@@ -12,11 +12,17 @@ public class Configuration {
     private KeyBindings keyBindings;
 
     /** Crea una configuración. */
-    public Configuration() {
+    public Configuration(int user) {
+        sound = true;
+        music = true;
+        keyBindings = new KeyBindings(user);
     }
 
     /** Restablece los valores predeterminados. */
-    public void reboot() {
+    public void reboot(int user) {
+        sound = true;
+        music = true;
+        keyBindings.reboot(user);
     }
 
     /**

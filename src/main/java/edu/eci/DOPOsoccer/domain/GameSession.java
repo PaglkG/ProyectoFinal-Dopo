@@ -15,7 +15,7 @@ import edu.eci.DOPOSoccer.domain.rules.TypeOfMatch;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class GameSession {
+public abstract class GameSession {
 
     protected double timeLeft;
     protected int yBaseRight;
@@ -71,6 +71,8 @@ public class GameSession {
     /** Reinicia la ronda en el centro de la cancha después de un gol. */
     public void restartRound() {
     }
+
+    public abstract void resetConfiguration(boolean player);
 
     /**
      * Comprueba si se cumple la cantidad mínima de participantes.

@@ -70,11 +70,12 @@ public class Game {
 
 
     /**
-     * Restablece la configuración del usuario identificado por su índice.
+     * Restablece la configuración del usuario seleccionado en la primera sesión.
      *
-     * @param user índice del usuario cuya configuración se restablecerá
+     * @param user {@code true} para el jugador 1; {@code false} para el jugador 2
      */
-    public void resetConfiguration(int user) {
+    public void resetConfiguration(boolean user) {
+        sessions.get(0).resetConfiguration(user);
     }
 
     /**

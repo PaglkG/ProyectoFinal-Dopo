@@ -19,7 +19,15 @@ public class ByTime extends TypeOfMatch {
         }
     }
 
-    @Override 
+    /**
+     * Evalúa si el partido continúa según el tiempo transcurrido y el marcador.
+     *
+     * @param parameters marcador izquierdo, marcador derecho y minutos
+     *        transcurridos, en ese orden
+     * @return {@code true} si el tiempo no se agotó o si el marcador está empatado;
+     *         {@code false} si el tiempo se agotó y hay un ganador
+     */
+    @Override
     public boolean check(List<String> parameters) {
         int goalLeft = Integer.parseInt(parameters.get(0));
         int goalRight = Integer.parseInt(parameters.get(1));
@@ -30,10 +38,24 @@ public class ByTime extends TypeOfMatch {
         return isSudenDeath(goalLeft, goalRight);
     }
 
+    /**
+     * Comprueba si el marcador está empatado para mantener la muerte súbita.
+     *
+     * @param goalLeft marcador del lado izquierdo
+     * @param goalRight marcador del lado derecho
+     * @return {@code true} si ambos marcadores son iguales
+     */
     private boolean isSudenDeath(int goalLeft, int goalRight) {
         return goalLeft == goalRight;
     }
 
+    /**
+     * Comprueba si se alcanzó o superó el límite de tiempo configurado.
+     *
+     * @param minutesInGame minutos transcurridos en el partido
+     * @return {@code true} si los minutos transcurridos son iguales o mayores
+     *         que el límite
+     */
     private boolean isTime(int minutesInGame) {
         if (minutesInGame >= minutes) {
             return true;
