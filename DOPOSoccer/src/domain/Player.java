@@ -1,0 +1,53 @@
+package edu.eci.DOPOSoccer.domain;
+
+import java.util.Set;
+import edu.eci.DOPOSoccer.domain.enums.Action;
+
+/**
+ * Representa al participante controlado por una persona.
+ * @author Pablo Andres Gualdron Lindo
+ * @author Samuel Ahumada Florez
+ */
+public class Player extends SessionParticipant {
+
+    private int user;
+
+    /**
+     * Crea un jugador a partir del identificador de usuario.
+     * @param user identificador del usuario
+     */
+    public Player(int user) {
+        this.user = user;
+    }
+
+    /**
+     * Registra una tecla presionada.
+     * @param key código de la tecla
+     */
+    public void keyPressed(int key) {
+    }
+
+    /**
+     * Registra la liberación de una tecla.
+     * @param key código de la tecla
+     */
+    public void keyReleased(int key) {
+    }
+
+    /**
+     * Determina las acciones solicitadas por las teclas activas.
+     * @param field cancha actual
+     * @return conjunto de acciones
+     */
+    public Set<Action> decideAction(SoccerField field) {
+        return null;
+    }
+
+    /**
+     * Comprueba si hay una tecla activa.
+     * @return indica si alguna tecla está activa
+     */
+    public boolean isKey() {
+        return false;
+    }
+}
