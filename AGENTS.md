@@ -13,6 +13,7 @@ Estas reglas aplican a cualquier trabajo realizado en este repositorio, en cualq
 
 ## Correspondencia con diagramas
 
+- No abrir, editar, guardar, renombrar ni eliminar proyectos o archivos de Astah; en particular, no tocar `Head Soccer.asta` ni sus archivos de bloqueo, bajo ninguna circunstancia.
 - Cuando el usuario indique que el código debe seguir un diagrama, respetar exactamente las clases, atributos, asociaciones, multiplicidades, operaciones, nombres, orden de parámetros y tipos mostrados.
 - No añadir, cambiar ni quitar elementos para completar o reinterpretar un diagrama parcial. Si el diagrama no aclara el alcance o contradice código existente, preguntar antes de modificarlo.
 

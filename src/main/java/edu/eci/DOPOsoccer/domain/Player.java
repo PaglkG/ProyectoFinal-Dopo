@@ -1,8 +1,6 @@
 package edu.eci.DOPOSoccer.domain;
 
 import java.util.Set;
-import edu.eci.DOPOSoccer.domain.configuration.Configuration;
-import edu.eci.DOPOSoccer.domain.configuration.KeyBindings;
 import edu.eci.DOPOSoccer.domain.enums.Action;
 
 /**
@@ -13,7 +11,6 @@ import edu.eci.DOPOSoccer.domain.enums.Action;
 public class Player extends SessionParticipant {
 
     private int user;
-    private Configuration configuration;
 
     /**
      * Crea un jugador a partir del identificador de usuario.
@@ -21,12 +18,6 @@ public class Player extends SessionParticipant {
      */
     public Player(int user) {
         this.user = user;
-        configuration = new Configuration(user);
-    }
-
-    @Override 
-    public void resetConfiguration() {
-        configuration.reboot(user);
     }
 
     /**
@@ -50,15 +41,6 @@ public class Player extends SessionParticipant {
      */
     public Set<Action> decideAction(SoccerField field) {
         return null;
-    }
-
-    /**
-     * Comprueba si las asignaciones de teclas entran en conflicto.
-     * @param other asignaciones que se compararán
-     * @return indica si hay conflicto
-     */
-    public boolean conflictsWith(KeyBindings other) {
-        return false;
     }
 
     /**

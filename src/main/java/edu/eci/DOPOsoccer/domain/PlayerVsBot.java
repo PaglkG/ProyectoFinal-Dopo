@@ -34,11 +34,6 @@ public class PlayerVsBot extends GameSession {
         participantsLeft.add(bot);
     }
 
-    @Override 
-    public void resetConfiguration(boolean player) {
-        participantsRight.get(0).resetConfiguration();
-    }
-
     /**
      * Agrega el usuario indicado a la sesión.
      * @param user identificador de usuario

@@ -72,14 +72,11 @@ El código contiene clases de dominio y de presentación como esqueletos. Los m�
 
 - [x] Esqueleto del modelo de dominio basado en el diagrama de clases.
 - [x] Punto de entrada `App.java` y clases iniciales de interfaz Swing.
-- [x] Clases de prueba preparadas para el dominio.
+- [x] Pruebas automatizadas de las funcionalidades implementadas en dominio y reglas.
 - [ ] Lógica de partida, controles y reglas de victoria.
 - [ ] Física del balón, colisiones y goles.
 - [ ] Poderes, efectos y comportamiento de los bots.
-- [ ] Interfaz de juego y configuración funcionales.
-- [ ] Casos de prueba automatizados.
-
-> Las 32 clases de prueba actuales son esqueletos vacíos. Por eso `mvn clean verify` compila el proyecto, pero todavía informa cero pruebas ejecutadas.
+- [ ] Interfaz de juego funcional.
 
 ## 🧰 Tecnologías
 

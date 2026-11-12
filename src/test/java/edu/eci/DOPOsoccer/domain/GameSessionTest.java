@@ -170,9 +170,6 @@ class GameSessionTest {
             super(player, matchType, parameters);
         }
 
-        @Override
-        public void resetConfiguration(boolean player) {
-        }
     }
 
     /** Tipo de partido abstracto para comprobar el error de instanciación. */

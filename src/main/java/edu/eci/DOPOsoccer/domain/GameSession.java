@@ -72,8 +72,6 @@ public abstract class GameSession {
     public void restartRound() {
     }
 
-    public abstract void resetConfiguration(boolean player);
-
     /**
      * Comprueba si se cumple la cantidad mínima de participantes.
      * @return sesión con participantes suficientes o estado pendiente

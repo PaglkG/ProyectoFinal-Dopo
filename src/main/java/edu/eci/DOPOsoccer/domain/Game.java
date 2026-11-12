@@ -70,15 +70,6 @@ public class Game {
 
 
     /**
-     * Restablece la configuración del usuario seleccionado en la primera sesión.
-     *
-     * @param user {@code true} para el jugador 1; {@code false} para el jugador 2
-     */
-    public void resetConfiguration(boolean user) {
-        sessions.get(0).resetConfiguration(user);
-    }
-
-    /**
      * Registra un gol para el lado indicado. Según la guía, cada gol aumenta
      * en 25 % la barra de poder del lado anotador; la barra completa tarda
      * 10 segundos en recargarse.

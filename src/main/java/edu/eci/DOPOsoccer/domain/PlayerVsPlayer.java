@@ -27,16 +27,6 @@ public class PlayerVsPlayer extends GameSession {
         participantsLeft.add(player2);
     }
 
-    @Override 
-    public void resetConfiguration(boolean player) {
-        if (player) {
-            participantsRight.get(0).resetConfiguration();
-        }
-        else {
-            participantsLeft.get(0).resetConfiguration();
-        }
-    }
-
     /**
      * Agrega los usuarios indicados a la sesión.
      * @param user identificadores de usuario

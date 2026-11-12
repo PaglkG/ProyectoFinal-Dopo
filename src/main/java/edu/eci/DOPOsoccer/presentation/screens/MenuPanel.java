@@ -4,8 +4,8 @@ import javax.swing.JPanel;
 import edu.eci.DOPOSoccer.presentation.navigation.Screen;
 
 /**
- * Pantalla del menú principal. Presentará las opciones para iniciar una partida,
- * abrir la configuración o salir de la aplicación.
+ * Pantalla del menú principal. Presentará las opciones para iniciar una partida
+ * o salir de la aplicación.
  *
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez

@@ -29,9 +29,6 @@ public abstract class SessionParticipant {
     public void move(Action dir) {
     }
 
-    public void resetConfiguration() {
-    }
-
     /** Inicia el salto del participante. */
     public void jump() {
     }

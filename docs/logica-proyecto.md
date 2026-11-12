@@ -28,6 +28,10 @@
 
 - `Ball.resetBall(width, height)` sitúa el balón en el centro geométrico de la cancha (`x = width / 2`, `y = height / 2`) y deja `velocityX` y `velocityY` en cero.
 
+### Configuración del jugador
+
+- El subsistema de configuración fue retirado por decisión de Pablo. El modelo ya no gestiona preferencias de sonido o música ni asignaciones de teclas por jugador.
+
 ## Estado actual del código (no equivale a una regla confirmada)
 
 - `Game.startSession` crea reflectivamente una subclase de `GameSession`, le pasa `player`, el nombre de la modalidad y sus parámetros, y agrega la instancia a la lista de sesiones.
@@ -71,10 +75,9 @@
 - ¿Qué poderes existen, qué objetivo afectan, cuánto duran, qué daño producen y qué enfriamiento tienen?
 - ¿Qué debe ocurrir cuando un participante queda aturdido o un efecto vence/se renueva?
 
-### Bots, controles, reglas y persistencia
+### Bots, reglas y persistencia
 
 - ¿Qué decisiones y prioridades debe seguir cada perfil de bot (`Clumsy`, `Offensive`, `Defensive`, `Expert`)?
-- ¿Cuáles son las teclas predeterminadas y cómo se resuelven conflictos o entradas inválidas?
 - ¿Qué reglas genéricas se pueden agregar/quitar y en qué orden se aplican?
 - ¿Qué datos guarda `save` y restaura `open`; cuál es el formato y qué errores deben reportarse?
 
@@ -84,3 +87,4 @@
 |---|---|---|
 | 2026-11-10 | Las posiciones de `PlayerVsPlayer` son fijas; en `PlayerVsBot`, el humano siempre ocupa la derecha y el bot la izquierda, mientras `player` selecciona la identidad humana. El tiempo transcurrido inicia en cero; `ByTime.check` devuelve `true` para continuar y mantiene empate en muerte súbita. | Pablo |
 | 2026-11-11 | `Ball.resetBall(width, height)` centra el balón geométricamente y pone ambas componentes de velocidad en cero. | Pablo |
+| 2026-11-11 | Se retira el subsistema de configuración del jugador, incluidas preferencias de sonido, música y asignaciones de teclas. | Pablo |
