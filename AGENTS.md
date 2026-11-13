@@ -19,7 +19,7 @@ Estas reglas aplican a cualquier trabajo realizado en este repositorio, en cualq
 
 ## Pruebas
 
-- Ubicar las pruebas en `src/test/java` y conservar la misma estructura de paquetes que la clase probada. Por ejemplo, `src/main/java/edu/eci/DOPOSoccer/domain/Ball.java` corresponde a `src/test/java/edu/eci/DOPOSoccer/domain/BallTest.java` con el paquete `edu.eci.DOPOSoccer.domain`.
+- Ubicar las pruebas en `src/test/java` y conservar la misma estructura de paquetes que la clase probada. Por ejemplo, `src/main/java/domain/Ball.java` corresponde a `src/test/java/domain/BallTest.java` con el paquete `domain`.
 - Nombrar las clases de prueba como `<NombreDeClase>Test` y usar JUnit Jupiter, de acuerdo con la configuración existente del proyecto.
 - En este alcance, crear pruebas para dominio y reglas; no probar esqueletos de presentación.
 - Limitar cada trabajo de pruebas exactamente a lo que pida el usuario. Si solicita pruebas para un diagrama de secuencia, probar solo el flujo y las interacciones de ese diagrama; si solicita un método específico, probar solo ese método. No ampliar la cobertura a otras clases, métodos o diagramas sin que lo solicite.
