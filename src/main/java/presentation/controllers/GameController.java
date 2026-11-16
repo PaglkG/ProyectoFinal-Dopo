@@ -16,19 +16,19 @@ public class GameController {
     private Game game;
     private GameSession session;
 
-    /** Solicita iniciar una partida mediante el modelo. */
+    /** Punto de extensión para iniciar una partida; actualmente no llama al modelo. */
     public void startGame() {
     }
 
-    /** Solicita mover al participante en la dirección indicada. */
+    /** Punto de extensión para enviar el movimiento; actualmente no llama al modelo. */
     public void movePlayer(SessionParticipant participant, char direction) {
     }
 
-    /** Solicita que el participante salte. */
+    /** Punto de extensión para enviar el salto; actualmente no llama al modelo. */
     public void jumpPlayer(SessionParticipant participant) {
     }
 
-    /** Solicita que el participante active su poder. */
+    /** Punto de extensión para enviar la activación del poder; actualmente no llama al modelo. */
     public void activatePower(SessionParticipant participant) {
     }
 }

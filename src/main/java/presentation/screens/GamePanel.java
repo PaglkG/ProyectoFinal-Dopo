@@ -16,17 +16,17 @@ public class GamePanel extends JPanel implements Screen {
     public GamePanel() {
     }
 
-    /** Prepara la vista de juego cuando se muestra. */
+    /** Punto de extensión para preparar la vista al mostrarla; actualmente el cuerpo está vacío. */
     @Override
     public void onShow() {
     }
 
-    /** Ejecuta las tareas de ocultamiento de la vista de juego. */
+    /** Punto de extensión para ocultar la vista; actualmente el cuerpo está vacío. */
     @Override
     public void onHide() {
     }
 
-    /** Libera los recursos asociados a la vista de juego. */
+    /** Punto de extensión para liberar recursos; actualmente el cuerpo está vacío. */
     @Override
     public void dispose() {
     }

@@ -71,6 +71,9 @@ package "domain" {
     - RightGoalHitbox: RectangularHitbox
     - fieldHitbox: RectangularHitbox[]
     - balls: Ball[]
+    ~ advanceBalls(deltaSeconds: double, gravity: double): void
+    ~ bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    ~ bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
     + resetBall(x: double, y: double): void
     + getHitboxField(): RectangularHitbox[]
     + getHitboxBalls(): CircularHitbox[]
@@ -284,7 +287,21 @@ note bottom of Hitbox
 end note
 note bottom of GameSession
   updateGame() usa paso fijo de 1/60 s.
-  collision() resuelve goles, rebotes, impulsos
-  y errores de salida/superposición.
+  Coordina goles, errores de salida/superposición
+  y contactos con participantes. SoccerField
+  avanza los balones y resuelve sus contactos
+  con límites, arcos y suelo.
+  kickPlayer() valida participante, sesión
+  y alcance antes de impulsar el balón.
+end note
+note right of SoccerField
+  Contiene y recorre los balones, límites
+  y zonas de gol; resuelve el contacto
+  de los balones con la geometría de cancha.
+end note
+note bottom of Ball
+  Guarda posición y velocidad, integra
+  el movimiento y ejecuta rebotes e impulsos
+  que le delegan la cancha o la sesión.
 end note
 @enduml

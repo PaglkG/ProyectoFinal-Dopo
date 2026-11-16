@@ -14,19 +14,19 @@ public class ScreenManager {
     private Map<String, Screen> screens;
     private String currentScreen;
 
-    /** Registra una pantalla con el identificador indicado. */
+    /** Punto de extensión para registrar una pantalla; actualmente el cuerpo está vacío. */
     public void registerScreen(String screenId, Screen screen) {
     }
 
-    /** Solicita la navegación hacia la pantalla identificada. */
+    /** Punto de extensión para mostrar una pantalla; actualmente el cuerpo está vacío. */
     public void showScreen(String screenId) {
     }
 
-    /** Solicita ocultar la pantalla actualmente visible. */
+    /** Punto de extensión para ocultar la pantalla visible; actualmente el cuerpo está vacío. */
     public void hideCurrentScreen() {
     }
 
-    /** Libera los recursos de las pantallas registradas. */
+    /** Punto de extensión para liberar pantallas; actualmente el cuerpo está vacío. */
     public void disposeScreens() {
     }
 }

@@ -20,12 +20,26 @@ public class SoccerField implements Hitbox {
     private Ball[] balls;
 
     /**
-     * Crea una cancha provisional de 450 por 150 unidades y un balón de radio 2.
+     * Crea una cancha provisional de 450 por 150 unidades y un balón de radio 10.
      */
     public SoccerField() {
-        balls = new Ball[] {new Ball(450, 150, 2)};
+        balls = new Ball[] {new Ball(450, 150, 10)};
         reposition(0, 0);
     }
+
+    /** Avanza todos los balones contenidos usando el paso y gravedad indicados. */
+    void advanceBalls(double deltaSeconds, double gravity) {
+        for (Ball ball : balls) {
+            ball.advance(deltaSeconds, gravity);
+        }
+    }
+
+    /**
+     * Reúne en un arreglo los límites, los dos arcos y cada balón de la cancha.
+     * El orden es límites, arco izquierdo, arco derecho y balones.
+     *
+     * @return arreglo de objetos que exponen hitboxes
+     */
     public Hitbox[] hitboxs() {
         Hitbox[] hitbox = new Hitbox[fieldHitbox.length + 2 + balls.length];
         System.arraycopy(fieldHitbox, 0, hitbox, 0, fieldHitbox.length);
@@ -71,65 +85,132 @@ public class SoccerField implements Hitbox {
                 .toArray(CircularHitbox[]::new);
     }
 
-    /** Devuelve una copia del arreglo de balones de la cancha. */
+    /** @return copia del arreglo de balones, sin copiar los objetos contenidos */
     public Ball[] getBalls() {
         return balls.clone();
     }
 
-    /** Devuelve las hitboxes de los arcos: izquierda y derecha, en ese orden. */
+    /** @return hitboxes de los arcos, primero el izquierdo y luego el derecho */
     public RectangularHitbox[] getGoalHitboxes() {
         return new RectangularHitbox[] {LeftGoalHitbox, RightGoalHitbox};
     }
 
+    /** @return copia interna del arreglo de balones para cálculos del dominio */
     Ball[] balls() {
         return balls.clone();
     }
 
+    /** @return coordenada horizontal izquierda del rectángulo exterior */
     double courtX() { return fieldHitbox[0].getX(); }
+    /** @return coordenada vertical superior del rectángulo exterior */
     double courtY() { return fieldHitbox[0].getY(); }
+    /** @return ancho del rectángulo exterior */
     double courtWidth() { return fieldHitbox[0].getWidth(); }
+    /** @return alto del rectángulo exterior */
     double courtHeight() { return fieldHitbox[2].getHeight(); }
+    /** @return grosor de los límites superior e inferior */
     double boundaryThickness() { return fieldHitbox[0].getHeight(); }
+    /** @return coordenada vertical del borde superior del límite inferior */
     double groundY() { return fieldHitbox[1].getY(); }
 
-    /** Devuelve el arco cuyo rectángulo contiene el centro del balón, si existe. */
+    /** Resuelve los rebotes de un balón contra límites laterales, techo y arcos. */
+    void bounceBallAtWallsAndGoalFrames(Ball ball, double retention) {
+        var walls = getHitboxField();
+        double radius = ball.getRadius();
+        double left = walls[2].getX() + walls[2].getWidth();
+        double right = walls[3].getX() - radius;
+        double top = walls[0].getY() + walls[0].getHeight() + radius;
+        if (ball.getX() < left + radius) ball.bounceHorizontallyAt(left + radius, retention);
+        else if (ball.getX() > right) ball.bounceHorizontallyAt(right, retention);
+        if (ball.getY() < top) ball.bounceVerticallyAt(top, retention);
+
+        for (var goal : getGoalHitboxes()) {
+            if (ball.getY() >= goal.getY() && ball.getY() <= goal.getY() + goal.getHeight()) continue;
+            double closestX = Math.max(goal.getX(), Math.min(ball.getX(), goal.getX() + goal.getWidth()));
+            double closestY = Math.max(goal.getY(), Math.min(ball.getY(), goal.getY() + goal.getHeight()));
+            double dx = ball.getX() - closestX;
+            double dy = ball.getY() - closestY;
+            if (Math.hypot(dx, dy) > radius) continue;
+            if (Math.abs(dx) >= Math.abs(dy)) {
+                int direction = dx < 0 ? -1 : 1;
+                ball.bounceHorizontallyAt(closestX + direction * radius, retention);
+            } else {
+                int direction = dy < 0 ? -1 : 1;
+                ball.bounceVerticallyAt(closestY + direction * radius, retention);
+            }
+        }
+    }
+
+    /** Recoloca el balón sobre el suelo y delega en él la respuesta del rebote. */
+    void bounceBallAtGround(Ball ball, double retention, double minimumSpeed) {
+        if (touchesGround(ball)) {
+            ball.bounceAt(groundCenterY(ball), retention, minimumSpeed);
+        }
+    }
+
+    /**
+     * Devuelve {@code "left"} o {@code "right"} si el centro del balón está
+     * dentro o sobre el borde del arco correspondiente; si no, devuelve cadena vacía.
+     * @param ball balón cuya posición se compara
+     * @return identificador del arco que contiene el centro o cadena vacía
+     */
     String goalSideFor(Ball ball) {
         if (containsCenter(LeftGoalHitbox, ball)) return "left";
         if (containsCenter(RightGoalHitbox, ball)) return "right";
         return "";
     }
 
+    /**
+     * Compara ambas coordenadas del centro con los intervalos inclusivos del
+     * rectángulo del arco; no usa el radio del balón.
+     * @param goal hitbox rectangular del arco
+     * @param ball balón cuya posición se consulta
+     * @return {@code true} si el centro está dentro o sobre el borde
+     */
     private boolean containsCenter(RectangularHitbox goal, Ball ball) {
         return ball.getX() >= goal.getX() && ball.getX() <= goal.getX() + goal.getWidth()
                 && ball.getY() >= goal.getY() && ball.getY() <= goal.getY() + goal.getHeight();
     }
 
+    /** Comprueba si cualquier parte circular del balón excede el rectángulo exterior. */
     boolean isOutside(Ball ball) {
         double radius = ball.getRadius();
         return ball.getX() - radius < courtX() || ball.getX() + radius > courtX() + courtWidth()
                 || ball.getY() - radius < courtY() || ball.getY() + radius > courtY() + courtHeight();
     }
 
+    /** Comprueba si el rectángulo del participante excede el rectángulo exterior. */
     boolean isOutside(SessionParticipant participant) {
         RectangularHitbox box = participant.getHitbox();
         return box.getX() < courtX() || box.getX() + box.getWidth() > courtX() + courtWidth()
                 || box.getY() < courtY() || box.getY() + box.getHeight() > courtY() + courtHeight();
     }
 
+    /** Comprueba contacto del participante con los límites superior o laterales. */
     boolean touchesForbiddenBoundary(SessionParticipant participant) {
         return fieldHitbox[0].intersects(participant).isContact()
                 || fieldHitbox[2].intersects(participant).isContact()
                 || fieldHitbox[3].intersects(participant).isContact();
     }
 
+    /** Comprueba si la hitbox circular del balón toca el límite inferior. */
     boolean touchesGround(Ball ball) {
         return fieldHitbox[1].intersects(ball).isContact();
     }
 
+    /** Calcula la altura del centro del balón cuando su borde inferior toca el suelo. */
     double groundCenterY(Ball ball) {
         return groundY() - ball.getRadius();
     }
 
+    /**
+     * Ajusta hitboxes al tamaño provisional de cancha y coloca al primer
+     * participante a un cuarto del ancho y al segundo a tres cuartos, ambos
+     * apoyados sobre el suelo.
+     *
+     * @param left participante ubicado en el lado izquierdo
+     * @param right participante ubicado en el lado derecho
+     */
     void positionParticipants(SessionParticipant left, SessionParticipant right) {
         double width = courtWidth() / 20;
         double height = courtHeight() / 3;
@@ -210,7 +291,9 @@ public class SoccerField implements Hitbox {
     }
 
     /**
-     * Reposiciona las hitboxes de la cancha conservando su distribución.
+     * Reposiciona límites y arcos según el origen dado; al mover la cancha,
+     * traslada los balones por el mismo desplazamiento para conservar su posición
+     * relativa. Las dimensiones y la distribución geométrica permanecen fijas.
      *
      * @param x nueva coordenada horizontal de la esquina superior izquierda
      * @param y nueva coordenada vertical de la esquina superior izquierda
@@ -222,7 +305,7 @@ public class SoccerField implements Hitbox {
         double boundaryThickness = height / 100;
         double goalWidth = width / 10;
         double goalHeight = height / 3;
-        double goalY = y + (height - goalHeight) / 2;
+        double goalY = y + height - boundaryThickness - goalHeight;
         double previousCenterX = fieldHitbox == null ? x + width / 2 : courtX() + width / 2;
         double previousCenterY = fieldHitbox == null ? y + height / 2 : courtY() + height / 2;
 

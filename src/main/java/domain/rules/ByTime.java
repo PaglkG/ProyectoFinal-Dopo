@@ -12,7 +12,15 @@ public class ByTime extends TypeOfMatch {
     private boolean suddenDeath;
 
 
-    /** Crea una modalidad por tiempo. */
+    /**
+     * Lee el primer parámetro como duración límite en minutos y rechaza valores
+     * negativos.
+     *
+     * @param parametersRules lista cuyo primer elemento representa los minutos
+     * @throws GameException si la duración es negativa
+     * @throws IndexOutOfBoundsException si la lista no contiene un elemento
+     * @throws NumberFormatException si el primer elemento no representa un entero
+     */
     public ByTime(List<String> parametersRules) throws GameException{
         minutes = Integer.parseInt(parametersRules.get(0));
         if (minutes < 0) {
@@ -25,8 +33,14 @@ public class ByTime extends TypeOfMatch {
      *
      * @param parameters marcador izquierdo, marcador derecho y minutos
      *        transcurridos, en ese orden
-     * @return {@code true} si el tiempo no se agotó o si el marcador está empatado;
-     *         {@code false} si el tiempo se agotó y hay un ganador
+     * Si el tiempo no se ha agotado, deja el estado de muerte súbita como está.
+     * Cuando ya se agotó, activa ese estado si hay empate; de lo contrario, lo
+     * desactiva.
+     *
+     * @return {@code true} si la partida continúa; {@code false} si el tiempo
+     *         se agotó y el marcador es desigual
+     * @throws IndexOutOfBoundsException si no hay tres valores
+     * @throws NumberFormatException si los marcadores o el tiempo no son enteros
      */
     @Override
     public boolean check(List<String> parameters) {

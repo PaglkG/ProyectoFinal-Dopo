@@ -84,7 +84,7 @@ class HitboxTest {
     void fieldReportsBallAndFieldPartsForBoundaryGoalAndContainedBallContacts() {
         SoccerField field = new SoccerField();
         Ball boundaryBall = ballAt(100, 0, 2);
-        Ball goalBall = ballAt(20, 75, 2);
+        Ball goalBall = ballAt(20, 125, 2);
         Ball containedBall = ballAt(225, 75, 2);
         Ball farBall = ballAt(500, 200, 2);
 

@@ -18,7 +18,7 @@ class GameSessionUpdateTest {
     void scoresForSideOppositeTheGoalAndResetsRound() throws Exception {
         PlayerVsPlayer session = session(5);
         Ball ball = ball(session);
-        ball.reposition(20, 75);
+        ball.reposition(20, 125);
 
         session.updateGame();
 
@@ -31,9 +31,23 @@ class GameSessionUpdateTest {
     }
 
     @Test
+    void ballEnteringGoalFromTheFieldScoresInsteadOfBouncingAtItsOpening() throws Exception {
+        PlayerVsPlayer session = session(5);
+        Ball ball = ball(session);
+        ball.reposition(46, 120);
+        ball.applyImpulse(-150, 0);
+
+        session.updateGame();
+
+        assertEquals(1, session.getGoalsRight());
+        assertEquals(225, ball.getX());
+        assertEquals(75, ball.getY());
+    }
+
+    @Test
     void reachingGoalLimitFinishesAndStopsClock() throws Exception {
         PlayerVsPlayer session = session(1);
-        ball(session).reposition(20, 75);
+        ball(session).reposition(20, 125);
         session.updateGame();
         double elapsed = session.getElapsedSeconds();
 
@@ -45,7 +59,7 @@ class GameSessionUpdateTest {
     @Test
     void goalIsScoredBeforeBallHitboxOutsideCheck() throws Exception {
         PlayerVsPlayer session = session(5);
-        ball(session).reposition(1, 75); // centro dentro del arco, hitbox parcialmente fuera
+        ball(session).reposition(1, 125); // centro dentro del arco, hitbox parcialmente fuera
 
         session.updateGame();
 
@@ -114,7 +128,7 @@ class GameSessionUpdateTest {
     void ballBouncesOffGoalFrameWhenItsCenterHasNotEnteredGoal() throws Exception {
         PlayerVsPlayer session = session(5);
         Ball ball = ball(session);
-        ball.reposition(47, 75);
+        ball.reposition(46.2, 97.5);
         ball.applyImpulse(-10, 0);
 
         session.updateGame();
@@ -148,7 +162,7 @@ class GameSessionUpdateTest {
         PlayerVsPlayer outsiderSession = session(5);
         assertFalse(outsiderSession.kickPlayer(new Player(1)));
 
-        ball(session).reposition(20, 75);
+        ball(session).reposition(20, 125);
         session.updateGame();
         assertTrue(session.isFinished());
         assertFalse(session.kickPlayer(left));
@@ -219,7 +233,7 @@ class GameSessionUpdateTest {
         session.participantsRight.get(0).resetPosition(350, 50);
         session.updateGame();
         assertFalse(session.isFinished()); // zero-minute tie proceeds as sudden death
-        ball(session).reposition(20, 75);
+        ball(session).reposition(20, 125);
         session.updateGame();
         assertTrue(session.isFinished());
     }

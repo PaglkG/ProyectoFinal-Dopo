@@ -30,6 +30,7 @@ final class PresentationMovement {
             Collections.synchronizedMap(new IdentityHashMap<>());
     private GameSession activeSession;
 
+    /** Registra o libera una tecla y detecta el flanco inicial de las solicitudes de salto. */
     void setControl(Control control, boolean pressed) {
         if (pressed) {
             boolean firstPress = held.add(control);
@@ -39,23 +40,30 @@ final class PresentationMovement {
         }
     }
 
+    /** Elimina todas las teclas mantenidas y las solicitudes de salto pendientes. */
     void clearInputs() {
         held.clear();
         jumpRequested.clear();
     }
 
+    /** Limpia controles y velocidades verticales y establece la sesión activa. */
     void reset(GameSession session) {
         clearInputs();
         verticalSpeeds.clear();
         activeSession = session;
     }
 
+    /** Limpia saltos pendientes y velocidades verticales tras reiniciar una ronda. */
     void resetAfterRound(GameSession session) {
         jumpRequested.clear();
         verticalSpeeds.clear();
         activeSession = session;
     }
 
+    /**
+     * Actualiza movimiento visual de los humanos permitidos por la modalidad;
+     * descarta velocidades de una sesión anterior e ignora partidas terminadas.
+     */
     void update(GameSession session, MechanicsTestController.SessionMode mode) {
         if (session != activeSession) {
             verticalSpeeds.clear();
@@ -68,7 +76,6 @@ final class PresentationMovement {
         SessionParticipant leftActor = left.isEmpty() ? null : left.get(0);
         SessionParticipant rightActor = right.isEmpty() ? null : right.get(0);
 
-        // En jugador contra bot, solo se controla al humano situado a la derecha.
         if (mode == MechanicsTestController.SessionMode.PLAYER_VS_PLAYER && leftActor != null) {
             updateActor(leftActor, rightActor, field, Control.LEFT_LEFT, Control.LEFT_RIGHT, Control.LEFT_JUMP);
         }
@@ -78,6 +85,11 @@ final class PresentationMovement {
         jumpRequested.clear();
     }
 
+    /**
+     * Calcula el movimiento horizontal y vertical de un actor, limita su posición
+     * a la cancha, bloquea desplazamientos que causarían contacto con el rival y
+     * conserva la velocidad vertical entre pasos.
+     */
     private void updateActor(SessionParticipant actor, SessionParticipant opponent, SoccerField field,
             Control leftControl, Control rightControl, Control jumpControl) {
         var box = actor.getHitbox();
@@ -115,14 +127,17 @@ final class PresentationMovement {
         verticalSpeeds.put(actor, verticalSpeed);
     }
 
+    /** Comprueba contacto entre actores y trata un primer actor nulo como ausencia de contacto. */
     private boolean touches(SessionParticipant first, SessionParticipant second) {
         return first != null && first.intersects(second).isContact();
     }
 
+    /** @return {@code true} cuando el control representa una tecla de salto */
     private boolean isJump(Control control) {
         return control == Control.LEFT_JUMP || control == Control.RIGHT_JUMP;
     }
 
+    /** Limita el valor al intervalo cerrado entre el mínimo y el máximo. */
     private double clamp(double value, double minimum, double maximum) {
         return Math.max(minimum, Math.min(maximum, value));
     }

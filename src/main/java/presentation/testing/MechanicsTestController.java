@@ -19,13 +19,17 @@ public final class MechanicsTestController {
     public enum MatchMode {
         GOALS("Por goles"), TIME("Por tiempo");
         private final String label;
+        /** @param label texto que se muestra para esta modalidad */
         MatchMode(String label) { this.label = label; }
+        /** @return etiqueta legible de la modalidad */
         @Override public String toString() { return label; }
     }
     public enum SessionMode {
         PLAYER_VS_PLAYER("Dos jugadores"), PLAYER_VS_BOT("Jugador contra bot");
         private final String label;
+        /** @param label texto que se muestra para este tipo de sesión */
         SessionMode(String label) { this.label = label; }
+        /** @return etiqueta legible del tipo de sesión */
         @Override public String toString() { return label; }
     }
     public enum Scenario {
@@ -41,10 +45,18 @@ public final class MechanicsTestController {
     private int selectedLimit = 5;
     private final PresentationMovement movement = new PresentationMovement();
 
+    /** Inicia el banco con una sesión local de dos jugadores y límite de cinco goles. */
     public MechanicsTestController() {
         startNewSession(SessionMode.PLAYER_VS_PLAYER, MatchMode.GOALS, 5);
     }
 
+    /**
+     * Guarda las opciones seleccionadas, limita el valor configurado a cero como
+     * mínimo y crea una sesión nueva con esos valores.
+     * @param sessionMode modalidad de participantes
+     * @param matchMode modalidad de victoria
+     * @param limit límite de goles o minutos solicitado
+     */
     public void startNewSession(SessionMode sessionMode, MatchMode matchMode, int limit) {
         selectedSessionMode = sessionMode;
         selectedMatchMode = matchMode;
@@ -52,6 +64,7 @@ public final class MechanicsTestController {
         createSession(sessionMode, matchMode, selectedLimit);
     }
 
+    /** Construye una instancia nueva del dominio con la modalidad seleccionada y reinicia el control visual. */
     private void createSession(SessionMode sessionMode, MatchMode matchMode, int limit) {
         game = new Game();
         String sessionClass = sessionMode == SessionMode.PLAYER_VS_BOT
@@ -61,6 +74,10 @@ public final class MechanicsTestController {
         movement.reset(session);
     }
 
+    /**
+     * Ejecuta un paso visual y uno del dominio si la partida continúa; después
+     * de un gol limpia el estado vertical del movimiento de presentación.
+     */
     public void step() {
         if (session.isFinished()) return;
         int previousLeftGoals = session.getGoalsLeft();
@@ -72,29 +89,40 @@ public final class MechanicsTestController {
         }
     }
 
+    /** @param control tecla lógica que cambia de estado @param pressed indica si permanece presionada */
     void setMovementControl(PresentationMovement.Control control, boolean pressed) {
         movement.setControl(control, pressed);
     }
 
-    /** Patea hacia el arco derecho si el balón está al alcance del jugador izquierdo. */
+    /**
+     * Intenta patear hacia el arco derecho con el primer jugador izquierdo.
+     * @return {@code true} si se aplicó la patada; en modo contra bot siempre devuelve {@code false}
+     */
     boolean kickLeft() {
         if (selectedSessionMode != SessionMode.PLAYER_VS_PLAYER) return false;
         return kick(session.getParticipantsLeft());
     }
 
-    /** Patea hacia el arco izquierdo si el balón está al alcance del jugador derecho. */
+    /**
+     * Intenta patear hacia el arco izquierdo con el primer jugador derecho.
+     * @return {@code true} si se aplicó la patada
+     */
     boolean kickRight() {
         return kick(session.getParticipantsRight());
     }
 
+    /** Intenta patear con el primer participante de la lista y falla si está vacía. */
     private boolean kick(List<SessionParticipant> participants) {
         if (participants.isEmpty()) return false;
         return session.kickPlayer(participants.get(0));
     }
 
-    /** Prepara y avanza exactamente un escenario usando la actualización real de la sesión. */
+    /**
+     * Crea una sesión limpia, prepara el estado físico del escenario solicitado
+     * y avanza la sesión mediante el código real del dominio.
+     * @param scenario caso manual que se prepara antes del paso
+     */
     public void runScenario(Scenario scenario) {
-        // Cada botón comienza desde un estado limpio para que el escenario sea repetible.
         createSession(selectedSessionMode, selectedMatchMode, selectedLimit);
         SoccerField field = session.getField();
         Ball ball = field.getBalls()[0];
@@ -137,21 +165,24 @@ public final class MechanicsTestController {
             }
             case SUDDEN_DEATH_WIN -> {
                 createSession(selectedSessionMode, MatchMode.TIME, 0);
-                step(); // Empate con tiempo agotado: continúa en muerte súbita.
+                step();
                 placeInGoal(session.getField(), session.getField().getBalls()[0], 0);
             }
         }
         step();
     }
 
+    /** Coloca el centro del balón en el centro del arco elegido por índice. */
     private static void placeInGoal(SoccerField field, Ball ball, int goalIndex) {
         var goal = field.getGoalHitboxes()[goalIndex];
         ball.reposition(goal.getX() + goal.getWidth() / 2, goal.getY() + goal.getHeight() / 2);
     }
 
+    /** Cancela las dos componentes actuales de velocidad sumando sus opuestos. */
     private static void neutralizeVelocity(Ball ball) {
         ball.applyImpulse(-ball.getVelocityX(), -ball.getVelocityY());
     }
 
+    /** @return sesión del dominio que controla actualmente el banco */
     public GameSession getSession() { return session; }
 }

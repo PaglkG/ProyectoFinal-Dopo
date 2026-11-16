@@ -137,8 +137,9 @@ alt sesión ya terminada
   S --> G: no avanza
 else sesión activa
   S -> S: tiempo += 1/60 s
+  S -> F: advanceBalls(1/60, 40)
   loop cada balón
-    S -> B: advance(1/60, 40)
+    F -> B: advance(1/60, 40)
   end
   S -> S: collision()
   S -> S: validar participantes fuera/límites y superposición
@@ -156,13 +157,15 @@ else sesión activa
       S -> S: reposicionar participantes simétricamente
       S -> S: checkTypeOfMatch()
     else sin gol
+      S -> F: bounceBallAtWallsAndGoalFrames(ball, 70%)
+      F -> B: bounceHorizontallyAt / bounceVerticallyAt
       S -> F: isOutside(ball)
       alt hitbox fuera
         S --> G: GameException("objeto fuera de la partida")
       else dentro
-        S -> F: touchesGround(ball)
+        S -> F: bounceBallAtGround(ball, 70%, 0.5)
         opt toca suelo
-          S -> B: bounceAt(70%, mínimo 0.5)
+          F -> B: bounceAt(70%, mínimo 0.5)
         end
         loop cada participante
           S -> B: intersects(participant)

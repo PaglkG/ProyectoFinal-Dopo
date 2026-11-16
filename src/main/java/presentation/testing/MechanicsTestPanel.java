@@ -53,6 +53,7 @@ public final class MechanicsTestPanel extends JPanel {
     private final JButton kickRightButton = new JButton("Patear derecha (Enter)");
     private final Set<Integer> kickKeysDown = new HashSet<>();
 
+    /** Construye controles, escenarios, área de juego y enlaces de teclado; después crea la sesión inicial. */
     public MechanicsTestPanel() {
         super(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
@@ -60,7 +61,7 @@ public final class MechanicsTestPanel extends JPanel {
         add(buildSettings(), BorderLayout.NORTH);
         add(fieldView, BorderLayout.CENTER);
         add(buildScenarios(), BorderLayout.EAST);
-        add(buildFooter(), BorderLayout.SOUTH);
+        fieldView.add(buildFooter(), BorderLayout.SOUTH);
         configureMovementKeys();
         startSession();
     }
@@ -70,6 +71,7 @@ public final class MechanicsTestPanel extends JPanel {
         timer.stop();
     }
 
+    /** Crea los selectores de sesión y modalidad, el límite y los controles de simulación. */
     private JPanel buildSettings() {
         JPanel settings = new JPanel();
         settings.setOpaque(false);
@@ -90,6 +92,7 @@ public final class MechanicsTestPanel extends JPanel {
         return settings;
     }
 
+    /** Construye la lista desplazable de patadas y escenarios manuales disponibles. */
     private JPanel buildScenarios() {
         JPanel panel = new JPanel(new GridLayout(0, 1, 6, 6));
         panel.setOpaque(false);
@@ -119,6 +122,7 @@ public final class MechanicsTestPanel extends JPanel {
         return wrapScenarioScroll(scroll);
     }
 
+    /** Inserta la lista desplazable en un panel contenedor transparente. */
     private JPanel wrapScenarioScroll(JScrollPane scroll) {
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setOpaque(false);
@@ -126,6 +130,7 @@ public final class MechanicsTestPanel extends JPanel {
         return wrapper;
     }
 
+    /** Añade un botón que ejecuta el escenario, comunica errores y refresca la vista. */
     private void addScenario(JPanel panel, String title, MechanicsTestController.Scenario scenario) {
         JButton button = new JButton(title);
         button.setFocusPainted(false);
@@ -149,6 +154,7 @@ public final class MechanicsTestPanel extends JPanel {
         panel.add(button);
     }
 
+    /** Construye la zona inferior con marcador, estado e instrucciones de control. */
     private JPanel buildFooter() {
         JPanel footer = new JPanel(new BorderLayout(8, 4));
         footer.setOpaque(false);
@@ -166,6 +172,7 @@ public final class MechanicsTestPanel extends JPanel {
         return footer;
     }
 
+    /** Asocia teclas de movimiento, salto y patada con las acciones del controlador. */
     private void configureMovementKeys() {
         bindKey(KeyEvent.VK_A, "move-left-left", PresentationMovement.Control.LEFT_LEFT);
         bindKey(KeyEvent.VK_D, "move-left-right", PresentationMovement.Control.LEFT_RIGHT);
@@ -177,16 +184,19 @@ public final class MechanicsTestPanel extends JPanel {
         bindKickKey(KeyEvent.VK_ENTER, "kick-right", false);
     }
 
+    /** Vincula la pulsación y liberación de una tecla con un control de movimiento. */
     private void bindKey(int keyCode, String name, PresentationMovement.Control control) {
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), name + "-pressed");
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), name + "-released");
         getActionMap().put(name + "-pressed", new AbstractAction() {
+            /** Envía al controlador el inicio del estado presionado. */
             @Override
             public void actionPerformed(ActionEvent event) {
                 controller.setMovementControl(control, true);
             }
         });
         getActionMap().put(name + "-released", new AbstractAction() {
+            /** Envía al controlador la liberación del control. */
             @Override
             public void actionPerformed(ActionEvent event) {
                 controller.setMovementControl(control, false);
@@ -194,10 +204,12 @@ public final class MechanicsTestPanel extends JPanel {
         });
     }
 
+    /** Vincula una tecla de patada y evita repetirla mientras siga presionada. */
     private void bindKickKey(int keyCode, String name, boolean leftPlayer) {
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), name + "-pressed");
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), name + "-released");
         getActionMap().put(name + "-pressed", new AbstractAction() {
+            /** Ejecuta una sola patada por pulsación de la tecla. */
             @Override
             public void actionPerformed(ActionEvent event) {
                 if (!kickKeysDown.add(keyCode)) return;
@@ -205,6 +217,7 @@ public final class MechanicsTestPanel extends JPanel {
             }
         });
         getActionMap().put(name + "-released", new AbstractAction() {
+            /** Elimina la tecla del conjunto de teclas de patada presionadas. */
             @Override
             public void actionPerformed(ActionEvent event) {
                 kickKeysDown.remove(keyCode);
@@ -212,6 +225,7 @@ public final class MechanicsTestPanel extends JPanel {
         });
     }
 
+    /** Intenta la patada del lado elegido y actualiza el mensaje y el dibujo. */
     private void performKick(boolean leftPlayer) {
         boolean kicked = leftPlayer ? controller.kickLeft() : controller.kickRight();
         String side = leftPlayer ? "izquierdo" : "derecho";
@@ -226,12 +240,14 @@ public final class MechanicsTestPanel extends JPanel {
         refreshView();
     }
 
+    /** Crea una etiqueta con el estilo de texto usado en el panel. */
     private JLabel label(String text) {
         JLabel label = new JLabel(text);
         label.setForeground(Color.WHITE);
         return label;
     }
 
+    /** Detiene la partida anterior, crea otra con las opciones actuales e inicia su temporizador. */
     private void startSession() {
         timer.stop();
         runButton.setText("Iniciar simulación");
@@ -253,6 +269,7 @@ public final class MechanicsTestPanel extends JPanel {
         focusGameField();
     }
 
+    /** Pausa el temporizador o lo reanuda y devuelve el foco al campo de juego. */
     private void toggleSimulation() {
         if (timer.isRunning()) {
             timer.stop();
@@ -264,6 +281,7 @@ public final class MechanicsTestPanel extends JPanel {
         }
     }
 
+    /** Avanza la sesión una vez, detiene el temporizador al terminar o ante una excepción y refresca la vista. */
     private void advanceOneStep(boolean showStepStatus) {
         try {
             controller.step();
@@ -285,6 +303,7 @@ public final class MechanicsTestPanel extends JPanel {
         refreshView();
     }
 
+    /** Actualiza el texto del marcador y solicita redibujar el campo. */
     private void refreshView() {
         GameSession session = controller.getSession();
         Ball ball = session.getField().getBalls()[0];
@@ -295,34 +314,49 @@ public final class MechanicsTestPanel extends JPanel {
         fieldView.repaint();
     }
 
+    /** Solicita el foco del campo en el hilo de eventos de Swing. */
     private void focusGameField() {
         SwingUtilities.invokeLater(fieldView::requestFocusInWindow);
     }
 
     private final class FieldView extends JPanel {
+        /** Crea el área gráfica y configura su tamaño, fondo y borde. */
         private FieldView() {
+            setLayout(new BorderLayout());
             setPreferredSize(new Dimension(760, 420));
             setBackground(new Color(32, 91, 61));
             setBorder(BorderFactory.createLineBorder(new Color(110, 140, 116), 2));
             setFocusable(true);
         }
 
+        /** Dibuja estadio, cancha, arcos, participantes, balón e indicador de velocidad. */
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            drawStadium(g);
             SoccerField field = controller.getSession().getField();
             var bounds = field.getHitboxField();
             double x = bounds[0].getX();
             double y = bounds[0].getY();
             double width = bounds[0].getWidth();
             double height = bounds[2].getHeight();
-            double scale = Math.min((getWidth() - 50.0) / width, (getHeight() - 50.0) / height);
+            double scale = Math.min((getWidth() - 50.0) / width, (getHeight() * .52) / height);
             double offsetX = (getWidth() - width * scale) / 2;
-            double offsetY = (getHeight() - height * scale) / 2;
+            double offsetY = getHeight() - height * scale;
 
-            g.setColor(new Color(230, 243, 228));
+            g.setPaint(new java.awt.GradientPaint(0, (float) offsetY, new Color(87, 190, 48),
+                    0, (float) (offsetY + height * scale), new Color(25, 128, 18)));
+            g.fill(new Rectangle2D.Double(offsetX, offsetY, width * scale, height * scale));
+            for (int stripe = 0; stripe < 8; stripe++) {
+                if (stripe % 2 == 0) {
+                    g.setColor(new Color(190, 245, 115, 32));
+                    g.fill(new Rectangle2D.Double(offsetX + stripe * width * scale / 8, offsetY,
+                            width * scale / 8, height * scale));
+                }
+            }
+            g.setColor(Color.WHITE);
             g.setStroke(new BasicStroke(2f));
             g.draw(new Rectangle2D.Double(offsetX, offsetY, width * scale, height * scale));
             g.draw(new Ellipse2D.Double(offsetX + width * scale * .375,
@@ -333,6 +367,8 @@ public final class MechanicsTestPanel extends JPanel {
                 drawRect(g, goal.getX() - x, goal.getY() - y, goal.getWidth(), goal.getHeight(),
                         offsetX, offsetY, scale, new Color(237, 191, 87, 120), true);
             }
+            drawGoal(g, offsetX - 14, offsetY + height * scale * .42, 28, height * scale * .58);
+            drawGoal(g, offsetX + width * scale - 14, offsetY + height * scale * .42, 28, height * scale * .58);
             drawParticipants(g, controller.getSession().getParticipantsLeft(), x, y, offsetX, offsetY, scale,
                     new Color(71, 151, 255));
             drawParticipants(g, controller.getSession().getParticipantsRight(), x, y, offsetX, offsetY, scale,
@@ -350,6 +386,58 @@ public final class MechanicsTestPanel extends JPanel {
             g.dispose();
         }
 
+        /** Dibuja el fondo decorativo del estadio y su tribuna. */
+        private void drawStadium(Graphics2D g) {
+            int w = getWidth(), h = getHeight();
+            g.setPaint(new java.awt.GradientPaint(0, 0, new Color(74, 41, 45), 0, h * .55f,
+                    new Color(205, 133, 75)));
+            g.fillRect(0, 0, w, h);
+            g.setColor(new Color(224, 177, 100));
+            g.fillRect(0, h / 3, w, 12);
+            g.setColor(new Color(111, 66, 54));
+            g.fillRect(0, h / 3 + 12, w, 22);
+            java.util.Random crowd = new java.util.Random(19);
+            Color[] seats = {new Color(224, 79, 44), new Color(239, 184, 54),
+                    new Color(48, 130, 105), new Color(230, 220, 184)};
+            for (int row = 0; row < 7; row++) {
+                for (int col = 0; col < w / 8; col++) {
+                    g.setColor(seats[crowd.nextInt(seats.length)]);
+                    int x = col * 8 + crowd.nextInt(3);
+                    int y = row * 13 + 16 + crowd.nextInt(4);
+                    g.fillOval(x, y, 4, 5);
+                }
+            }
+            g.setPaint(new java.awt.GradientPaint(0, h * .47f, new Color(104, 196, 48),
+                    0, h, new Color(35, 135, 22)));
+            g.fillRect(0, (int) (h * .47), w, h - (int) (h * .47));
+            g.setColor(new Color(4, 19, 94));
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(26, w / 13)));
+            String first = "SOCCER";
+            int titleX = (w - g.getFontMetrics().stringWidth(first)) / 2;
+            int titleY = h / 3 + 2;
+            g.setStroke(new BasicStroke(8, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.drawString(first, titleX, titleY);
+            g.setColor(new Color(255, 215, 57));
+            g.drawString(first, titleX, titleY);
+            g.setColor(Color.WHITE);
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(20, w / 20)));
+            String second = "HEADS";
+            g.drawString(second, (w - g.getFontMetrics().stringWidth(second)) / 2, titleY + 38);
+        }
+
+        /** Dibuja el marco y la red de un arco en coordenadas de pantalla. */
+        private void drawGoal(Graphics2D g, double x, double y, double width, double height) {
+            g.setColor(new Color(224, 250, 255, 70));
+            g.fill(new Rectangle2D.Double(x, y, width, height));
+            g.setColor(new Color(213, 248, 255));
+            g.setStroke(new BasicStroke(4f));
+            g.draw(new Rectangle2D.Double(x, y, width, height));
+            g.setStroke(new BasicStroke(1f));
+            for (int i = 1; i < 5; i++) g.drawLine((int)x, (int)(y + i * height / 5), (int)(x + width), (int)(y + i * height / 5));
+            for (int i = 1; i < 4; i++) g.drawLine((int)(x + i * width / 4), (int)y, (int)(x + i * width / 4), (int)(y + height));
+        }
+
+        /** Dibuja una flecha vertical cuyo sentido y longitud reflejan la velocidad del balón. */
         private void drawVelocityIndicator(Graphics2D g, double x, double y, double velocityY) {
             double direction = velocityY < 0 ? -1 : 1;
             double length = 8 + Math.min(36, Math.abs(velocityY) * 0.7);
@@ -361,6 +449,18 @@ public final class MechanicsTestPanel extends JPanel {
             g.drawLine((int) x, (int) endY, (int) (x + 4), (int) (endY - direction * 5));
         }
 
+        /**
+         * Dibuja cada participante con una representación arcade simplificada,
+         * escalando su hitbox del dominio al tamaño actual del campo.
+         * @param g contexto gráfico donde se dibuja
+         * @param participants participantes que se representan
+         * @param courtX coordenada horizontal de origen de la cancha
+         * @param courtY coordenada vertical de origen de la cancha
+         * @param offsetX desplazamiento horizontal en pantalla
+         * @param offsetY desplazamiento vertical en pantalla
+         * @param scale escala entre unidades de dominio y píxeles
+         * @param color color del cuerpo del participante
+         */
         private void drawParticipants(Graphics2D g, java.util.List<SessionParticipant> participants,
                 double courtX, double courtY, double offsetX, double offsetY, double scale, Color color) {
             for (SessionParticipant participant : participants) {
@@ -373,7 +473,6 @@ public final class MechanicsTestPanel extends JPanel {
                 double headX = x + (width - headSize) / 2;
                 double headY = y + height * .02;
 
-                // Silueta arcade de cabeza grande y cuerpo de futbolista.
                 g.setColor(new Color(49, 38, 34));
                 g.fill(new Ellipse2D.Double(headX, headY, headSize, headSize));
                 g.setColor(new Color(245, 202, 158));
@@ -402,6 +501,20 @@ public final class MechanicsTestPanel extends JPanel {
             }
         }
 
+        /**
+         * Convierte un rectángulo de coordenadas de cancha a coordenadas de
+         * pantalla, lo rellena si se solicita y siempre dibuja su contorno.
+         * @param g contexto gráfico
+         * @param x coordenada horizontal relativa a la cancha
+         * @param y coordenada vertical relativa a la cancha
+         * @param width ancho del rectángulo en unidades de cancha
+         * @param height alto del rectángulo en unidades de cancha
+         * @param offsetX desplazamiento horizontal de la cancha en pantalla
+         * @param offsetY desplazamiento vertical de la cancha en pantalla
+         * @param scale escala aplicada a las dimensiones
+         * @param color color de relleno y contorno
+         * @param fill indica si se rellena antes de dibujar el contorno
+         */
         private void drawRect(Graphics2D g, double x, double y, double width, double height,
                 double offsetX, double offsetY, double scale, Color color, boolean fill) {
             Rectangle2D rectangle = new Rectangle2D.Double(offsetX + x * scale,

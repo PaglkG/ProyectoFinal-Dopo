@@ -16,17 +16,17 @@ public class LoadingPanel extends JPanel implements Screen {
     public LoadingPanel() {
     }
 
-    /** Prepara el panel de carga cuando se muestra. */
+    /** Punto de extensión para preparar el panel al mostrarlo; actualmente el cuerpo está vacío. */
     @Override
     public void onShow() {
     }
 
-    /** Ejecuta las tareas de ocultamiento del panel de carga. */
+    /** Punto de extensión para ocultar el panel; actualmente el cuerpo está vacío. */
     @Override
     public void onHide() {
     }
 
-    /** Libera los recursos asociados al panel de carga. */
+    /** Punto de extensión para liberar recursos; actualmente el cuerpo está vacío. */
     @Override
     public void dispose() {
     }

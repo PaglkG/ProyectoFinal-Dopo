@@ -47,4 +47,29 @@ note bottom of UI
   Las pantallas de la aplicación principal aún son esqueletos.
   El banco de pruebas es una aplicación independiente.
 end note
+note right of GameController
+  Puente de la presentación oficial:
+  recibe acciones de la interfaz y las
+  delega al dominio. La partida oficial
+  todavía no está integrada por completo.
+end note
+note bottom of GameSession
+  Coordina una partida: guarda cancha,
+  participantes, marcador y modalidad.
+  Coordina goles, contactos con jugadores
+  y revisa el final de la partida.
+end note
+note bottom of Hitbox
+  Representa una entidad que puede
+  participar en una intersección.
+  hitbox concentra geometría y contacto;
+  sus resultados ayudan al dominio
+  a decidir la respuesta.
+end note
+note right of MechanicsTestController
+  Controla el banco de pruebas y usa
+  las sesiones reales del dominio.
+  PresentationMovement solo simula
+  movimiento visual para ensayar.
+end note
 @enduml

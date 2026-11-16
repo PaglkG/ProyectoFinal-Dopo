@@ -22,23 +22,29 @@ public abstract class SessionParticipant implements Hitbox {
     private List<StatusEffect> status;
     private Power specialPower;
 
-    /** Crea un participante de la sesión con una hitbox de tamaño provisional. */
+    /** Crea el participante con una hitbox provisional en el origen. */
     public SessionParticipant() {
         UserHitbox = new RectangularHitbox(x, y, 450.0 / 20, 150.0 / 3);
     }
 
     /**
-     * Desplaza al participante en la dirección indicada.
+     * Punto de extensión para desplazar al participante; actualmente el cuerpo
+     * está vacío y no cambia su posición.
      * @param dir dirección de movimiento
      */
     public void move(boolean dir) {
     }
 
+    /**
+     * Devuelve la hitbox mediante la interfaz general de colisiones.
+     *
+     * @return la hitbox rectangular asociada al participante
+     */
     public Hitbox gerHitbox(){
         return  UserHitbox;
     }
 
-    /** Inicia el salto del participante. */
+    /** Método reservado para iniciar el salto; actualmente no modifica el estado. */
     public void jump() {
     }
 
@@ -51,12 +57,13 @@ public abstract class SessionParticipant implements Hitbox {
         reposition(x, y);
     }
 
-    /** Activa el poder especial del participante. */
+    /** Método reservado para activar el poder especial; aún no tiene implementación. */
     public void power() {
     }
 
     /**
-     * Mejora la estadística indicada usando los puntos disponibles.
+     * Punto de extensión para mejorar la estadística indicada con puntos; el
+     * cuerpo está vacío y no modifica ni las estadísticas ni los puntos.
      *
      * @param stats estadística que se mejorará
      * @param points puntos asignados a la mejora
@@ -73,7 +80,12 @@ public abstract class SessionParticipant implements Hitbox {
         return UserHitbox;
     }
 
-    /** Ajusta el tamaño de la hitbox a las dimensiones de la cancha. */
+    /**
+     * Cambia el ancho y el alto de la hitbox sin modificar su posición.
+     *
+     * @param width nuevo ancho
+     * @param height nuevo alto
+     */
     void resizeHitbox(double width, double height) {
         UserHitbox.resize(width, height);
     }

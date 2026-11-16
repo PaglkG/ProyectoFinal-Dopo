@@ -50,27 +50,27 @@ public class Ball implements Hitbox {
         return BallHitbox;
     }
 
-    /** @return coordenada horizontal del centro del balón */
+    /** @return coordenada horizontal del centro almacenada en la hitbox */
     public double getX() {
         return BallHitbox.getX();
     }
 
-    /** @return coordenada vertical del centro del balón */
+    /** @return coordenada vertical del centro almacenada en la hitbox */
     public double getY() {
         return BallHitbox.getY();
     }
 
-    /** @return radio del balón */
+    /** @return radio almacenado en la hitbox circular */
     public double getRadius() {
         return BallHitbox.getRadius();
     }
 
-    /** @return velocidad horizontal actual */
+    /** @return componente horizontal de la velocidad actual */
     public double getVelocityX() {
         return velocityX;
     }
 
-    /** @return velocidad vertical actual */
+    /** @return componente vertical de la velocidad actual */
     public double getVelocityY() {
         return velocityY;
     }
@@ -87,11 +87,12 @@ public class Ball implements Hitbox {
     }
 
     /**
-     * Garantiza que la velocidad horizontal salga en la dirección indicada.
-     * Si el impulso recibido aún apunta hacia atrás, la redirige con la magnitud mínima.
+     * Asegura que la velocidad horizontal apunte hacia la dirección indicada.
+     * Solo reemplaza la componente cuando es cero o apunta en sentido contrario;
+     * en ese caso fija su magnitud mínima requerida.
      *
-     * @param direction dirección horizontal: -1 izquierda, 1 derecha
-     * @param minimumSpeed magnitud mínima cuando se redirige
+     * @param direction sentido horizontal esperado, expresado como -1 o 1
+     * @param minimumSpeed magnitud mínima de velocidad que debe conservarse
      */
     void ensureHorizontalDirection(int direction, double minimumSpeed) {
         if (direction != 0 && velocityX * direction <= 0) {
@@ -114,12 +115,13 @@ public class Ball implements Hitbox {
     }
 
     /**
-     * Coloca el balón sobre el suelo y aplica la pérdida de velocidad del rebote.
-     * Si la velocidad resultante está por debajo del mínimo, deja el balón quieto.
+     * Coloca el centro del balón en la altura de contacto y refleja su velocidad
+     * vertical si se mueve hacia abajo. Reduce la magnitud por el factor de
+     * retención y detiene el rebote si queda por debajo del mínimo.
      *
-     * @param centerY coordenada vertical del centro cuando toca el suelo
-     * @param retention fracción de velocidad conservada tras el impacto
-     * @param minimumSpeed velocidad mínima para continuar rebotando
+     * @param centerY coordenada vertical del centro después del contacto
+     * @param retention fracción de velocidad que se conserva tras el rebote
+     * @param minimumSpeed magnitud mínima para mantener el rebote
      */
     void bounceAt(double centerY, double retention, double minimumSpeed) {
         BallHitbox.reposition(getX(), centerY);
@@ -131,11 +133,25 @@ public class Ball implements Hitbox {
         }
     }
 
+    /**
+     * Coloca el balón en la coordenada horizontal de contacto e invierte la
+     * velocidad horizontal, conservando la fracción indicada.
+     *
+     * @param centerX nueva coordenada horizontal del centro
+     * @param retention fracción de velocidad que se conserva
+     */
     void bounceHorizontallyAt(double centerX, double retention) {
         BallHitbox.reposition(centerX, getY());
         velocityX = -velocityX * retention;
     }
 
+    /**
+     * Coloca el balón en la coordenada vertical de contacto e invierte la
+     * velocidad vertical, conservando la fracción indicada.
+     *
+     * @param centerY nueva coordenada vertical del centro
+     * @param retention fracción de velocidad que se conserva
+     */
     void bounceVerticallyAt(double centerY, double retention) {
         BallHitbox.reposition(getX(), centerY);
         velocityY = -velocityY * retention;

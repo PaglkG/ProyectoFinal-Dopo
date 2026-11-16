@@ -16,17 +16,17 @@ public class MenuPanel extends JPanel implements Screen {
     public MenuPanel() {
     }
 
-    /** Prepara el panel cuando se muestra el menú principal. */
+    /** Punto de extensión para preparar el menú al mostrarlo; actualmente el cuerpo está vacío. */
     @Override
     public void onShow() {
     }
 
-    /** Ejecuta las tareas de ocultamiento del menú principal. */
+    /** Punto de extensión para ocultar el menú; actualmente el cuerpo está vacío. */
     @Override
     public void onHide() {
     }
 
-    /** Libera los recursos asociados al panel del menú. */
+    /** Punto de extensión para liberar recursos; actualmente el cuerpo está vacío. */
     @Override
     public void dispose() {
     }

@@ -19,30 +19,31 @@ public class Stats {
             "jump", 1));
 
     /**
-     * Mejora la estadística indicada.
+     * Punto de extensión para mejorar una estadística. Actualmente no modifica
+     * el mapa de estadísticas ni los puntos.
      *
      * @param stats nombre de la estadística que se mejorará
      */
     public void ImproveStatistics(String stats) {
     }
 
-    /** Incrementa la estadística de velocidad. */
+    /** Punto de extensión para incrementar la clave {@code speed}; sin implementación actual. */
     private void aumentSpeed() {
     }
 
-    /** Incrementa la estadística de goles. */
+    /** Punto de extensión para incrementar la clave {@code goal}; sin implementación actual. */
     private void aumentGoal() {
     }
 
-    /** Incrementa la estadística de patada. */
+    /** Punto de extensión para incrementar la clave {@code kick}; sin implementación actual. */
     private void aumentKick() {
     }
 
-    /** Incrementa los puntos disponibles. */
+    /** Punto de extensión para incrementar {@code points}; sin implementación actual. */
     private void aumentPoints() {
     }
 
-    /** Incrementa la estadística de salto. */
+    /** Punto de extensión para incrementar la clave {@code jump}; sin implementación actual. */
     private void aumentJump() {
     }
 }
