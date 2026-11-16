@@ -348,7 +348,7 @@ public abstract class GameSession {
      * Delega a la cancha la colocación simétrica del primer participante de
      * cada lista; si alguno de los lados no tiene participantes, no hace cambios.
      */
-    private void positionParticipants() {
+    protected void positionParticipants() {
         if (!participantsLeft.isEmpty() && !participantsRight.isEmpty()) {
             field.positionParticipants(participantsLeft.get(0), participantsRight.get(0));
         }

@@ -14,6 +14,7 @@ S -> P1 ++: new Player(1)
 S -> P2 ++: new Player(2)
 S -> S: participantsRight.add(player1)
 S -> S: participantsLeft.add(player2)
+S -> S: positionParticipants()
 S --> Cliente --: sesión lista
 note over S,P2
   El lado es fijo: jugador 1 a la derecha y jugador 2 a la izquierda.

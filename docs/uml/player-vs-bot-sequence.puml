@@ -18,6 +18,7 @@ end
 S -> S: participantsRight.add(human)
 S -> B ++: new BotPlayer()
 S -> S: participantsLeft.add(bot)
+S -> S: positionParticipants()
 S --> Cliente --: sesión lista
 note over S,B
   El humano queda a la derecha y el bot a la izquierda,

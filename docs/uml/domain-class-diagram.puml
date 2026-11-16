@@ -28,6 +28,7 @@ package "domain" {
     # participantsLeft: List<SessionParticipant>
     + movePlayer(user: SessionParticipant, direction: boolean): void
     + restartRound(): void
+    # positionParticipants(): void
     + goal(side: String): void
     + checkTypeOfMatch(): void
     + updateGame(): void
