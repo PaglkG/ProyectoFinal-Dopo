@@ -57,7 +57,7 @@ class GameSessionTest {
         GameSession session = new TestGameSession(false, ByGoals.class.getName(), List.of("5"));
 
         assertEquals(0.0, readDouble(session, "timeLeft"));
-        assertEquals(3.14, readStaticDouble(GameSession.class, "GRAVITY"));
+        assertEquals(40.0, readStaticDouble(GameSession.class, "GRAVITY"));
         assertNotNull(readField(session, "TypeOfMatch"));
         assertNotNull(readField(session, "field"));
         assertNotNull(readField(session, "participantsLeft"));

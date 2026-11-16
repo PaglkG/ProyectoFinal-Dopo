@@ -1,0 +1,21 @@
+@startuml
+title Comprobar modalidad por tiempo (flujo implementado)
+actor "GameSession / cliente" as C
+participant "rule: ByTime" as T
+
+C -> T ++: check([golesIzq, golesDer, minutos])
+T -> T: isTime(minutos)
+alt minutos < límite
+  T --> C: true (continúa)
+else minutos >= límite
+  T -> T: comparar goles
+  alt goles empatados
+    T -> T: suddenDeath = true
+    T --> C: true (muerte súbita)
+  else goles desiguales
+    T -> T: suddenDeath = false
+    T --> C: false (termina)
+  end
+end
+deactivate T
+@enduml

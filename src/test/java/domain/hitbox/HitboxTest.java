@@ -1,13 +1,109 @@
 package domain.hitbox;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.lang.reflect.Field;
 
 import org.junit.jupiter.api.Test;
 
-/** Pruebas de reposicionamiento para las formas de hitbox. */
+import domain.Ball;
+import domain.SessionParticipant;
+import domain.SoccerField;
+
+/** Pruebas de contacto entre entidades y reposicionamiento de sus hitboxes. */
 class HitboxTest {
+
+    @Test
+    void ballsReportTheOtherBallForOverlappingTouchingAndSeparatedCircles() {
+        Ball first = new Ball(0, 0, 2);
+        Ball overlapping = new Ball(4, 0, 2);
+        Ball touching = new Ball(8, 0, 2);
+        Ball separated = new Ball(8.02, 0, 2);
+
+        assertContact(first.intersects(overlapping), "Ball", overlapping.getHitbox());
+        assertContact(first.intersects(touching), "Ball", touching.getHitbox());
+        assertNoContact(first.intersects(separated));
+    }
+
+    @Test
+    void participantsReportTheOtherParticipantForOverlappingTouchingAndSeparatedRectangles() {
+        TestParticipant first = new TestParticipant();
+        TestParticipant overlapping = new TestParticipant();
+        TestParticipant touching = new TestParticipant();
+        TestParticipant separated = new TestParticipant();
+        first.resetPosition(0, 0);
+        overlapping.resetPosition(20, 7);
+        touching.resetPosition(22.5, 0);
+        separated.resetPosition(22.51, 0);
+
+        assertContact(first.intersects(overlapping), "SessionParticipant", overlapping.getHitbox());
+        assertContact(first.intersects(touching), "SessionParticipant", touching.getHitbox());
+        assertNoContact(first.intersects(separated));
+    }
+
+    @Test
+    void ballAndParticipantReportEachOtherForCircleRectangleContacts() {
+        TestParticipant participant = new TestParticipant();
+        participant.resetPosition(0, 0);
+        Ball tangentBall = new Ball(0, 0, 5);
+        tangentBall.reposition(-3, -4);
+        Ball separatedBall = new Ball(0, 0, 4.99);
+        separatedBall.reposition(-3, -4);
+        Ball containedBall = new Ball(0, 0, 1);
+        containedBall.reposition(5, 5);
+
+        assertContact(tangentBall.intersects(participant), "SessionParticipant", participant.getHitbox());
+        assertContact(participant.intersects(tangentBall), "Ball", tangentBall.getHitbox());
+        assertContact(containedBall.intersects(participant), "SessionParticipant", participant.getHitbox());
+        assertNoContact(separatedBall.intersects(participant));
+    }
+
+    @Test
+    void noContactUsesAnEmptyNameAndNullHitbox() {
+        CircularHitbox circle = new CircularHitbox(0, 0, 1);
+        Hitbox unsupported = new Hitbox() {
+            @Override
+            public HitboxContact intersects(Hitbox hitbox) {
+                return HitboxContact.none();
+            }
+
+            @Override
+            public void reposition(double x, double y) {
+            }
+        };
+
+        assertNoContact(circle.intersects(null));
+        assertNoContact(circle.intersects(unsupported));
+        assertNoContact(unsupported.intersects(circle));
+    }
+
+    @Test
+    void fieldReportsBallAndFieldPartsForBoundaryGoalAndContainedBallContacts() {
+        SoccerField field = new SoccerField();
+        Ball boundaryBall = ballAt(100, 0, 2);
+        Ball goalBall = ballAt(20, 75, 2);
+        Ball containedBall = ballAt(225, 75, 2);
+        Ball farBall = ballAt(500, 200, 2);
+
+        assertContact(field.intersects(boundaryBall), "Ball", boundaryBall.getHitbox());
+        assertContact(boundaryBall.intersects(field), "SoccerField", field.getHitboxField()[0]);
+        assertContact(field.intersects(goalBall), "Ball", goalBall.getHitbox());
+        assertContact(field.intersects(containedBall), "Ball", containedBall.getHitbox());
+        assertNoContact(field.intersects(farBall));
+    }
+
+    @Test
+    void fieldAndParticipantReportEachOtherAndTheContactingFieldPart() {
+        SoccerField field = new SoccerField();
+        TestParticipant participant = new TestParticipant();
+        participant.resetPosition(0, 70);
+
+        assertContact(field.intersects(participant), "SessionParticipant", participant.getHitbox());
+        assertContact(participant.intersects(field), "SoccerField", field.getHitboxField()[2]);
+    }
 
     @Test
     void rectangularHitboxMovesItsUpperLeftCornerAndKeepsItsDimensions()
@@ -37,5 +133,25 @@ class HitboxTest {
         Field field = hitbox.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.getDouble(hitbox);
+    }
+
+    private static Ball ballAt(double x, double y, double radius) {
+        Ball ball = new Ball(0, 0, radius);
+        ball.reposition(x, y);
+        return ball;
+    }
+
+    private static void assertContact(HitboxContact contact, String expectedName, Hitbox expectedHitbox) {
+        assertEquals(expectedName, contact.name());
+        assertSame(expectedHitbox, contact.hitbox());
+    }
+
+    private static void assertNoContact(HitboxContact contact) {
+        assertEquals("", contact.name());
+        assertNull(contact.hitbox());
+        assertFalse(contact.isContact());
+    }
+
+    private static final class TestParticipant extends SessionParticipant {
     }
 }

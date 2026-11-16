@@ -53,7 +53,8 @@ public class Game {
      * @param closeSession sesión que se cerrará
      */
     public void closeSession(GameSession closeSession) {
-        sessions.remove(0);
+        int indice = sessions.indexOf(closeSession);
+        sessions.remove(indice);
     }
 
     /**
@@ -164,5 +165,6 @@ public class Game {
 
     /** Actualiza la sesión indicada. */
     public void updateGame(GameSession game) {
+        game.updateGame();
     }
 }

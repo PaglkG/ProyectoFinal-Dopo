@@ -13,7 +13,11 @@ Estas reglas aplican a cualquier trabajo realizado en este repositorio, en cualq
 
 ## Correspondencia con diagramas
 
-- No abrir, editar, guardar, renombrar ni eliminar proyectos o archivos de Astah; en particular, no tocar `Head Soccer.asta` ni sus archivos de bloqueo, bajo ninguna circunstancia.
+- Se permite abrir e inspeccionar proyectos y archivos de Astah, incluido `DOPOSoccer.asta`, sin alterar sus archivos de bloqueo.
+- Cuando un cambio autorizado modifique lógica o comportamiento, actualizar en el mismo trabajo los diagramas UML afectados para mantenerlos consistentes con las reglas y la implementación. No cambiar diagramas no relacionados ni completar vacíos por inferencia; si el alcance o el contenido no están claros, preguntar antes.
+- Al revisar el UML del proyecto, inspeccionar todos los diagramas, incluidos los diagramas de secuencia, además del diagrama de clases.
+- Mantener capturas legibles de todos los diagramas en `docs/uml/capturas/`. Al cambiar un diagrama, actualizar su captura correspondiente. No sobrescribir ni eliminar capturas existentes sin comprobar que pertenecen al conjunto del proyecto.
+- Respetar exactamente los elementos UML acordados (clases, atributos, asociaciones, multiplicidades, operaciones, nombres, orden de parámetros y tipos). No reinterpretar diagramas parciales.
 - Cuando el usuario indique que el código debe seguir un diagrama, respetar exactamente las clases, atributos, asociaciones, multiplicidades, operaciones, nombres, orden de parámetros y tipos mostrados.
 - No añadir, cambiar ni quitar elementos para completar o reinterpretar un diagrama parcial. Si el diagrama no aclara el alcance o contradice código existente, preguntar antes de modificarlo.
 

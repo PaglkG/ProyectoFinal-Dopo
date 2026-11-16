@@ -1,0 +1,290 @@
+@startuml
+title Modelo de clases del dominio (código actual)
+skinparam packageStyle rectangle
+hide empty members
+
+package "domain" {
+  class Game {
+    - sessions: List<GameSession>
+    + startSession(parametersRules: List<String>, typeGame: String, typeMatche: String, player: boolean): GameSession
+    + closeSession(closeSession: GameSession): void
+    + updateGame(game: GameSession): void
+    + save(): void
+    + open(file: File): void
+  }
+  abstract class GameSession {
+    - timeLeft: double
+    - xBase: int
+    - yBase: int
+    - GRAVITY: double = 40 {static, readOnly}
+    - TypeOfMatch: TypeOfMatch
+    - allHitbox: Hitbox[]
+    - field: SoccerField
+    - goalsLeft: int
+    - goalsRight: int
+    - finished: boolean
+    - activeBallContacts: IdentityHashMap<Ball, Set<SessionParticipant>>
+    # participantsRight: List<SessionParticipant>
+    # participantsLeft: List<SessionParticipant>
+    + movePlayer(user: SessionParticipant, direction: boolean): void
+    + restartRound(): void
+    + goal(side: String): void
+    + checkTypeOfMatch(): void
+    + updateGame(): void
+    - collision(): void
+    + getGoalsLeft(): int
+    + getGoalsRight(): int
+    + isFinished(): boolean
+    + getElapsedSeconds(): double
+    + getField(): SoccerField
+    + getParticipantsLeft(): List<SessionParticipant>
+    + getParticipantsRight(): List<SessionParticipant>
+  }
+  class PlayerVsBot
+  class PlayerVsPlayer
+  abstract class SessionParticipant {
+    - x: double
+    - y: double
+    - UserHitbox: RectangularHitbox
+    - stats: Stats
+    - status: List<StatusEffect>
+    - specialPower: Power
+    + move(dir: boolean): void
+    + jump(): void
+    + power(): void
+    + resetPosition(x: double, y: double): void
+    ~ resizeHitbox(width: double, height: double): void
+    + intersects(hitbox: Hitbox): HitboxContact
+  }
+  class Player {
+    - user: int
+  }
+  class BotPlayer {
+    + decideAction(field: SoccerField): Set<Action>
+  }
+  class Clumsy
+  class Offensive
+  class Defensive
+  class Expert
+  class SoccerField {
+    - LeftGoalHitbox: RectangularHitbox
+    - RightGoalHitbox: RectangularHitbox
+    - fieldHitbox: RectangularHitbox[]
+    - balls: Ball[]
+    + resetBall(x: double, y: double): void
+    + getHitboxField(): RectangularHitbox[]
+    + getHitboxBalls(): CircularHitbox[]
+    + hitboxs(): Hitbox[]
+    + getBalls(): Ball[]
+    + getGoalHitboxes(): RectangularHitbox[]
+    + contactingPart(other: Hitbox): HitboxContact
+    + intersects(hitbox: Hitbox): HitboxContact
+    ~ goalSideFor(ball: Ball): String
+    ~ isOutside(ball: Ball): boolean
+    ~ isOutside(participant: SessionParticipant): boolean
+    ~ touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    ~ touchesGround(ball: Ball): boolean
+    ~ groundCenterY(ball: Ball): double
+    ~ positionParticipants(left: SessionParticipant, right: SessionParticipant): void
+  }
+  class Ball {
+    - physical: boolean
+    - velocityX: double
+    - velocityY: double
+    - BallHitbox: CircularHitbox
+    + resetBall(width: double, height: double): void
+    + getHitbox(): CircularHitbox
+    + getX(): double
+    + getY(): double
+    + getRadius(): double
+    + getVelocityX(): double
+    + getVelocityY(): double
+    + applyImpulse(deltaX: double, deltaY: double): void
+    ~ ensureHorizontalDirection(direction: int, minimumSpeed: double): void
+    + advance(deltaSeconds: double, gravity: double): void
+    ~ bounceAt(centerY: double, retention: double, minimumSpeed: double): void
+    + intersects(hitbox: Hitbox): HitboxContact
+  }
+  class Stats {
+    - points: int = 0
+    - action: Map<String, Integer>
+    + ImproveStatistics(stats: String): void
+  }
+  class StatusEffect
+  abstract class Power
+  enum Action {
+    LEFT
+    RIGHT
+    JUMP
+    POWER
+  }
+}
+
+package "domain.rules" {
+  abstract class TypeOfMatch {
+    + check(parameters: List<String>): boolean
+  }
+  class ByGoals {
+    - goals: int
+  }
+  class ByTime {
+    - minutes: int
+    - suddenDeath: boolean
+  }
+}
+package "domain.hitbox" {
+  interface Hitbox {
+    + intersects(hitbox: Hitbox): HitboxContact
+    + reposition(x: double, y: double): void
+  }
+  class HitboxContact <<record>> {
+    + name: String
+    + hitbox: Hitbox
+    + none(): HitboxContact {static}
+    + isContact(): boolean
+  }
+  class HitboxIntersections <<utility>> {
+    + intersects(first: Hitbox, second: Hitbox): HitboxContact {static}
+  }
+  class CircularHitbox {
+    + intersects(hitbox: Hitbox): HitboxContact
+    + reposition(x: double, y: double): void
+  }
+  class RectangularHitbox {
+    + intersects(hitbox: Hitbox): HitboxContact
+    + reposition(x: double, y: double): void
+  }
+}
+package "presentation.controllers" {
+  class GameController {
+    - game: Game
+    - session: GameSession
+    + startGame(): void
+    + movePlayer(participant: SessionParticipant, direction: char): void
+    + jumpPlayer(participant: SessionParticipant): void
+    + activatePower(participant: SessionParticipant): void
+  }
+}
+
+package "presentation.testing" {
+  class MechanicsTestApp {
+    + main(args: String[]): void {static}
+  }
+  class MechanicsTestPanel {
+    - controller: MechanicsTestController
+    + MechanicsTestPanel()
+    + stopSimulation(): void
+  }
+  class MechanicsTestController {
+    - game: Game
+    - session: GameSession
+    - movement: PresentationMovement
+    + startNewSession(sessionMode: SessionMode, matchMode: MatchMode, limit: int): void
+    + step(): void
+    ~ setMovementControl(control: Control, pressed: boolean): void
+    + runScenario(scenario: Scenario): void
+    + getSession(): GameSession
+  }
+  enum Scenario {
+    LEFT_GOAL
+    RIGHT_GOAL
+    PLAYER_BALL_CONTACT
+    GROUND_BOUNCE
+    SAFE_FIELD_CONTACT
+    BALL_OUTSIDE
+    PARTICIPANT_OUTSIDE
+    PARTICIPANT_TOUCHES_SIDE
+    PARTICIPANTS_OVERLAP
+    SUDDEN_DEATH_WIN
+  }
+  enum MatchMode {
+    GOALS
+    TIME
+  }
+  enum SessionMode {
+    PLAYER_VS_PLAYER
+    PLAYER_VS_BOT
+  }
+  class PresentationMovement <<presentation-only>> {
+    - held: EnumSet<Control>
+    - jumpRequested: EnumSet<Control>
+    - verticalSpeeds: Map<SessionParticipant, Double>
+    - HORIZONTAL_SPEED: double = 150
+    - JUMP_SPEED: double = 110
+    - GRAVITY: double = 180
+    ~ setControl(control: Control, pressed: boolean): void
+    ~ update(session: GameSession, mode: SessionMode): void
+  }
+  enum Control {
+    LEFT_LEFT
+    LEFT_RIGHT
+    LEFT_JUMP
+    RIGHT_LEFT
+    RIGHT_RIGHT
+    RIGHT_JUMP
+  }
+}
+
+Game "1" *-- "0..*" GameSession : sessions
+GameSession <|-- PlayerVsBot
+GameSession <|-- PlayerVsPlayer
+GameSession "1" *-- "1" SoccerField : field
+GameSession "1" o-- "0..*" SessionParticipant : participants
+GameSession --> TypeOfMatch
+GameSession ..> Hitbox : allHitbox[]
+SessionParticipant <|-- Player
+SessionParticipant <|-- BotPlayer
+BotPlayer <|-- Clumsy
+BotPlayer <|-- Offensive
+BotPlayer <|-- Defensive
+BotPlayer <|-- Expert
+SoccerField "1" *-- "1..*" Ball : balls
+SoccerField "1" *-- "4" RectangularHitbox : fieldHitbox
+SoccerField "1" *-- "2" RectangularHitbox : goal hitboxes
+Ball "1" *-- "1" CircularHitbox : BallHitbox
+SessionParticipant "1" *-- "1" RectangularHitbox : UserHitbox
+SessionParticipant --> Stats
+SessionParticipant --> "0..*" StatusEffect
+SessionParticipant --> Power
+SessionParticipant ..> Action
+Hitbox <|.. CircularHitbox
+Hitbox <|.. RectangularHitbox
+Hitbox <|.. Ball
+Hitbox <|.. SoccerField
+Hitbox <|.. SessionParticipant
+HitboxContact --> Hitbox : hitbox
+HitboxIntersections ..> HitboxContact
+HitboxIntersections ..> Hitbox
+HitboxIntersections ..> CircularHitbox
+HitboxIntersections ..> RectangularHitbox
+HitboxIntersections ..> Ball
+HitboxIntersections ..> SessionParticipant
+HitboxIntersections ..> SoccerField
+CircularHitbox ..> HitboxIntersections
+RectangularHitbox ..> HitboxIntersections
+Ball ..> CircularHitbox : delegates intersection
+SessionParticipant ..> RectangularHitbox : delegates intersection
+SoccerField ..> HitboxIntersections : detects named contacts
+TypeOfMatch <|-- ByGoals
+TypeOfMatch <|-- ByTime
+GameController --> Game
+GameController --> GameSession
+MechanicsTestApp ..> MechanicsTestPanel
+MechanicsTestPanel --> MechanicsTestController
+MechanicsTestController --> Game
+MechanicsTestController --> GameSession
+MechanicsTestController ..> Scenario
+MechanicsTestController --> PresentationMovement
+MechanicsTestPanel ..> Control
+
+note bottom of Hitbox
+  intersects() devuelve entidad y hitbox contactadas.
+  Sin contacto: nombre vacío y hitbox nula.
+  La geometría incluye contacto de bordes.
+end note
+note bottom of GameSession
+  updateGame() usa paso fijo de 1/60 s.
+  collision() resuelve goles, rebotes, impulsos
+  y errores de salida/superposición.
+end note
+@enduml

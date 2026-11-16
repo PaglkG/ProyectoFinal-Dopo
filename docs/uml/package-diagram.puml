@@ -1,0 +1,50 @@
+@startuml
+allowmixing
+title Paquetes actuales (vista simplificada)
+package "presentation" {
+  package "controllers" {
+    class GameController
+  }
+  package "testing" {
+    class MechanicsTestApp
+    class MechanicsTestPanel
+    class MechanicsTestController
+    class PresentationMovement
+  }
+  package "screens / components / navigation" as UI
+}
+package "domain" {
+  class Game
+  class GameSession
+  class SessionParticipant
+  package "rules" {
+    class TypeOfMatch
+  }
+  package "hitbox" {
+    interface Hitbox
+  }
+  package "effects" {
+    class StatusEffect
+  }
+  package "powers" {
+    class Power
+  }
+}
+GameController ..> Game
+GameController ..> GameSession
+GameController ..> SessionParticipant
+Game ..> GameSession
+GameSession ..> TypeOfMatch
+GameSession ..> Hitbox
+SessionParticipant ..> Hitbox
+SessionParticipant ..> StatusEffect
+SessionParticipant ..> Power
+UI ..> GameController : futuras llamadas desde UI
+MechanicsTestPanel ..> MechanicsTestController
+MechanicsTestController ..> Game
+MechanicsTestController ..> GameSession
+note bottom of UI
+  Las pantallas de la aplicación principal aún son esqueletos.
+  El banco de pruebas es una aplicación independiente.
+end note
+@enduml

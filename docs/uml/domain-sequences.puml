@@ -1,0 +1,182 @@
+@startuml
+title Game constructor (flujo implementado)
+actor Usuario
+participant "game: Game" as G
+Usuario -> G ++: new Game()
+G -> G: inicializar sessions
+G --> Usuario --: instancia Game
+@enduml
+
+@startuml
+title closeSession (PDF: intención; código defectuoso)
+actor Usuario
+participant "game: Game" as G
+participant "sessions: List<GameSession>" as L
+Usuario -> G ++: closeSession(session)
+G -> L: remove(session)
+L --> G: sesión retirada
+G --> Usuario --: void
+note over G,L
+  El PDF propone retirar la sesión solicitada.
+  El código actual ejecuta remove(0) y puede cerrar otra sesión.
+end note
+@enduml
+
+@startuml
+title movePlayer (PDF: intención; código sin implementar)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "player: SessionParticipant" as P
+Usuario -> G: movePlayer(session, player, direction)
+G -> S: movePlayer(player, direction)
+S -> P: move(direction)
+alt direction == true
+  P -> P: moveRight()
+else direction == false
+  P -> P: moveLeft()
+end
+note over G,P
+  En el PDF: true corresponde a derecha y false a izquierda.
+  El movimiento y esa regla no están implementados en Java;
+  la regla no aparece confirmada en logica-proyecto.md.
+end note
+@enduml
+
+@startuml
+title jumpPlayer (PDF: intención; código sin implementar)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "player: SessionParticipant" as P
+Usuario -> G: jumpPlayer(session, player)
+G -> S: jumpPlayer(player)
+S -> P: jump()
+note over G,P
+  Game.jumpPlayer, GameSession.jumpPlayer y SessionParticipant.jump
+  están vacíos.
+end note
+@enduml
+
+@startuml
+title powerPlayer (PDF: intención; código sin implementar)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "player: SessionParticipant" as P
+participant "power: Power" as W
+Usuario -> G: powerPlayer(session, player)
+G -> S: powerPlayer(player)
+S -> P: power()
+P -> W: usePower()
+opt isUsable()
+  W -> W: activar poder
+end
+note over G,W
+  El PDF propone usar el poder solo si es usable.
+  Los métodos Java de esta ruta están vacíos.
+end note
+@enduml
+
+@startuml
+title ImproveStatistics (PDF: intención; código sin implementar)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "participante seleccionado" as P
+participant "stats: Stats" as T
+Usuario -> G: ImproveStatistics(session, player, stat)
+G -> S: ImproveStatistics(player, stat)
+alt player == true
+  S -> P: ImproveStatistics(stat, 1)
+else player == false
+  S -> P: ImproveStatistics(stat, 1)
+end
+P -> T: ImproveStatistics(stat)
+note over G,T
+  Todas las operaciones de mejora están declaradas,
+  pero sus cuerpos están vacíos.
+end note
+@enduml
+
+@startuml
+title resetSession (PDF: intención; código sin implementar)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "field: SoccerField" as F
+participant "ball: Ball" as B
+participant "participantes" as P
+Usuario -> G: resetSession(session)
+G -> S: restartRound()
+S -> F: resetBall(xLeft, yLeft, yRight, xRight)
+loop cada balón
+  F -> B: resetBall(width, height)
+end
+loop cada participante de ambos lados
+  S -> P: resetPosition(xBase, yBase)
+end
+note over G,P
+  Game.resetSession y GameSession.restartRound están vacíos.
+  El PDF usa cuatro coordenadas para la cancha y bases por lado;
+  el código actual solo expone resetBall(x,y) y xBase/yBase únicos.
+end note
+@enduml
+
+@startuml
+title updateGame y colisiones (implementación actual)
+actor Reloj
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "participantes / hitboxes" as P
+participant "field: SoccerField" as F
+participant "ball: Ball" as B
+Reloj -> G: updateGame(session)
+G -> S: updateGame()
+alt sesión ya terminada
+  S --> G: no avanza
+else sesión activa
+  S -> S: tiempo += 1/60 s
+  loop cada balón
+    S -> B: advance(1/60, 40)
+  end
+  S -> S: collision()
+  S -> S: validar participantes fuera/límites y superposición
+  opt participante fuera o toca límite superior/lateral
+    S --> G: GameException("objeto fuera de la partida")
+  end
+  opt participantes superpuestos
+    S --> G: GameException("dos objetos super puestos")
+  end
+  loop cada balón
+    S -> F: goalSideFor(ball)
+    alt centro dentro de un arco
+      S -> S: sumar punto al lado opuesto
+      S -> F: resetBall(centro)
+      S -> S: reposicionar participantes simétricamente
+      S -> S: checkTypeOfMatch()
+    else sin gol
+      S -> F: isOutside(ball)
+      alt hitbox fuera
+        S --> G: GameException("objeto fuera de la partida")
+      else dentro
+        S -> F: touchesGround(ball)
+        opt toca suelo
+          S -> B: bounceAt(70%, mínimo 0.5)
+        end
+        loop cada participante
+          S -> B: intersects(participant)
+          opt hay contacto
+            S -> B: reposicionar hasta quedar fuera de hitbox
+            opt nuevo contacto
+              S -> B: applyImpulse(±4, -1)
+              S -> B: ensureHorizontalDirection(afuera)
+            end
+          end
+        end
+      end
+    end
+  end
+  S -> S: checkTypeOfMatch()
+end
+@enduml

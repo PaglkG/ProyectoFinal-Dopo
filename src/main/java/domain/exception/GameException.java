@@ -14,6 +14,8 @@ public class GameException extends IllegalArgumentException {
     public final static String EXCEPTION_IN_METHOD = "El constructor de la clase lanzó una excepción interna";
     public final static String MINUTES_NOT_NEGATIVE= "Los minutos no pueden ser negativos";
     public final static String GOALS_NOT_NEGATIVE= "Los goles no pueden ser negativos";
+    public static final String OBJECT_OUT_OF_MATCH = "objeto fuera de la partida";
+    public static final String OBJECTS_OVERLAPPED = "dos objetos super puestos";
 
     /** * Crea una excepción con el mensaje indicado. */
     public GameException(String message) {

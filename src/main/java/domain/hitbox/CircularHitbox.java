@@ -1,7 +1,8 @@
 package domain.hitbox;
 
 /**
- * Representa una hitbox circular definida por centro y radio.
+ * Representa una hitbox circular definida por el centro {@code (x, y)} y un
+ * radio. Se utiliza para aproximar objetos redondos, como el balón.
  *
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
@@ -29,11 +30,12 @@ public class CircularHitbox implements Hitbox {
      * Comprueba la intersección con otra hitbox.
      *
      * @param hitbox hitbox con la que se comprobará la intersección
-     * @return {@code false} hasta que se definan las reglas geométricas
+     * @return entidad y hitbox asociada que hacen contacto, o nombre vacío si
+     *         no hay una entidad de dominio identificable en contacto
      */
     @Override
-    public boolean intersects(Hitbox hitbox) {
-        return false;
+    public HitboxContact intersects(Hitbox hitbox) {
+        return HitboxIntersections.intersects(this, hitbox);
     }
 
     /**
@@ -46,5 +48,32 @@ public class CircularHitbox implements Hitbox {
     public void reposition(double x, double y) {
         this.x = x;
         this.y = y;
+    }
+
+    /**
+     * Devuelve la coordenada horizontal del centro.
+     *
+     * @return coordenada horizontal del centro
+     */
+    public double getX() {
+        return x;
+    }
+
+    /**
+     * Devuelve la coordenada vertical del centro.
+     *
+     * @return coordenada vertical del centro
+     */
+    public double getY() {
+        return y;
+    }
+
+    /**
+     * Devuelve el radio.
+     *
+     * @return radio almacenado
+     */
+    public double getRadius() {
+        return radius;
     }
 }

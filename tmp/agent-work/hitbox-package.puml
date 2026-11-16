@@ -1,0 +1,67 @@
+@startuml
+ title Paquete domain.hitbox
+ skinparam packageStyle rectangle
+ hide empty members
+
+ package "domain.hitbox" {
+   interface Hitbox {
+     + intersects(hitbox: Hitbox): HitboxContact
+     + reposition(x: double, y: double): void
+   }
+
+   class HitboxContact <<record>> {
+     + name: String
+     + hitbox: Hitbox
+     + none(): HitboxContact {static}
+     + isContact(): boolean
+   }
+
+   class HitboxIntersections <<utility>> {
+     + intersects(first: Hitbox, second: Hitbox): HitboxContact {static}
+     - shapeOf(hitbox: Hitbox): Hitbox
+     - shapesIntersect(first: Hitbox, second: Hitbox): boolean
+   }
+
+   class CircularHitbox {
+     - x: double
+     - y: double
+     - radius: double
+     + intersects(hitbox: Hitbox): HitboxContact
+     + reposition(x: double, y: double): void
+   }
+
+   class RectangularHitbox {
+     - x: double
+     - y: double
+     - width: double
+     - height: double
+     + intersects(hitbox: Hitbox): HitboxContact
+     + reposition(x: double, y: double): void
+   }
+ }
+
+ package "domain" {
+   class Ball
+   abstract class SessionParticipant
+   class SoccerField
+ }
+
+ Hitbox <|.. CircularHitbox
+ Hitbox <|.. RectangularHitbox
+ Hitbox <|.. Ball
+ Hitbox <|.. SessionParticipant
+ Hitbox <|.. SoccerField
+ HitboxContact --> Hitbox : hitbox asociada
+ CircularHitbox ..> HitboxIntersections
+ RectangularHitbox ..> HitboxIntersections
+ HitboxIntersections ..> Ball
+ HitboxIntersections ..> SessionParticipant
+ HitboxIntersections ..> SoccerField
+
+ note bottom of HitboxContact
+   Sin contacto: name = "" y hitbox = null
+ end note
+ note bottom of Hitbox
+   El contacto entre bordes cuenta como intersección
+ end note
+@enduml

@@ -32,12 +32,8 @@ public class PlayerVsBot extends GameSession {
         }
         BotPlayer bot = new BotPlayer();
         participantsLeft.add(bot);
+        positionParticipants();
     }
 
-    /**
-     * Agrega el usuario indicado a la sesión.
-     * @param user identificador de usuario
-     */
-    public void addParticipant(int user) {
-    }
+
 }

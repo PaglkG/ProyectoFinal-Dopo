@@ -1,0 +1,22 @@
+@startuml
+title Crear sesión (flujo implementado)
+actor Cliente
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "type: TypeOfMatch" as T
+participant "sessions: List<GameSession>" as L
+
+Cliente -> G: startSession(parametersRules, typeGame, typeMatche, player)
+activate G
+G -> G: whatSession(typeGame, player, parametersRules, typeMatche)
+G -> S ++: constructor reflectivo
+S -> S: inicializar listas de participantes
+S -> S: whatsRules(typeMatche, parametersRules)
+S -> T ++: constructor(List<String>) reflectivo
+T --> S --: instancia concreta
+S -> S: crear SoccerField y fijar timeLeft = 0
+S --> G --: instancia concreta de sesión
+G -> L: add(session)
+G --> Cliente: session
+deactivate G
+@enduml

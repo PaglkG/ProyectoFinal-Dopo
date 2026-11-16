@@ -3,6 +3,8 @@ package domain;
 import java.util.List;
 import domain.effects.StatusEffect;
 import domain.hitbox.Hitbox;
+import domain.hitbox.HitboxContact;
+import domain.hitbox.HitboxIntersections;
 import domain.hitbox.RectangularHitbox;
 import domain.powers.Power;
 
@@ -30,6 +32,10 @@ public abstract class SessionParticipant implements Hitbox {
      * @param dir dirección de movimiento
      */
     public void move(boolean dir) {
+    }
+
+    public Hitbox gerHitbox(){
+        return  UserHitbox;
     }
 
     /** Inicia el salto del participante. */
@@ -67,15 +73,21 @@ public abstract class SessionParticipant implements Hitbox {
         return UserHitbox;
     }
 
+    /** Ajusta el tamaño de la hitbox a las dimensiones de la cancha. */
+    void resizeHitbox(double width, double height) {
+        UserHitbox.resize(width, height);
+    }
+
     /**
      * Comprueba la intersección con otra hitbox.
      *
      * @param hitbox hitbox con la que se comprobará la intersección
-     * @return {@code false} hasta que se definan las reglas de intersección
+     * @return nombre de la entidad contactada y su hitbox; si no hay contacto,
+     *         un resultado con nombre vacío
      */
     @Override
-    public boolean intersects(Hitbox hitbox) {
-        return false;
+    public HitboxContact intersects(Hitbox hitbox) {
+        return HitboxIntersections.intersects(this, hitbox);
     }
 
     /**

@@ -1,0 +1,23 @@
+@startuml
+title Inicializar PlayerVsPlayer (flujo Java actual)
+actor Cliente
+participant "session: PlayerVsPlayer" as S
+participant "GameSession" as Base
+participant "player1: Player" as P1
+participant "player2: Player" as P2
+
+Cliente -> S ++: new PlayerVsPlayer(player, typeMatche, parametersRules)
+S -> Base ++: super(player, typeMatche, parametersRules)
+Base -> Base: inicializar listas, modalidad y cancha
+Base --> S --: inicialización base
+S -> P1 ++: new Player(1)
+S -> P2 ++: new Player(2)
+S -> S: participantsRight.add(player1)
+S -> S: participantsLeft.add(player2)
+S --> Cliente --: sesión lista
+note over S,P2
+  El lado es fijo: jugador 1 a la derecha y jugador 2 a la izquierda.
+  El parámetro player se reenvía, pero PlayerVsPlayer no lo usa.
+  addParticipants() permanece vacío.
+end note
+@enduml
