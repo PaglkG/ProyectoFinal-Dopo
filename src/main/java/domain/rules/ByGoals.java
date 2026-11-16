@@ -11,7 +11,14 @@ public class ByGoals extends TypeOfMatch {
 
     private int goals;
 
-    /** Crea una modalidad por goles. */
+    /**
+     * Lee el primer parámetro como límite de goles y rechaza valores negativos.
+     *
+     * @param parametersRules lista cuyo primer elemento representa el límite
+     * @throws GameException si el límite es negativo
+     * @throws IndexOutOfBoundsException si la lista no contiene un elemento
+     * @throws NumberFormatException si el primer elemento no representa un entero
+     */
     public ByGoals(List<String> parametersRules) throws GameException {
         goals = Integer.parseInt(parametersRules.get(0));
         if (goals < 0) {
@@ -24,6 +31,8 @@ public class ByGoals extends TypeOfMatch {
      *
      * @param parameters marcadores del jugador izquierdo y derecho, en ese orden
      * @return {@code true} si alguno de los marcadores es igual al límite
+     * @throws IndexOutOfBoundsException si no hay dos marcadores
+     * @throws NumberFormatException si un marcador no representa un entero
      */
     @Override
     public boolean check(List<String> parameters) {

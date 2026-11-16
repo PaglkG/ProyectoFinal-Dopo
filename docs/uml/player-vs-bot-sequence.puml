@@ -1,0 +1,27 @@
+@startuml
+title Inicializar sesión jugador contra bot
+actor Cliente
+participant "session: PlayerVsBot" as S
+participant "GameSession" as Base
+participant "human: Player" as P
+participant "bot: BotPlayer" as B
+
+Cliente -> S ++: new PlayerVsBot(player, typeMatche, parametersRules)
+S -> Base ++: super(player, typeMatche, parametersRules)
+Base -> Base: crear listas y cancha; instanciar modalidad reflectivamente
+Base --> S --: inicialización base
+alt player == true
+  S -> P ++: new Player(1)
+else player == false
+  S -> P ++: new Player(2)
+end
+S -> S: participantsRight.add(human)
+S -> B ++: new BotPlayer()
+S -> S: participantsLeft.add(bot)
+S -> S: positionParticipants()
+S --> Cliente --: sesión lista
+note over S,B
+  El humano queda a la derecha y el bot a la izquierda,
+  según la regla confirmada.
+end note
+@enduml

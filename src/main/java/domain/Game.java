@@ -18,7 +18,7 @@ public class Game {
 
     private List<GameSession> sessions = new ArrayList<>();
 
-    /** Crea el coordinador de las partidas. */
+    /** Crea el coordinador con una lista vacía de sesiones. */
     public Game() {
         sessions = new ArrayList<>();
     }
@@ -53,20 +53,22 @@ public class Game {
      * @param closeSession sesión que se cerrará
      */
     public void closeSession(GameSession closeSession) {
-        sessions.remove(0);
+        int indice = sessions.indexOf(closeSession);
+        sessions.remove(indice);
     }
 
     /**
-     * Reinicia la sesión indicada.
-     *
-     * @param session sesión que se reiniciará
+     * Punto de extensión para reiniciar la sesión; actualmente el cuerpo está
+     * vacío y no modifica su estado.
+     * @param session sesión que se reiniciaría
      */
     public void resetSession(GameSession session) {
     }
 
 
     /**
-     * Solicita el movimiento del participante en la dirección indicada.
+     * Punto de extensión para solicitar movimiento; actualmente el cuerpo no
+     * delega la acción a la sesión.
      *
      * @param session sesión activa
      * @param player participante que se moverá
@@ -79,7 +81,7 @@ public class Game {
     }
 
     /**
-     * Solicita un salto del participante.
+     * Punto de extensión para solicitar un salto; actualmente el cuerpo está vacío.
      *
      * @param session sesión activa
      * @param player participante que saltará
@@ -88,11 +90,9 @@ public class Game {
     }
 
     /**
-     * Solicita la activación del poder del participante. La guía define el daño
-     * como dañoBasePoder × multiplicadorKick, con
-     * multiplicadorKick = 1 + 0,10 × (kick - 1). La vida resultante no puede
-     * ser negativa: max(0, vidaActual - daño). Si llega a cero, el participante
-     * queda aturdido durante 3 segundos.
+     * Punto de extensión para activar el poder. El cuerpo está vacío y no aplica
+     * efectos; la regla de daño todavía no está confirmada en la fuente de
+     * verdad del proyecto.
      *
      * @param session sesión activa
      * @param player participante que usará el poder
@@ -101,14 +101,18 @@ public class Game {
     }
 
     /**
-     * Construye reflectivamente una sesión de la clase indicada.
+     * Busca la clase por nombre, confirma que herede de {@link GameSession} y
+     * llama al constructor que recibe {@code (boolean, String, List)} en ese
+     * orden. Traduce los errores de carga, firma, acceso e invocación a
+     * {@link GameException} con el código correspondiente.
      *
      * @param name nombre completo de la clase concreta de sesión
      * @param player indicador que se pasa al constructor de la sesión
      * @param parametersRules parámetros de la modalidad del partido
      * @param typeMatche nombre completo de la clase de modalidad del partido
      * @return instancia creada
-     * @throws GameException si la clase no existe o no se puede instanciar
+     * @throws GameException si la clase no existe, no es una sesión, no ofrece
+     *         el constructor esperado o no puede construirse
      */
     private GameSession whatSession(String name, boolean player, List<String> parametersRules, String typeMatche) throws GameException {
         try {
@@ -138,7 +142,8 @@ public class Game {
     }
 
     /**
-     * Solicita la mejora de una estadística para el jugador seleccionado.
+     * Punto de extensión para mejorar una estadística; actualmente el cuerpo
+     * está vacío y no cambia el estado de la sesión.
      *
      * @param session sesión del jugador
      * @param player indicador del jugador al que se mejorará
@@ -150,19 +155,21 @@ public class Game {
             String stats) {
     }
 
-    /** Guarda el estado de la partida. */
+    /** Punto de extensión para guardar sesiones; actualmente no escribe datos. */
     public void save() {
     }
 
     /**
-     * Abre el estado de una partida desde un archivo.
+     * Punto de extensión para abrir el estado de una partida. Actualmente no
+     * lee el archivo ni modifica las sesiones.
      *
      * @param file archivo que contiene el estado guardado
      */
     public void open(File file) {
     }
 
-    /** Actualiza la sesión indicada. */
+    /** Delega a la sesión indicada la actualización de un paso del juego. */
     public void updateGame(GameSession game) {
+        game.updateGame();
     }
 }

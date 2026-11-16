@@ -3,6 +3,9 @@ package domain;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.IdentityHashMap;
+import java.util.HashSet;
+import java.util.Set;
 import domain.exception.GameException;
 import domain.hitbox.Hitbox;
 import domain.rules.TypeOfMatch;
@@ -15,13 +18,24 @@ import domain.rules.TypeOfMatch;
  */
 public abstract class GameSession {
 
+    private static final double STEP_SECONDS = 1.0 / 60.0;
+    private static final double BOUNCE_RETENTION = 0.70;
+    private static final double MIN_BOUNCE_SPEED = 0.5;
+    private static final double GRAVITY = 40.0;
+    private static final double KICK_REACH = 8.0;
+    private static final double KICK_HORIZONTAL_IMPULSE = 150.0;
+    private static final double KICK_VERTICAL_IMPULSE = -50.0;
+
     private double timeLeft;
     private int yBase;
     private int xBase;
-    private static double GRAVITY;
     private TypeOfMatch TypeOfMatch;
     private Hitbox[] allHitbox;
     private SoccerField field;
+    private int goalsLeft;
+    private int goalsRight;
+    private boolean finished;
+    private final IdentityHashMap<Ball, Set<SessionParticipant>> activeBallContacts = new IdentityHashMap<>();
     protected List<SessionParticipant> participantsRight;
     protected List<SessionParticipant> participantsLeft;
     
@@ -34,7 +48,8 @@ public abstract class GameSession {
      * @param typeMatche nombre completo de la clase de modalidad, como
      *        {@code ByGoals} o {@code ByTime}
      * @param parametersRules parámetros requeridos por el constructor de esa modalidad
-     * @throws GameException si la clase no existe o no se puede instanciar
+     * @throws GameException si la clase no existe, no hereda de {@link TypeOfMatch},
+     *         no expone el constructor requerido o no se puede instanciar
      */
     public GameSession(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
         participantsRight = new ArrayList<>();
@@ -43,24 +58,32 @@ public abstract class GameSession {
         TypeOfMatch typeMatcheFinal = (TypeOfMatch) typeMatcheObject;
         field = new SoccerField();
         timeLeft = 0;
-        GRAVITY = 3.14;
         TypeOfMatch = typeMatcheFinal;
     }
 
     /**
-     * Solicita el movimiento del participante.
+     * Punto de extensión para solicitar movimiento. Actualmente no modifica
+     * el participante ni valida la dirección.
      * @param user participante
      * @param direction dirección
      */
     public void movePlayer(SessionParticipant user, boolean direction) {
     }
 
-    /** Reinicia la ronda en el centro de la cancha después de un gol. */
+    /**
+     * Reinicia cada balón en el centro de la cancha, recoloca los participantes
+     * y limpia el registro de contactos continuos entre balones y participantes.
+     */
     public void restartRound() {
+        field.resetBall(field.courtX() + field.courtWidth() / 2,
+                field.courtY() + field.courtHeight() / 2);
+        positionParticipants();
+        activeBallContacts.clear();
     }
 
     /**
-     * Asigna la modalidad de partido indicada a la sesión.
+     * Punto de extensión para cambiar la modalidad. Actualmente no modifica la
+     * regla asociada a esta sesión.
      *
      * @param typeMatche nombre de la modalidad que se asignará
      */
@@ -68,8 +91,9 @@ public abstract class GameSession {
     }
 
     /**
-     * Comprueba si se cumple la cantidad mínima de participantes.
-     * @return sesión con participantes suficientes o estado pendiente
+     * Punto de extensión para validar el mínimo de participantes. Actualmente
+     * no valida la lista y devuelve {@code null}.
+     * @return {@code null} en la implementación actual
      */
     public GameSession minParticipants() {
         return null;
@@ -79,37 +103,90 @@ public abstract class GameSession {
     
 
     /**
-     * Registra un gol para el lado indicado.
-     * @param side lado que anotó
+     * Registra el gol si {@code side} es {@code "left"} o {@code "right"}; en
+     * cualquier otro caso no cambia el marcador. Después reinicia la ronda y
+     * comprueba la regla del partido.
+     * @param side lado que anotó; se aceptan {@code "left"} y {@code "right"}
      */
     public void goal(String side) {
-    }
-
-    /** Registra un gol detectado durante la actualización de la sesión. */
-    private void goal() {
+        if ("left".equals(side)) goalsLeft++;
+        else if ("right".equals(side)) goalsRight++;
+        else return;
+        restartRound();
+        checkTypeOfMatch();
     }
 
     /**
-     * Solicita un salto al participante.
+     * Busca si el centro de algún balón entró en un arco. El arco izquierdo
+     * suma al lado derecho y el arco derecho suma al izquierdo; al encontrar
+     * el primer gol, delega el registro y termina la búsqueda.
+     */
+    private void goal() {
+        for (Ball ball : field.balls()) {
+            String goalSide = field.goalSideFor(ball);
+            if ("left".equals(goalSide)) {
+                goal("right");
+                return;
+            }
+            if ("right".equals(goalSide)) {
+                goal("left");
+                return;
+            }
+        }
+    }
+
+    /**
+     * Punto de extensión para solicitar un salto; actualmente no modifica al
+     * participante.
      * @param player participante que saltará
      */
     public void jumpPlayer(SessionParticipant player) {
     }
 
     /**
-     * Solicita la activación del poder del participante.
+     * Punto de extensión para solicitar un poder; actualmente no modifica al
+     * participante.
      * @param player participante que usará el poder
      */
     public void powerPlayer(SessionParticipant player) {
     }
 
     /**
-     * Crea la modalidad de partido indicada usando su constructor que recibe
-     * la lista de parámetros.
+     * Patea el balón desde un participante registrado cuando está a su alcance.
+     * El jugador izquierdo impulsa hacia la derecha y el derecho hacia la izquierda.
+     *
+     * @param player participante que intenta patear
+     * @return {@code true} si se aplicó el impulso
+     */
+    public boolean kickPlayer(SessionParticipant player) {
+        if (finished || player == null) return false;
+        int direction;
+        if (participantsLeft.contains(player)) direction = 1;
+        else if (participantsRight.contains(player)) direction = -1;
+        else return false;
+
+        var box = player.getHitbox();
+        for (Ball ball : field.balls()) {
+            double closestX = Math.max(box.getX(), Math.min(ball.getX(), box.getX() + box.getWidth()));
+            double closestY = Math.max(box.getY(), Math.min(ball.getY(), box.getY() + box.getHeight()));
+            if (Math.hypot(ball.getX() - closestX, ball.getY() - closestY) <= ball.getRadius() + KICK_REACH) {
+                ball.applyImpulse(direction * KICK_HORIZONTAL_IMPULSE, KICK_VERTICAL_IMPULSE);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Carga la clase por nombre, verifica que herede de {@link TypeOfMatch} y
+     * la instancia con el constructor que recibe una {@link List}. Convierte
+     * los errores de carga, firma, acceso e invocación a {@link GameException}.
      * @param typeGame nombre completo de la clase de modalidad
      * @param parametersRules argumentos de configuración de la modalidad
      * @return instancia de la modalidad creada
-     * @throws GameException si la clase no existe o no se puede instanciar
+     * @throws GameException si el nombre no existe, el tipo no hereda de
+     *         {@link TypeOfMatch}, falta el constructor de lista o la clase no
+     *         puede instanciarse
      */
     private TypeOfMatch whatsRules(String typeGame, List<String> parametersRules) throws GameException{
         try {
@@ -137,8 +214,18 @@ public abstract class GameSession {
         }
     }
 
-    /** Comprueba el estado del tipo de partido asociado a la sesión. */
+    /**
+     * Evalúa la regla activa con los marcadores y, para {@link domain.rules.ByTime},
+     * los minutos completos transcurridos. Actualiza {@code finished}; la regla
+     * temporal devuelve si continúa, por lo que su resultado se invierte.
+     */
     public void checkTypeOfMatch() {
+        if (TypeOfMatch instanceof domain.rules.ByGoals) {
+            finished = TypeOfMatch.check(List.of(Integer.toString(goalsLeft), Integer.toString(goalsRight)));
+        } else if (TypeOfMatch instanceof domain.rules.ByTime) {
+            finished = !TypeOfMatch.check(List.of(Integer.toString(goalsLeft), Integer.toString(goalsRight),
+                    Integer.toString((int) Math.floor((timeLeft + 1e-9) / 60))));
+        }
     }
 
     /**
@@ -150,11 +237,138 @@ public abstract class GameSession {
     public void ImproveStatistics(boolean player, String stats) {
     }
 
-    /** Actualiza el estado de la sesión. */
+    /**
+     * Avanza una sesión activa un paso fijo: incrementa el tiempo, integra el
+     * balón con gravedad, procesa contactos y vuelve a consultar la regla si la
+     * sesión no terminó durante la detección de colisiones.
+     */
     public void updateGame() {
+        if (finished) return;
+        timeLeft += STEP_SECONDS;
+        field.advanceBalls(STEP_SECONDS, GRAVITY);
+        collision();
+        if (!finished) checkTypeOfMatch();
     }
 
-    /** Detecta las colisiones de la sesión. */
+    /**
+     * Comprueba primero participantes fuera de cancha y superpuestos; después
+     * procesa goles antes de salidas del balón, rebotes con límites/arcos y suelo,
+     * y contactos balón-participante. Los contactos continuos se registran para
+     * aplicar el impulso solo al inicio de cada contacto. Lanza {@link GameException}
+     * si un participante excede el campo o se superpone con otro, o si un balón
+     * termina fuera de la cancha.
+     */
     private void collision() {
+        List<SessionParticipant> allParticipants = new ArrayList<>(participantsLeft);
+        allParticipants.addAll(participantsRight);
+        for (SessionParticipant participant : allParticipants) {
+            if (field.isOutside(participant) || field.touchesForbiddenBoundary(participant)) {
+                throw new GameException(GameException.OBJECT_OUT_OF_MATCH);
+            }
+        }
+        for (int i = 0; i < allParticipants.size(); i++) {
+            for (int j = i + 1; j < allParticipants.size(); j++) {
+                if (allParticipants.get(i).intersects(allParticipants.get(j)).isContact()) {
+                    throw new GameException(GameException.OBJECTS_OVERLAPPED);
+                }
+            }
+        }
+
+        int leftBefore = goalsLeft;
+        int rightBefore = goalsRight;
+        goal();
+        if (leftBefore != goalsLeft || rightBefore != goalsRight) return;
+
+        for (Ball ball : field.balls()) {
+            field.bounceBallAtWallsAndGoalFrames(ball, BOUNCE_RETENTION);
+            if (field.isOutside(ball)) throw new GameException(GameException.OBJECT_OUT_OF_MATCH);
+            field.bounceBallAtGround(ball, BOUNCE_RETENTION, MIN_BOUNCE_SPEED);
+            Set<SessionParticipant> currentContacts = new HashSet<>();
+            Set<SessionParticipant> previousContacts = activeBallContacts.computeIfAbsent(ball,
+                    ignored -> java.util.Collections.newSetFromMap(new IdentityHashMap<>()));
+            for (SessionParticipant participant : allParticipants) {
+                if (ball.intersects(participant).isContact()) {
+                    currentContacts.add(participant);
+                    int awayDirection = separateBallFromParticipant(ball, participant);
+                    if (!previousContacts.contains(participant)) {
+                        applyParticipantImpulse(ball, awayDirection);
+                    }
+                }
+            }
+            previousContacts.clear();
+            previousContacts.addAll(currentContacts);
+        }
     }
+
+    /**
+     * Suma al balón un impulso horizontal de magnitud 4 alejándolo del
+     * participante y un impulso vertical de -1; luego garantiza que la velocidad
+     * horizontal apunte hacia fuera.
+     *
+     * @param ball balón que recibe el impulso
+     * @param awayDirection dirección horizontal hacia fuera, -1 o 1
+     */
+    private void applyParticipantImpulse(Ball ball, int awayDirection) {
+        double deltaX = awayDirection * 4.0;
+        ball.applyImpulse(deltaX, -1.0);
+        ball.ensureHorizontalDirection(awayDirection, Math.abs(deltaX));
+    }
+
+    /**
+     * Determina el lado más cercano para separar el balón del participante,
+     * invierte la dirección si esa separación excede los límites laterales y
+     * mueve el balón justo fuera de la hitbox del participante.
+     *
+     * @param ball balón que debe separarse
+     * @param participant participante con el que está en contacto
+     * @return dirección horizontal final hacia fuera, como -1 o 1
+     */
+    private int separateBallFromParticipant(Ball ball, SessionParticipant participant) {
+        var box = participant.getHitbox();
+        double participantCenter = box.getX() + box.getWidth() / 2;
+        int direction = Double.compare(ball.getX(), participantCenter);
+        if (direction == 0) {
+            direction = participantsLeft.contains(participant) ? 1 : -1;
+        }
+        double separation = 1e-6;
+        double leftX = box.getX() - ball.getRadius() - separation;
+        double rightX = box.getX() + box.getWidth() + ball.getRadius() + separation;
+        double minCenterX = field.getHitboxField()[2].getX() + ball.getRadius() + separation;
+        double maxCenterX = field.getHitboxField()[3].getX() - ball.getRadius() - separation;
+        double separatedX = direction > 0 ? rightX : leftX;
+        if (separatedX < minCenterX || separatedX > maxCenterX) {
+            direction *= -1;
+            separatedX = direction > 0 ? rightX : leftX;
+        }
+        ball.reposition(separatedX, ball.getY());
+        return direction;
+    }
+
+    /**
+     * Delega a la cancha la colocación simétrica del primer participante de
+     * cada lista; si alguno de los lados no tiene participantes, no hace cambios.
+     */
+    protected void positionParticipants() {
+        if (!participantsLeft.isEmpty() && !participantsRight.isEmpty()) {
+            field.positionParticipants(participantsLeft.get(0), participantsRight.get(0));
+        }
+    }
+
+    /** @return goles anotados por el lado izquierdo */
+    public int getGoalsLeft() { return goalsLeft; }
+    /** @return goles anotados por el lado derecho */
+    public int getGoalsRight() { return goalsRight; }
+    /** @return {@code true} si la regla del partido ya terminó la sesión */
+    public boolean isFinished() { return finished; }
+    /** @return tiempo transcurrido de la sesión, en segundos */
+    public double getElapsedSeconds() { return timeLeft; }
+
+    /** Devuelve la cancha de esta sesión para que la presentación pueda dibujarla. */
+    public SoccerField getField() { return field; }
+
+    /** Devuelve una copia de los participantes del lado izquierdo. */
+    public List<SessionParticipant> getParticipantsLeft() { return List.copyOf(participantsLeft); }
+
+    /** Devuelve una copia de los participantes del lado derecho. */
+    public List<SessionParticipant> getParticipantsRight() { return List.copyOf(participantsRight); }
 }

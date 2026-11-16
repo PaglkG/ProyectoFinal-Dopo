@@ -1,0 +1,76 @@
+@startuml
+title Banco visual: preparación y ejecución de escenarios
+actor Usuario
+participant "panel: MechanicsTestPanel" as P
+participant "controller: MechanicsTestController" as C
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "field: SoccerField" as F
+participant "ball: Ball" as B
+participant "movement: PresentationMovement" as M
+participant "player: SessionParticipant" as U
+
+Usuario -> P: elegir modo y límite
+Usuario -> P: Nueva sesión
+P -> C: startNewSession(sessionMode, matchMode, limit)
+C -> G: startSession(parameters, sessionClass, ruleClass, true)
+G --> C: sesión
+P -> S: getField(), getParticipantsLeft/Right()
+P -> P: dibujar cancha, participantes, balón y marcador
+
+Usuario -> P: mantener dirección o pulsar salto
+P -> C: setMovementControl(control, pressed)
+C -> M: setControl(control, pressed)
+Usuario -> P: pulsar botón o F/Enter
+P -> C: kickLeft() o kickRight()
+alt sesión activa y superficie del balón a 8 unidades o menos
+  C -> U: intersects(ball)
+  C -> S: kickPlayer(participant)
+  S -> B: applyImpulse(±150, -50)
+  C --> P: patada aplicada hacia arco contrario
+else sin contacto, sesión terminada o jugador no controlable
+  C --> P: no aplica patada
+end
+loop cada paso de simulación
+  P -> C: step()
+  C -> M: update(session, sessionMode)
+  M -> S: leer participantes y cancha
+  M -> U: resetPosition(x, y)
+  C -> G: updateGame(session)
+  G -> S: updateGame()
+  opt centro del balón entra en un arco
+    S -> S: sumar gol al lado opuesto
+    S -> S: reiniciar balón y participantes
+    P -> P: actualizar marcador visible
+  end
+end
+
+Usuario -> P: elegir escenario
+P -> C: runScenario(scenario)
+C -> G: iniciar sesión limpia para el escenario
+alt gol en arco
+  C -> B: posicionar en el área del arco
+  C -> G: updateGame(session)
+  G -> S: updateGame()
+  S -> F: goalSideFor(ball)
+  S -> S: actualizar marcador y reiniciar ronda
+else rebote
+  C -> B: posicionar junto al suelo y aplicar velocidad
+  C -> G: updateGame(session)
+  G -> S: updateGame()
+  S -> F: touchesGround(ball)
+  S -> B: rebotar con retención
+else contacto participante-balón
+  C -> B: posicionar sobre el participante
+  C -> G: updateGame(session)
+  G -> S: updateGame()
+  S -> B: aplicar impulso una vez por contacto
+else salida o superposición
+  C -> P: posicionar objeto para provocar el caso
+  C -> G: updateGame(session)
+  G -> S: updateGame()
+  S --> P: mostrar GameException o resultado de la sesión
+end
+P -> S: leer marcador, tiempo y posiciones
+P -> P: actualizar dibujo y estado visible
+@enduml

@@ -9,15 +9,15 @@ public abstract class Power {
 
     private int chargePower;
 
-    /** Crea un poder. */
+    /** Crea un poder con la carga predeterminada de Java, actualmente cero. */
     public Power() {
     }
 
-    /** Activa el poder si tiene carga suficiente. */
+    /** Punto de extensión para activar el poder; actualmente no consume carga ni produce efectos. */
     public void usePower() {
     }
 
-    /** Comprueba si el poder se puede usar. */
+    /** Punto de extensión para validar la carga; actualmente no comprueba ni devuelve un resultado. */
     private void isUsable() {
     }
 }

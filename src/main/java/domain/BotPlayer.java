@@ -10,12 +10,13 @@ import domain.enums.Action;
  */
 public class BotPlayer extends SessionParticipant {
 
-    /** Crea un participante controlado por la máquina. */
+    /** Crea un participante controlado por la máquina sin estado de decisión inicial. */
     public BotPlayer() {
     }
 
     /**
-     * Decide las acciones del bot según el estado de la cancha.
+     * Punto de extensión para elegir acciones a partir de la cancha. Actualmente
+     * no evalúa el estado y devuelve {@code null}.
      * @param field cancha actual
      * @return conjunto de acciones
      */

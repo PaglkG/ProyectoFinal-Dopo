@@ -1,7 +1,8 @@
 package domain.hitbox;
 
 /**
- * Representa una hitbox rectangular definida por posición y dimensiones.
+ * Representa una hitbox rectangular mediante la esquina superior izquierda
+ * {@code (x, y)} y sus dimensiones {@code width × height}.
  *
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
@@ -16,8 +17,8 @@ public class RectangularHitbox implements Hitbox {
     /**
      * Crea una hitbox rectangular.
      *
-     * @param x coordenada horizontal
-     * @param y coordenada vertical
+     * @param x coordenada horizontal de la esquina superior izquierda
+     * @param y coordenada vertical de la esquina superior izquierda
      * @param width ancho del rectángulo
      * @param height alto del rectángulo
      */
@@ -32,11 +33,12 @@ public class RectangularHitbox implements Hitbox {
      * Comprueba la intersección con otra hitbox.
      *
      * @param hitbox hitbox con la que se comprobará la intersección
-     * @return {@code false} hasta que se definan las reglas geométricas
+     * @return entidad y hitbox asociada que hacen contacto, o nombre vacío si
+     *         no hay una entidad de dominio identificable en contacto
      */
     @Override
-    public boolean intersects(Hitbox hitbox) {
-        return false;
+    public HitboxContact intersects(Hitbox hitbox) {
+        return HitboxIntersections.intersects(this, hitbox);
     }
 
     /**
@@ -49,5 +51,52 @@ public class RectangularHitbox implements Hitbox {
     public void reposition(double x, double y) {
         this.x = x;
         this.y = y;
+    }
+
+    /**
+     * Devuelve la coordenada horizontal de la esquina superior izquierda.
+     *
+     * @return coordenada horizontal de la esquina superior izquierda
+     */
+    public double getX() {
+        return x;
+    }
+
+    /**
+     * Devuelve la coordenada vertical de la esquina superior izquierda.
+     *
+     * @return coordenada vertical de la esquina superior izquierda
+     */
+    public double getY() {
+        return y;
+    }
+
+    /**
+     * Devuelve el ancho del rectángulo.
+     *
+     * @return ancho del rectángulo
+     */
+    public double getWidth() {
+        return width;
+    }
+
+    /**
+     * Devuelve el alto del rectángulo.
+     *
+     * @return alto del rectángulo
+     */
+    public double getHeight() {
+        return height;
+    }
+
+    /**
+     * Cambia las dimensiones del rectángulo sin mover su esquina superior izquierda.
+     *
+     * @param width nuevo ancho
+     * @param height nuevo alto
+     */
+    public void resize(double width, double height) {
+        this.width = width;
+        this.height = height;
     }
 }

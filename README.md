@@ -23,13 +23,13 @@ Este repositorio contiene el **proyecto final** de la asignatura, desarrollado e
 
 Es un trabajo **académico y sin fines comerciales**. Su objetivo es aplicar análisis de requisitos, diseño orientado a objetos, pruebas automáticas y trabajo colaborativo con Git.
 
-El proyecto desarrolla una versión académica inspirada en **Head Soccer**, seleccionada en la convocatoria *Juego 2026-2*. El estado actual se centra en el esqueleto del dominio y la interfaz; todavía no hay una partida jugable.
+El proyecto desarrolla una versión académica inspirada en **Head Soccer**, seleccionada en la convocatoria *Juego 2026-2*. Actualmente contamos con mecánicas básicas de dominio y una pantalla independiente para probarlas; la presentación oficial sigue en desarrollo.
 
 > ⚠️ **Aviso:** *Head Soccer* es un juego creado por **D&D Dream Corp.** Este proyecto es una reinterpretación educativa; no está afiliado ni respaldado por sus creadores y no se distribuye con fines comerciales.
 
 ## 📂 Documentación y recursos
 
-Los enlaces llevan a los documentos compartidos del proyecto y al repositorio de código.
+Los enlaces llevan a los documentos compartidos, los diagramas y las guías del repositorio.
 
 | Recurso | Enlace | Descripción |
 |---|---|---|
@@ -37,10 +37,13 @@ Los enlaces llevan a los documentos compartidos del proyecto y al repositorio de
 | 📄 Archivo complementario | [Abrir en Google Drive](https://drive.google.com/file/d/1dhQskSDOwRWgXCxy5vZDP-IV2ra9s9VO/view?usp=sharing) | Archivo compartido por el equipo. |
 | 📐 Diagrama de clases | [Abrir en diagrams.net](https://viewer.diagrams.net/?tags=%7B%7D&lightbox=1&highlight=0000ff&edit=_blank&layers=1&link-icons=1&tooltip-icons=1&nav=1&title=Head_Soccer.drawio&dark=auto#Uhttps%3A%2F%2Fdrive.google.com%2Fuc%3Fid%3D1kuQxyHiroSopLOlZwFoC23GFreDoKCrz%26export%3Ddownload) | Visualización y edición del diagrama de clases. |
 | 💻 Código fuente | [Repositorio GitHub](https://github.com/PaglkG/ProyectoFinal-Dopo) | Código, versiones, ramas y seguimiento del desarrollo. |
+| 📘 Reglas del proyecto | [`docs/logica-proyecto.md`](docs/logica-proyecto.md) | Reglas confirmadas, estado de implementación y decisiones pendientes. |
+| 🧪 Banco de pruebas | [`docs/guia-banco-pruebas.md`](docs/guia-banco-pruebas.md) | Instrucciones para abrir y usar la ventana de prueba de mecánicas. |
+| 📐 Diagramas UML | [`docs/uml/`](docs/uml/) | Diagramas fuente, capturas e informe de contraste con el código. |
 
 > El acceso a los archivos de Google depende de los permisos compartidos para cada integrante.
 
-## 🎮 ¿De qué trata Head Soccer?
+## 🎮 Referente: Head Soccer
 
 *Head Soccer* es un juego de fútbol arcade, **uno contra uno**, donde los jugadores son personajes de cabeza enorme que golpean el balón con la cabeza y los pies.
 
@@ -68,15 +71,31 @@ La idea es simple y se aprende en segundos:
 
 ## 🧩 Estado actual del proyecto
 
-El código contiene clases de dominio y de presentación como esqueletos. Los métodos documentan las responsabilidades previstas, pero la lógica del juego aún está pendiente.
+El proyecto está en desarrollo. La capa de dominio ya contiene sesiones para jugador contra jugador y jugador contra bot, modalidades por goles y por tiempo, hitboxes, actualización física del balón, colisiones, rebotes, goles, marcador y finalización de la partida. La pantalla independiente de pruebas permite simular estas mecánicas y preparar escenarios para observarlas.
 
-- [x] Esqueleto del modelo de dominio basado en el diagrama de clases.
-- [x] Punto de entrada `App.java` y clases iniciales de interfaz Swing.
-- [x] Pruebas automatizadas de las funcionalidades implementadas en dominio y reglas.
-- [ ] Lógica de partida, controles y reglas de victoria.
-- [ ] Física del balón, colisiones y goles.
-- [ ] Poderes, efectos y comportamiento de los bots.
-- [ ] Interfaz de juego funcional.
+La presentación oficial tiene pantallas y componentes Swing en construcción, pero todavía no integra una partida completa con todas las mecánicas. El movimiento de los jugadores de la pantalla de prueba se simula en presentación para poder ensayar el dominio; no corresponde a una implementación definitiva de controles del juego. La modalidad contra bot está creada, pero la toma de decisiones del bot, los poderes y sus efectos siguen pendientes. Algunos casos límite de colisiones también requieren revisión.
+
+## 📝 Retrospectiva de la entrega
+
+En esta entrega nos enfocamos principalmente en la capa de dominio. El proyecto ya implementa funcionalidades básicas, en particular las hitboxes y varias interacciones entre los objetos. Aun así, hemos encontrado fallos en algunas colisiones, sobre todo cuando los dos jugadores se superponen con el balón. Por eso consideramos que esta parte funciona como una base, pero todavía necesita revisión y correcciones.
+
+Uno de los avances principales fue ampliar el paquete `hitbox`. Después de discutir varias alternativas entre el equipo y la IA, elegimos centralizar la detección geométrica en una clase y crear otra clase especial para indicar si ocurrió una intersección y, cuando ocurre, identificar el objeto y la hitbox que participaron. Esta información nos permite controlar después la respuesta correspondiente. Al principio pensamos en calcular las colisiones directamente mediante funciones distribuidas por el código; la retroalimentación de la IA nos ayudó a considerar que repetir esos cálculos en cada actualización podía ser costoso y difícil de mantener. Separar esta responsabilidad nos pareció una alternativa más ordenada y escalable.
+
+La implementación de la física fue especialmente difícil. La sintaxis de las operaciones y el razonamiento matemático nos tomaron bastante tiempo. Tuvimos que representar el movimiento del balón mediante componentes horizontales y verticales para poder aplicar los rebotes y los golpes, y decidir cómo debían cambiar esas velocidades en cada contacto. También fue necesario organizar cuidadosamente la secuencia de cada actualización: por ejemplo, comprobar primero si el balón entró en el arco antes de tratarlo como un objeto que salió de la cancha. La lógica es secuencial y cambiar el orden de las comprobaciones puede cambiar el resultado del partido.
+
+La interacción entre el jugador y el balón también requirió varias decisiones. Implementamos que el jugador pueda ejercer un impulso sobre el balón y revisamos la fuerza y las proporciones mediante simulaciones. Como algunos métodos de física quedaron enrevesados, pedimos a la IA que nos ayudara a dividir el código en métodos privados y a documentar sus pasos, incluso cuando esos métodos no forman parte de la interfaz pública. Queremos que esa documentación nos sirva para estudiar, preparar el parcial y recordar qué está haciendo cada cálculo cuando tengamos que depurar el juego.
+
+También incorporamos algunas excepciones para representar situaciones problemáticas, como objetos fuera de la partida o jugadores superpuestos. Para decidir qué casos debían producir errores, revisamos escenarios posibles con ayuda de la IA. Sin embargo, la física es todavía una de las áreas con más posibilidades de presentar casos límite, así que reconocemos que faltan excepciones y validaciones por revisar.
+
+La capa de presentación oficial ha avanzado en su diseño, pero todavía no está terminada. En esta etapa priorizamos el dominio y elaboramos diseños para la presentación. Para poder comprobar las mecánicas sin esperar a que la interfaz definitiva estuviera lista, le pedimos a la IA una capa de presentación independiente para pruebas. Con esa pantalla pudimos observar el comportamiento del balón y los jugadores, experimentar con la fuerza de los golpes y revisar tamaños y proporciones. Esa posibilidad de ver las interacciones nos permitió hacer correcciones que habrían sido más difíciles de encontrar leyendo únicamente el código.
+
+Además, revisamos métodos que no debían estar en la clase principal del dominio y seguimos analizando cómo separar mejor las responsabilidades. Exploramos también cómo podría configurarse el teclado para el juego, aunque esa configuración aún no está integrada como una funcionalidad completa. Hasta el momento tampoco hemos programado la modalidad contra la IA ni los poderes; por ahora, el trabajo se ha concentrado en las funcionalidades básicas y en la modalidad entre jugadores.
+
+En cuanto a las pruebas, realizamos pruebas de precodificación y de postcodificación. Las primeras se plantearon a partir de los diagramas de secuencia para anticipar el flujo esperado. Las segundas verifican el comportamiento de los métodos una vez implementados y buscan que cambios posteriores no dañen lo que ya consideramos funcional. La IA nos ayudó a preparar casos y a revisar que no se nos escaparan interacciones importantes. Durante el desarrollo encontramos errores y cambiamos algunas reglas, especialmente en el paquete `hitbox`; por esa razón también tuvimos que ajustar ciertas pruebas que ya existían. Esto fue necesario porque había cambiado la lógica central de interacción entre los objetos. En la última ejecución de Maven pasaron las 86 pruebas. Esperamos que, una vez estabilicemos esta lógica gruesa del dominio, ya no tengamos que modificar con tanta frecuencia las pruebas anteriores.
+
+También reconocemos que todavía hay diferencias o elementos faltantes en algunos diagramas de secuencia. Debemos seguir contrastándolos con el comportamiento implementado y actualizarlos cuando sea necesario, para que el UML describa de forma fiel los flujos del proyecto.
+
+En conclusión, esta entrega nos permitió pasar de tener principalmente estructuras iniciales a contar con una base que ya simula interacciones importantes entre objetos. El proceso nos exigió aprender y revisar conceptos de geometría, vectores, orden de actualización, pruebas y diseño por responsabilidades. Nos apoyamos en la IA para discutir alternativas, detectar escenarios, documentar métodos y construir la pantalla de prueba, pero las decisiones y revisiones del proyecto las hicimos en equipo. El estado actual todavía no es definitivo: quedan correcciones de colisiones y física, excepciones por revisar, diagramas por completar o sincronizar, la presentación oficial, la modalidad contra la IA, los poderes y la configuración de controles. Esta base nos permite continuar esos pasos con mecánicas que ya podemos observar y probar.
 
 ## 🧰 Tecnologías
 
@@ -88,7 +107,7 @@ El código contiene clases de dominio y de presentación como esqueletos. Los m�
 | 🤖 **GitHub Actions** | Integración continua (`build-and-test`). |
 | 🔀 **Git / GitHub** | Control de versiones y revisión de código. |
 
-## 🚀 Cómo ejecutarlo
+## 🚀 Cómo compilar, probar y ejecutar
 
 ### Requisitos
 
@@ -96,7 +115,7 @@ El código contiene clases de dominio y de presentación como esqueletos. Los m�
 - Maven 3.9 o superior.
 - Git.
 
-### Compilación y verificación
+### Compilar y ejecutar pruebas
 
 ```bash
 # 1. Clonar el repositorio
@@ -105,11 +124,21 @@ git clone https://github.com/PaglkG/ProyectoFinal-Dopo.git
 # 2. Entrar al directorio
 cd ProyectoFinal-Dopo
 
-# 3. Compilar y ejecutar la verificación
+# 3. Compilar y ejecutar todas las pruebas
 mvn --batch-mode --no-transfer-progress clean verify
 ```
 
-El punto de entrada está configurado con `mvn exec:java`. La interfaz gráfica sigue en construcción y todavía no permite jugar una partida.
+### Abrir la aplicación
+
+```bash
+mvn exec:java
+```
+
+Esto inicia el punto de entrada configurado (`presentation.App`). La interfaz oficial está en desarrollo y todavía no ofrece una partida completa.
+
+### Abrir el banco visual de mecánicas
+
+Desde el IDE, ejecuta la clase `presentation.testing.MechanicsTestApp`. Esta ventana es independiente de la aplicación principal. Permite probar sesiones, movimiento visual, patadas y escenarios de colisión; consulta [`docs/guia-banco-pruebas.md`](docs/guia-banco-pruebas.md) para los controles y escenarios disponibles.
 
 ## 🌿 Flujo de trabajo
 

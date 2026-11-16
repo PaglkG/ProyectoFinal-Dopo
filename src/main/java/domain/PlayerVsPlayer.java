@@ -25,12 +25,8 @@ public class PlayerVsPlayer extends GameSession {
         Player player2 = new Player(2);
         participantsRight.add(player1); 
         participantsLeft.add(player2);
+        positionParticipants();
     }
 
-    /**
-     * Agrega los usuarios indicados a la sesión.
-     * @param user identificadores de usuario
-     */
-    public void addParticipants(String[] user) {
-    }
+
 }

@@ -26,6 +26,10 @@
 - Cuando se alcanza el límite con el marcador empatado, `ByTime.suddenDeath` se activa y `check` devuelve `true`.
 - Cuando un marcador desigual termina la muerte súbita, `ByTime.suddenDeath` vuelve a `false`.
 
+### Balón y cancha
+
+- El balón que crea `SoccerField` tiene radio 10 unidades.
+
 ### Modalidad por goles
 
 - `ByGoals` termina el partido cuando uno de los marcadores iguala exactamente el límite configurado. Superarlo no cuenta como igualdad con el límite.
@@ -36,11 +40,25 @@
 - `Ball.resetBall(width, height)` sitúa el balón en el centro geométrico de la cancha (`x = width / 2`, `y = height / 2`) y deja `velocityX` y `velocityY` en cero.
 - `SoccerField.resetBall(x, y)` ubica el centro de cada balón en esas coordenadas y deja sus velocidades en cero.
 
+### Actualización, contactos y goles
+
+- `GameSession.updateGame()` avanza en pasos fijos de `1/60` segundo. En cada paso, el balón suma `40 × paso` a su velocidad vertical y luego se desplaza usando las velocidades resultantes.
+- Al tocar el suelo, el balón se coloca con su parte inferior sobre el suelo, invierte la velocidad vertical y conserva el 70 % de su magnitud. Si la nueva magnitud es menor que `0.5`, la velocidad vertical queda en cero. La velocidad horizontal se conserva.
+- El balón no permanece superpuesto con un participante: al detectarse el contacto, se reposiciona horizontalmente hasta quedar fuera de su hitbox y del lado que lo aleja, eligiendo el otro lado si el primero lo sacaría de la cancha. En el primer paso del contacto se suma `Δvx = ±4` hacia fuera y `Δvy = -1`; la velocidad horizontal se redirige hacia fuera si aún apuntaba hacia el participante. El impulso se aplica una vez por contacto continuo y puede repetirse tras separarse y volver a tocarse.
+- Un gol ocurre cuando el centro del balón entra en el rectángulo de gol dentro de la cancha. Las hitboxes de gol conservan ancho `cancha/10` y alto `cancha/3`, y quedan apoyadas sobre la línea del suelo dentro del límite inferior. La entrada frontal del arco permanece libre para permitir el gol; los bordes del arco rebotan el balón. El arco izquierdo concede un punto al lado derecho y viceversa. La detección del gol precede a la comprobación de salida del balón.
+- Después de un gol se reinicia el balón al centro y se ubican los participantes de forma simétrica: hitbox de ancho `cancha/20`, alto `cancha/3`, centros horizontales en `1/4` y `3/4` del ancho, apoyados sobre el suelo.
+- Cualquier parte de la hitbox de un participante o balón que salga del rectángulo exterior de la cancha produce `GameException` con mensaje `objeto fuera de la partida`. Un participante que toque el límite superior o los límites laterales también produce esa excepción. El contacto participante-participante produce `GameException` con mensaje `dos objetos super puestos`.
+- El balón puede tocar límites laterales o superior sin efecto; toca el suelo para rebotar. El contacto participante-balón aplica el impulso descrito. Otros contactos con la cancha no tienen efecto.
+- La sesión conserva goles izquierdo y derecho. En `ByGoals`, alcanzar el límite termina la sesión; en `ByTime`, el tiempo transcurrido se cuenta en segundos y se pasan a `check` los minutos enteros completos. La modalidad temporal continúa en empate (muerte súbita) y termina al quedar un ganador una vez agotado el límite. Una sesión terminada no avanza más.
+
 ### Hitboxes y medidas provisionales
 
-- Las intersecciones se representan mediante `Hitbox`; sus efectos por pareja de objetos siguen pendientes.
+- Las intersecciones se consultan entre entidades del dominio que tienen hitboxes asociadas; las hitboxes geométricas se crean como parte de esas entidades y no se tratan como objetos de juego independientes.
+- Dos hitboxes cuentan como intersecadas cuando sus bordes se tocan. Dos círculos intersectan si la distancia entre centros es menor o igual a la suma de sus radios; dos rectángulos intersectan si sus intervalos se solapan incluyendo el contacto; círculo-rectángulo se resuelve por la distancia entre el centro del círculo y el punto más cercano del rectángulo.
+- `Hitbox.intersects(hitbox)` devuelve un `HitboxContact` con el nombre simple de la entidad contactada y la hitbox asociada que participó. Sin contacto devuelve un resultado con `name = ""` y `hitbox = null`. Los nombres usados son `Ball`, `SessionParticipant` y `SoccerField`.
+- `Ball` y `SessionParticipant` comprueban intersección mediante sus hitboxes asociadas. `SoccerField.intersects(hitbox)` busca contacto con sus límites, arcos y balones; si la cancha es el objeto contactado, devuelve la parte concreta de la cancha o el balón contenido que intervino.
 - `Hitbox.reposition(x, y)` reposiciona la referencia de cada forma: centro para círculos y esquina superior izquierda para rectángulos. `Ball` y `SessionParticipant` delegan en su hitbox; `SoccerField` reposiciona las formas que contiene.
-- Como propuesta provisional, la cancha mide 450 × 150 unidades, los límites tienen grosor `alto / 100`, cada arco mide `ancho / 10` por `alto / 3` y queda centrado verticalmente, y el balón tiene radio 2.
+- Como propuesta provisional, la cancha mide 450 × 150 unidades, los límites tienen grosor `alto / 100`, y cada arco mide `ancho / 10` por `alto / 3` y queda apoyado sobre el límite inferior dentro de la cancha.
 - Como propuesta provisional, la hitbox del participante mide `ancho / 20` por `alto / 3`.
 
 ### Configuración del jugador
@@ -66,7 +84,8 @@
 - `ByTime.suddenDeath` se activa cuando se agota el tiempo con empate; en ese caso `check` devuelve `true` y, si un marcador queda desigual, se apaga al terminar.
 - Para ajustarse al diagrama, se retiraron de `domain` `Scoreboard`, `Outfit`, `Head`, `Shoe`, `Rule` y `Side`. `Action` se conserva porque aparece en el tipo de retorno de `BotPlayer.decideAction`.
 - Se conservan los parámetros de jugador y reglas en los constructores de `GameSession`, `PlayerVsBot` y `PlayerVsPlayer`, y la lista de parámetros en las fábricas reflectivas. `TypeOfMatch.check` conserva su contrato `boolean` con parámetros, de acuerdo con la regla de continuidad confirmada.
-- `GameSession.checkTypeOfMatch` está pendiente de implementación.
+- `GameSession` coordina el paso de juego, aplica contactos balón-participante, registra el marcador, reposiciona a los participantes tras gol y detiene sesiones terminadas conforme a la modalidad. `SoccerField` recorre sus balones para avanzar su estado y coordina los rebotes contra límites, arcos y suelo; `Ball` conserva estado físico y ejecuta las operaciones delegadas.
+- `GameSession.kickPlayer` permite patear solo a participantes registrados, en sesiones activas y cuando la superficie del balón está a 8 unidades o menos del borde de su hitbox. El dominio aplica un impulso horizontal de 150 unidades/s hacia el arco contrario y un impulso vertical de -50 unidades/s. La pantalla de prueba solo envía la acción; no consulta ni modifica la estadística `kick`.
 
 ## Decisiones pendientes
 
@@ -79,21 +98,13 @@
 ### Victoria, goles y tiempo
 
 - ¿Qué evento termina la muerte súbita cuando el partido está empatado al agotarse el tiempo?
-- ¿Los minutos se manejan como minutos enteros, segundos o tiempo fraccionario? ¿Qué formato usa `check` para el tiempo transcurrido?
-- ¿Qué estructura exacta debe tener la lista que `GameSession.checkTypeOfMatch` enviará a cada tipo de partido?
 
 ### Movimiento y física
 
-- ¿Qué coordenadas, unidades y origen usa la cancha?
-- ¿Qué velocidades iniciales tiene el balón?
-- ¿Cuál es la ecuación de actualización, convención de ejes y valor/unidad de gravedad?
-- ¿Qué rebotes y colisiones deben ocurrir con el suelo, bordes, arcos, jugadores y balón?
-- ¿Qué define un gol y desde qué estado/posición se reinicia la ronda?
 - ¿Qué velocidades, aceleraciones, límites y condiciones de salto/movimiento tienen los participantes?
 
 ### Marcador, estadísticas y poderes
 
-- ¿Cómo se incrementan los marcadores y qué pasa con el empate?
 - ¿Cómo se cargan/consumen las barras de poder y cómo se limita su valor?
 - ¿Qué límites, costos y puntos disponibles tienen las estadísticas?
 - ¿Qué efecto exacto aplica cada estadística, incluida `kick`?
@@ -116,3 +127,7 @@
 | 2026-11-12 | `ByGoals` termina al igualar el límite; `ByTime.suddenDeath` se activa en empate al agotarse el tiempo; el campo reinicia cada balón a un centro `(x,y)` y deja su velocidad en cero. | Pablo |
 | 2026-11-12 | `Hitbox.reposition(x,y)` mueve círculos por su centro y rectángulos por su esquina superior izquierda; las intersecciones y sus efectos quedan pendientes. | Pablo |
 | 2026-11-12 | `Stats.action` usa un mapa con `speed`, `goal`, `kick` y `jump` inicializados en 1; `points` inicia en 0. | Pablo |
+| 2026-11-15 | Las intersecciones geométricas incluyen el contacto entre bordes; `Hitbox.intersects` devuelve la entidad contactada y su hitbox asociada, o nombre vacío y hitbox nula si no hay contacto. Los nombres son `Ball`, `SessionParticipant` y `SoccerField`; la cancha considera sus límites, arcos y balones. | Pablo |
+| 2026-11-15 | Se confirma el paso fijo de 1/60 s, gravedad 3.14, rebote con retención 70 % y umbral 0.5; impulso participante-balón ±4 horizontal y -1 vertical una vez por contacto; gol al entrar el centro en el arco, punto para el lado opuesto y reinicio simétrico. Se confirman las dos excepciones literales para objetos fuera/superpuestos y la actualización temporal ByTime en segundos con minutos enteros completados. | Pablo |
+| 2026-11-15 | Se reemplaza la gravedad anterior por 40 unidades/s². El balón se separa horizontalmente del participante hasta salir de su hitbox; al tocarlo se redirige hacia fuera con impulso horizontal de magnitud 4 y suma impulso vertical -1 una vez por contacto. | Pablo |
+| 2026-11-16 | El balón creado por `SoccerField` tiene radio 10 unidades. | Pablo |

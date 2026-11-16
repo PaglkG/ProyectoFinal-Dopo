@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.lang.reflect.Field;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,11 +50,11 @@ class SoccerFieldTest {
         RectangularHitbox rightGoal = readGoal(field, "RightGoalHitbox");
 
         assertEquals(0.0, readValue(leftGoal, "x"));
-        assertEquals(50.0, readValue(leftGoal, "y"));
+        assertEquals(98.5, readValue(leftGoal, "y"));
         assertEquals(45.0, readValue(leftGoal, "width"));
         assertEquals(50.0, readValue(leftGoal, "height"));
         assertEquals(405.0, readValue(rightGoal, "x"));
-        assertEquals(50.0, readValue(rightGoal, "y"));
+        assertEquals(98.5, readValue(rightGoal, "y"));
     }
 
     @Test
@@ -65,14 +64,14 @@ class SoccerFieldTest {
         CircularHitbox[] hitboxes = field.getHitboxBalls();
 
         assertEquals(1, hitboxes.length);
-        assertSame(readBalls(field).get(0).getHitbox(), hitboxes[0]);
+        assertSame(readBalls(field)[0].getHitbox(), hitboxes[0]);
     }
 
     @Test
     void resetBallPlacesTheBallCenterAtTheRequestedCoordinatesAndClearsVelocity()
             throws ReflectiveOperationException {
         SoccerField field = new SoccerField();
-        Ball ball = readBalls(field).get(0);
+        Ball ball = readBalls(field)[0];
         setValue(ball, "velocityX", 6.0);
         setValue(ball, "velocityY", -4.0);
 
@@ -84,11 +83,10 @@ class SoccerFieldTest {
         assertEquals(0.0, readValue(ball, "velocityY"));
     }
 
-    @SuppressWarnings("unchecked")
-    private static List<Ball> readBalls(SoccerField field) throws ReflectiveOperationException {
+    private static Ball[] readBalls(SoccerField field) throws ReflectiveOperationException {
         Field ballsField = SoccerField.class.getDeclaredField("balls");
         ballsField.setAccessible(true);
-        return (List<Ball>) ballsField.get(field);
+        return (Ball[]) ballsField.get(field);
     }
 
     private static RectangularHitbox readGoal(SoccerField field, String fieldName)

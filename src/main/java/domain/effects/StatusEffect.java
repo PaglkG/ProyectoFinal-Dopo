@@ -11,19 +11,19 @@ public class StatusEffect {
     private double duration;
     private double remaining;
 
-    /** Actualiza el tiempo restante del efecto. */
+    /** Punto de extensión para actualizar la duración; actualmente no cambia {@code remaining}. */
     public void update() {
     }
 
     /**
-     * Comprueba si el efecto terminó.
-     * @return indica si venció
+     * Comprueba si el efecto terminó. Actualmente devuelve siempre {@code false}.
+     * @return {@code false} en la implementación actual
      */
     public boolean isExpired() {
         return false;
     }
 
-    /** Renueva la duración del efecto. */
+    /** Punto de extensión para renovar el efecto; actualmente no cambia su duración restante. */
     public void refresh() {
     }
 
