@@ -84,15 +84,15 @@ class GameSessionUpdateTest {
     void ballReboundsWithRetentionAndStopsBelowMinimum() throws Exception {
         PlayerVsPlayer session = session(5);
         Ball ball = ball(session);
-        ball.reposition(225, 146.5);
+        ball.reposition(225, 138.5);
         ball.applyImpulse(0, 10);
 
         session.updateGame();
 
-        assertEquals(146.5, ball.getY(), 1e-9);
+        assertEquals(138.5, ball.getY(), 1e-9);
         assertEquals(-((10 + 40.0 / 60) * 0.70), ball.getVelocityY(), 1e-9);
 
-        ball.reposition(225, 146.5);
+        ball.reposition(225, 138.5);
         setVelocityY(ball, 0.01);
         session.updateGame();
         assertEquals(0, ball.getVelocityY());
@@ -107,7 +107,7 @@ class GameSessionUpdateTest {
 
         session.updateGame();
 
-        assertEquals(3.5, ball.getX(), 1e-9);
+        assertEquals(11.5, ball.getX(), 1e-9);
         assertEquals(14, ball.getVelocityX(), 1e-9);
     }
 
@@ -120,7 +120,7 @@ class GameSessionUpdateTest {
 
         session.updateGame();
 
-        assertEquals(3.5, ball.getY(), 1e-9);
+        assertEquals(11.5, ball.getY(), 1e-9);
         assertEquals(20 * 0.7 - 40.0 / 60 * 0.7, ball.getVelocityY(), 1e-9);
     }
 
@@ -134,7 +134,7 @@ class GameSessionUpdateTest {
         session.updateGame();
 
         assertEquals(0, session.getGoalsRight());
-        assertEquals(47, ball.getX(), 1e-9);
+        assertEquals(55, ball.getX(), 1e-9);
         assertEquals(7, ball.getVelocityX(), 1e-9);
     }
 
@@ -222,7 +222,7 @@ class GameSessionUpdateTest {
 
         session.updateGame();
 
-        assertEquals(3.5, ball.getX(), 1e-9);
+        assertEquals(11.5, ball.getX(), 1e-9);
         assertTrue(ball.getVelocityX() > 0);
     }
 
