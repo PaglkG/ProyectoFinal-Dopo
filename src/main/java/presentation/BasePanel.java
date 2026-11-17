@@ -1,4 +1,4 @@
-package presentation.samuel;
+package presentation;
  
 import javax.swing.JPanel;
  
