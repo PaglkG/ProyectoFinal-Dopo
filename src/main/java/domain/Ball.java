@@ -94,7 +94,7 @@ public class Ball implements Hitbox {
      * @param direction sentido horizontal esperado, expresado como -1 o 1
      * @param minimumSpeed magnitud mínima de velocidad que debe conservarse
      */
-    void ensureHorizontalDirection(int direction, double minimumSpeed) {
+    public void ensureHorizontalDirection(int direction, double minimumSpeed) {
         if (direction != 0 && velocityX * direction <= 0) {
             velocityX = direction * Math.max(Math.abs(velocityX), minimumSpeed);
         }
@@ -123,7 +123,7 @@ public class Ball implements Hitbox {
      * @param retention fracción de velocidad que se conserva tras el rebote
      * @param minimumSpeed magnitud mínima para mantener el rebote
      */
-    void bounceAt(double centerY, double retention, double minimumSpeed) {
+    public void bounceAt(double centerY, double retention, double minimumSpeed) {
         BallHitbox.reposition(getX(), centerY);
         if (velocityY >= 0) {
             velocityY = -velocityY * retention;
@@ -140,7 +140,7 @@ public class Ball implements Hitbox {
      * @param centerX nueva coordenada horizontal del centro
      * @param retention fracción de velocidad que se conserva
      */
-    void bounceHorizontallyAt(double centerX, double retention) {
+    public void bounceHorizontallyAt(double centerX, double retention) {
         BallHitbox.reposition(centerX, getY());
         velocityX = -velocityX * retention;
     }
@@ -152,7 +152,7 @@ public class Ball implements Hitbox {
      * @param centerY nueva coordenada vertical del centro
      * @param retention fracción de velocidad que se conserva
      */
-    void bounceVerticallyAt(double centerY, double retention) {
+    public void bounceVerticallyAt(double centerY, double retention) {
         BallHitbox.reposition(getX(), centerY);
         velocityY = -velocityY * retention;
     }

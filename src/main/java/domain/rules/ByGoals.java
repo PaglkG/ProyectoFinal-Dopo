@@ -16,11 +16,10 @@ public class ByGoals extends TypeOfMatch {
      *
      * @param parametersRules lista cuyo primer elemento representa el límite
      * @throws GameException si el límite es negativo
-     * @throws IndexOutOfBoundsException si la lista no contiene un elemento
-     * @throws NumberFormatException si el primer elemento no representa un entero
+     * @throws GameException si los parámetros no son válidos o el límite es negativo
      */
     public ByGoals(List<String> parametersRules) throws GameException {
-        goals = Integer.parseInt(parametersRules.get(0));
+        goals = parseInteger(parametersRules, 0, GameException.INVALID_RULE_PARAMETERS);
         if (goals < 0) {
             throw new GameException(GameException.GOALS_NOT_NEGATIVE);
         }
@@ -31,14 +30,24 @@ public class ByGoals extends TypeOfMatch {
      *
      * @param parameters marcadores del jugador izquierdo y derecho, en ese orden
      * @return {@code true} si alguno de los marcadores es igual al límite
-     * @throws IndexOutOfBoundsException si no hay dos marcadores
-     * @throws NumberFormatException si un marcador no representa un entero
+     * @throws GameException si faltan marcadores o algún valor no es entero
      */
     @Override
     public boolean check(List<String> parameters) {
-        int playerLeft = Integer.parseInt(parameters.get(0));
-        int playerRight = Integer.parseInt(parameters.get(1));
+        int playerLeft = parseInteger(parameters, 0, GameException.INVALID_SCORE_PARAMETERS);
+        int playerRight = parseInteger(parameters, 1, GameException.INVALID_SCORE_PARAMETERS);
         return isGoals(playerLeft, playerRight);
+    }
+
+    private int parseInteger(List<String> parameters, int index, String message) {
+        if (parameters == null || parameters.size() <= index) {
+            throw new GameException(message);
+        }
+        try {
+            return Integer.parseInt(parameters.get(index));
+        } catch (NumberFormatException exception) {
+            throw new GameException(message, exception);
+        }
     }
 
     /**

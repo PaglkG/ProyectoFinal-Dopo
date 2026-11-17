@@ -28,7 +28,7 @@ public class SoccerField implements Hitbox {
     }
 
     /** Avanza todos los balones contenidos usando el paso y gravedad indicados. */
-    void advanceBalls(double deltaSeconds, double gravity) {
+    public void advanceBalls(double deltaSeconds, double gravity) {
         for (Ball ball : balls) {
             ball.advance(deltaSeconds, gravity);
         }
@@ -96,25 +96,25 @@ public class SoccerField implements Hitbox {
     }
 
     /** @return copia interna del arreglo de balones para cálculos del dominio */
-    Ball[] balls() {
+    public Ball[] balls() {
         return balls.clone();
     }
 
     /** @return coordenada horizontal izquierda del rectángulo exterior */
-    double courtX() { return fieldHitbox[0].getX(); }
+    public double courtX() { return fieldHitbox[0].getX(); }
     /** @return coordenada vertical superior del rectángulo exterior */
-    double courtY() { return fieldHitbox[0].getY(); }
+    public double courtY() { return fieldHitbox[0].getY(); }
     /** @return ancho del rectángulo exterior */
-    double courtWidth() { return fieldHitbox[0].getWidth(); }
+    public double courtWidth() { return fieldHitbox[0].getWidth(); }
     /** @return alto del rectángulo exterior */
-    double courtHeight() { return fieldHitbox[2].getHeight(); }
+    public double courtHeight() { return fieldHitbox[2].getHeight(); }
     /** @return grosor de los límites superior e inferior */
-    double boundaryThickness() { return fieldHitbox[0].getHeight(); }
+    public double boundaryThickness() { return fieldHitbox[0].getHeight(); }
     /** @return coordenada vertical del borde superior del límite inferior */
-    double groundY() { return fieldHitbox[1].getY(); }
+    public double groundY() { return fieldHitbox[1].getY(); }
 
     /** Resuelve los rebotes de un balón contra límites laterales, techo y arcos. */
-    void bounceBallAtWallsAndGoalFrames(Ball ball, double retention) {
+    public void bounceBallAtWallsAndGoalFrames(Ball ball, double retention) {
         var walls = getHitboxField();
         double radius = ball.getRadius();
         double left = walls[2].getX() + walls[2].getWidth();
@@ -142,7 +142,7 @@ public class SoccerField implements Hitbox {
     }
 
     /** Recoloca el balón sobre el suelo y delega en él la respuesta del rebote. */
-    void bounceBallAtGround(Ball ball, double retention, double minimumSpeed) {
+    public void bounceBallAtGround(Ball ball, double retention, double minimumSpeed) {
         if (touchesGround(ball)) {
             ball.bounceAt(groundCenterY(ball), retention, minimumSpeed);
         }
@@ -154,7 +154,7 @@ public class SoccerField implements Hitbox {
      * @param ball balón cuya posición se compara
      * @return identificador del arco que contiene el centro o cadena vacía
      */
-    String goalSideFor(Ball ball) {
+    public String goalSideFor(Ball ball) {
         if (containsCenter(LeftGoalHitbox, ball)) return "left";
         if (containsCenter(RightGoalHitbox, ball)) return "right";
         return "";
@@ -173,33 +173,33 @@ public class SoccerField implements Hitbox {
     }
 
     /** Comprueba si cualquier parte circular del balón excede el rectángulo exterior. */
-    boolean isOutside(Ball ball) {
+    public boolean isOutside(Ball ball) {
         double radius = ball.getRadius();
         return ball.getX() - radius < courtX() || ball.getX() + radius > courtX() + courtWidth()
                 || ball.getY() - radius < courtY() || ball.getY() + radius > courtY() + courtHeight();
     }
 
     /** Comprueba si el rectángulo del participante excede el rectángulo exterior. */
-    boolean isOutside(SessionParticipant participant) {
+    public boolean isOutside(SessionParticipant participant) {
         RectangularHitbox box = participant.getHitbox();
         return box.getX() < courtX() || box.getX() + box.getWidth() > courtX() + courtWidth()
                 || box.getY() < courtY() || box.getY() + box.getHeight() > courtY() + courtHeight();
     }
 
     /** Comprueba contacto del participante con los límites superior o laterales. */
-    boolean touchesForbiddenBoundary(SessionParticipant participant) {
+    public boolean touchesForbiddenBoundary(SessionParticipant participant) {
         return fieldHitbox[0].intersects(participant).isContact()
                 || fieldHitbox[2].intersects(participant).isContact()
                 || fieldHitbox[3].intersects(participant).isContact();
     }
 
     /** Comprueba si la hitbox circular del balón toca el límite inferior. */
-    boolean touchesGround(Ball ball) {
+    public boolean touchesGround(Ball ball) {
         return fieldHitbox[1].intersects(ball).isContact();
     }
 
     /** Calcula la altura del centro del balón cuando su borde inferior toca el suelo. */
-    double groundCenterY(Ball ball) {
+    public double groundCenterY(Ball ball) {
         return groundY() - ball.getRadius();
     }
 
@@ -211,7 +211,7 @@ public class SoccerField implements Hitbox {
      * @param left participante ubicado en el lado izquierdo
      * @param right participante ubicado en el lado derecho
      */
-    void positionParticipants(SessionParticipant left, SessionParticipant right) {
+    public void positionParticipants(SessionParticipant left, SessionParticipant right) {
         double width = courtWidth() / 20;
         double height = courtHeight() / 3;
         double floor = groundY();

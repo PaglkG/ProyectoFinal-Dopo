@@ -1,5 +1,6 @@
 package domain;
 import domain.exception.GameException;
+import domain.powers.PowerFactory;
 import java.util.List;
 
 /**
@@ -19,10 +20,16 @@ public class PlayerVsPlayer extends GameSession {
      * @param parametersRules parámetros entregados a la modalidad del partido
      * @throws GameException si la modalidad no existe o no se puede instanciar
      */
-    public PlayerVsPlayer(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
+    public PlayerVsPlayer(boolean player, String typeMatche, List<String> parametersRules,
+            List<String> parametersPowers) throws GameException {
         super(player,typeMatche,parametersRules);
         Player player1 = new Player(1);
         Player player2 = new Player(2);
+        if (parametersPowers == null || parametersPowers.size() != 2) {
+            throw new GameException(GameException.NO_FOUND_SESSION);
+        }
+        player1.setSpecialPower(PowerFactory.create(parametersPowers.get(0)));
+        player2.setSpecialPower(PowerFactory.create(parametersPowers.get(1)));
         participantsRight.add(player1); 
         participantsLeft.add(player2);
         positionParticipants();

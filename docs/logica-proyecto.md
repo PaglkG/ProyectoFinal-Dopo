@@ -11,11 +11,31 @@
 
 ## Reglas confirmadas por Pablo
 
+### Arquitectura
+
+- La capa de presentación solo puede comunicarse con la clase `Game`; no debe comunicarse directamente con otras clases del dominio.
+
 ### Identidad y lado de juego
 
+- `Game.movePlayer(session, player, direction)` mueve al participante de la sesión indicada. `true` significa derecha y `false` izquierda. Cada llamada aplica un paso de 1/60 segundo a 150 unidades/segundo multiplicadas por la estadística `speed` del participante.
 - En `PlayerVsPlayer`, el jugador 1 y el jugador 2 ocupan posiciones fijas; esas posiciones no se intercambian entre partidas.
 - En `PlayerVsBot`, las posiciones también son fijas. El parámetro `player` selecciona cuál jugador humano participa; no selecciona el lado.
 - En `PlayerVsBot`, el jugador humano ocupa siempre la derecha y el bot la izquierda, incluso si se selecciona al jugador 2.
+- `Game.startSession` recibe una lista adicional de cadenas para los poderes. En `PlayerVsPlayer`, contiene los nombres completos de clase del poder derecho y luego el poder izquierdo. En `PlayerVsBot`, contiene el poder del humano a la derecha, el poder del bot a la izquierda y el perfil del bot (`Clumsy`, `Offensive`, `Defensive` o `Expert`), en ese orden.
+
+### Personajes y poderes
+
+- Se ofrecen al menos cuatro personajes con poderes únicos: Corea del Sur usa `domain.powers.AuraAzul`, Camerún usa `domain.powers.Rayo`, Nigeria usa `domain.powers.Tornado` y Estados Unidos usa `domain.powers.Ilusion`.
+- `AuraAzul` viaja recto y horizontal a alta velocidad; al impactar empuja al rival hacia su propio arco. Su efecto dura 1,5 segundos y causa 8 puntos de daño base.
+- `Rayo` viaja recto cubierto de electricidad; al impactar impide saltar y reduce a la mitad la velocidad del rival durante 3 segundos. Causa 12 puntos de daño base.
+- `Tornado` viaja a ras del suelo y rebota rápidamente; al impactar lanza al rival al aire y le impide moverse, saltar o patear durante 3 segundos. Causa 8 puntos de daño base.
+- `Ilusion` divide visualmente el balón en ocho copias idénticas; siete son falsas y desaparecen al terminar el efecto de 2,5 segundos. Confunde al rival, que no puede distinguir el balón real. Causa 6 puntos de daño base.
+- La barra de poder se llena en 10 segundos. Recibir un gol agrega inmediatamente un cuarto de carga. Con la barra llena, activar el poder vacía la barra e inicia su recarga; el participante conserva un aura visible sin límite temporal hasta que toca el balón y ejecuta el tiro, momento en que el aura desaparece.
+- Si el tiro de poder golpea al rival, causa `dañoBase × multiplicadorKick` y aplica su efecto. Si entra al arco sin tocar al rival, cuenta como gol y no causa daño ni efecto. Mientras conserva un poder activo, el participante no puede activar otro. Los efectos no se acumulan: uno nuevo reemplaza al anterior.
+- La vida no baja de cero. Al llegar a cero por una patada o tiro de poder, el jugador queda aturdido durante 3 segundos; no puede moverse, saltar ni patear, y al terminar recupera su vida máxima.
+- La vida inicial y máxima es 100. Una patada normal a un rival causa 10 de daño en `kick` nivel 1; cada nivel adicional de `kick` aumenta el daño en 5. La vida no baja de cero.
+- Una patada alcanza a un rival si la distancia entre las hitboxes es de 8 unidades o menos. Si rival y balón están simultáneamente en alcance, la patada golpea primero al rival. Al llegar a cero se aplica `StatusEffect.STUNNED` durante 3 segundos; el participante no puede moverse ni patear mientras esté activo y recupera 100 de vida cuando expira.
+- Los perfiles de bot se diferencian por su prioridad: `Clumsy` elige movimientos al azar, `Offensive` prioriza anotar, `Defensive` prioriza defender el arco y `Expert` decide según el estado del partido.
 
 ### Tiempo y modalidad por tiempo
 
@@ -68,6 +88,14 @@
 ### Estadísticas actuales
 
 - `Stats.action` es un `Map<String, Integer>` con `speed`, `goal`, `kick` y `jump` inicializados en 1; `points` inicia en 0.
+- Cada jugador humano que gana una partida recibe 5 puntos; en jugador contra bot, el bot no recibe puntos de victoria.
+- Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`.
+- Mejorar `speed`, `goal`, `kick` o `jump` aumenta su nivel en 1 y cuesta 5 puntos. Si el saldo es menor a 5 o la habilidad no existe, se lanza `GameException` y no se modifica el estado.
+- En `GameSession.ImproveStatistics`, `true` selecciona el lado derecho/jugador 1 y `false` el lado izquierdo/jugador 2.
+
+### Excepciones
+
+- Toda excepción que lance explícitamente el código de la aplicación debe ser `domain.exception.GameException`, con un mensaje definido en esa clase. Los errores de formato, índices e inputs de reglas también se convierten a `GameException`.
 
 ### Reglas futuras fuera del diagrama actual
 
@@ -75,8 +103,12 @@
 
 ## Estado actual del código (no equivale a una regla confirmada)
 
-- `Game.startSession` crea reflectivamente una subclase de `GameSession`, le pasa `player`, el nombre de la modalidad y sus parámetros, y agrega la instancia a la lista de sesiones.
+- `presentation.testing` usa únicamente la fachada `Game`, que entrega instantáneas inmutables y operaciones para acciones y preparación de escenarios. El controlador de la presentación principal aún conserva referencias a `GameSession` y `SessionParticipant`; esa parte sigue pendiente de adaptación a la regla de arquitectura.
+- La fachada de prueba `Game.startSessionForView`, `inspectSession`, `movePlayer`, `kickPlayer`, `updateGame`, `setParticipantPosition`, `setBallPosition` y `applyBallImpulse` permite crear, consultar y preparar escenarios sin exponer referencias mutables de sesión, participante, cancha o balón a la presentación de pruebas. El salto de `PresentationMovement` continúa siendo únicamente visual.
+- `Game.movePlayer` delega en `GameSession`; la sesión solo delega el movimiento si el participante pertenece a ella y no está terminada. `SessionParticipant` actualiza su posición y su hitbox con `150 × speed / 60`; `speed` inicia en 1.
+- `Game.startSession` crea reflectivamente una subclase de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, y agrega la instancia a la lista de sesiones.
 - `PlayerVsBot` construye un jugador humano y un bot; `PlayerVsPlayer` construye dos jugadores humanos.
+- `PlayerVsPlayer` y `PlayerVsBot` asocian al crearse los poderes seleccionados mediante nombres completos de clase. En `PlayerVsBot`, se crea el perfil indicado. Las clases concretas de poderes aún no ejecutan disparos; activar el aura, lanzar el tiro y aplicar daño/efectos siguen sin implementarse.
 - En la implementación actual, `PlayerVsPlayer` coloca al jugador 1 a la derecha y al jugador 2 a la izquierda. `PlayerVsBot` coloca al jugador humano a la derecha y al bot a la izquierda, tanto cuando el humano es el jugador 1 como cuando es el jugador 2; esto coincide con la regla confirmada.
 - `GameSession` instancia una subclase de `TypeOfMatch` mediante reflexión.
 - `ByGoals` recibe el límite de goles como primer parámetro de su lista. Su método `check` recibe dos marcadores.
@@ -85,7 +117,7 @@
 - Para ajustarse al diagrama, se retiraron de `domain` `Scoreboard`, `Outfit`, `Head`, `Shoe`, `Rule` y `Side`. `Action` se conserva porque aparece en el tipo de retorno de `BotPlayer.decideAction`.
 - Se conservan los parámetros de jugador y reglas en los constructores de `GameSession`, `PlayerVsBot` y `PlayerVsPlayer`, y la lista de parámetros en las fábricas reflectivas. `TypeOfMatch.check` conserva su contrato `boolean` con parámetros, de acuerdo con la regla de continuidad confirmada.
 - `GameSession` coordina el paso de juego, aplica contactos balón-participante, registra el marcador, reposiciona a los participantes tras gol y detiene sesiones terminadas conforme a la modalidad. `SoccerField` recorre sus balones para avanzar su estado y coordina los rebotes contra límites, arcos y suelo; `Ball` conserva estado físico y ejecuta las operaciones delegadas.
-- `GameSession.kickPlayer` permite patear solo a participantes registrados, en sesiones activas y cuando la superficie del balón está a 8 unidades o menos del borde de su hitbox. El dominio aplica un impulso horizontal de 150 unidades/s hacia el arco contrario y un impulso vertical de -50 unidades/s. La pantalla de prueba solo envía la acción; no consulta ni modifica la estadística `kick`.
+- `GameSession.kickPlayer` permite la patada a participantes registrados en sesiones activas, si no están aturdidos. Prioriza dañar al rival si está dentro de 8 unidades entre hitboxes; sin rival al alcance, permite patear el balón cuando su superficie está a 8 unidades o menos del borde de la hitbox. El dominio aplica al balón un impulso horizontal de 150 unidades/s hacia el arco contrario y uno vertical de -50 unidades/s.
 
 ## Decisiones pendientes
 
@@ -105,15 +137,10 @@
 
 ### Marcador, estadísticas y poderes
 
-- ¿Cómo se cargan/consumen las barras de poder y cómo se limita su valor?
-- ¿Qué límites, costos y puntos disponibles tienen las estadísticas?
 - ¿Qué efecto exacto aplica cada estadística, incluida `kick`?
-- ¿Qué poderes existen, qué objetivo afectan, cuánto duran, qué daño producen y qué enfriamiento tienen?
-- ¿Qué debe ocurrir cuando un participante queda aturdido o un efecto vence/se renueva?
 
 ### Bots, reglas y persistencia
 
-- ¿Qué decisiones y prioridades debe seguir cada perfil de bot (`Clumsy`, `Offensive`, `Defensive`, `Expert`)?
 - ¿Qué reglas genéricas se pueden agregar/quitar y en qué orden se aplican?
 - ¿Qué datos guarda `save` y restaura `open`; cuál es el formato y qué errores deben reportarse?
 
@@ -131,3 +158,8 @@
 | 2026-11-15 | Se confirma el paso fijo de 1/60 s, gravedad 3.14, rebote con retención 70 % y umbral 0.5; impulso participante-balón ±4 horizontal y -1 vertical una vez por contacto; gol al entrar el centro en el arco, punto para el lado opuesto y reinicio simétrico. Se confirman las dos excepciones literales para objetos fuera/superpuestos y la actualización temporal ByTime en segundos con minutos enteros completados. | Pablo |
 | 2026-11-15 | Se reemplaza la gravedad anterior por 40 unidades/s². El balón se separa horizontalmente del participante hasta salir de su hitbox; al tocarlo se redirige hacia fuera con impulso horizontal de magnitud 4 y suma impulso vertical -1 una vez por contacto. | Pablo |
 | 2026-11-16 | El balón creado por `SoccerField` tiene radio 10 unidades. | Pablo |
+| 2026-11-17 | Se definen los poderes Aura Azul, Rayo, Tornado e Ilusión con sus trayectorias, efectos, duración y daño base del anexo del PDF; el orden y formato de la lista de poderes/perfil al iniciar sesión; y las prioridades de los cuatro perfiles de bot. | Pablo |
+| 2026-11-17 | Se confirma que `Game.movePlayer` usa `true` para derecha y `false` para izquierda, y aplica por llamada un paso de 1/60 s a 150 unidades/s multiplicadas por `speed`. | Pablo |
+| 2026-11-17 | Cada victoria humana otorga 5 puntos; mejorar `speed`, `goal`, `kick` o `jump` cuesta 5 y aumenta un nivel; `GameSession.ImproveStatistics(true, ...)` selecciona derecha/jugador 1 y `false` izquierda/jugador 2. Las excepciones explícitas de la aplicación son `GameException`. | Pablo |
+| 2026-11-17 | Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`. | Pablo |
+| 2026-11-17 | La vida máxima/inicial es 100; la patada causa 10 de daño base y cada nivel adicional de `kick` suma 5; alcanzar cero activa un aturdimiento de 3 segundos con `StatusEffect` y recuperación de vida al expirar. | Pablo |

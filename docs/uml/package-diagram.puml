@@ -27,7 +27,12 @@ package "domain" {
     class StatusEffect
   }
   package "powers" {
-    class Power
+    abstract class Power
+    class AuraAzul
+    class Rayo
+    class Tornado
+    class Ilusion
+    class PowerFactory
   }
 }
 GameController ..> Game
@@ -39,10 +44,12 @@ GameSession ..> Hitbox
 SessionParticipant ..> Hitbox
 SessionParticipant ..> StatusEffect
 SessionParticipant ..> Power
+PowerFactory ..> Power
 UI ..> GameController : futuras llamadas desde UI
 MechanicsTestPanel ..> MechanicsTestController
+MechanicsTestPanel ..> Game : vista inmutable
 MechanicsTestController ..> Game
-MechanicsTestController ..> GameSession
+PresentationMovement ..> Game
 note bottom of UI
   Las pantallas de la aplicación principal aún son esqueletos.
   El banco de pruebas es una aplicación independiente.
@@ -67,9 +74,9 @@ note bottom of Hitbox
   a decidir la respuesta.
 end note
 note right of MechanicsTestController
-  Controla el banco de pruebas y usa
-  las sesiones reales del dominio.
-  PresentationMovement solo simula
-  movimiento visual para ensayar.
+  Controla el banco de pruebas a través
+  de Game y su instantánea SessionView.
+  PresentationMovement usa Game para
+  mover y preparar participantes.
 end note
 @enduml

@@ -18,11 +18,10 @@ public class ByTime extends TypeOfMatch {
      *
      * @param parametersRules lista cuyo primer elemento representa los minutos
      * @throws GameException si la duración es negativa
-     * @throws IndexOutOfBoundsException si la lista no contiene un elemento
-     * @throws NumberFormatException si el primer elemento no representa un entero
+     * @throws GameException si los parámetros no son válidos o la duración es negativa
      */
     public ByTime(List<String> parametersRules) throws GameException{
-        minutes = Integer.parseInt(parametersRules.get(0));
+        minutes = parseInteger(parametersRules, 0, GameException.INVALID_RULE_PARAMETERS);
         if (minutes < 0) {
             throw new GameException(GameException.MINUTES_NOT_NEGATIVE);
         }
@@ -39,14 +38,13 @@ public class ByTime extends TypeOfMatch {
      *
      * @return {@code true} si la partida continúa; {@code false} si el tiempo
      *         se agotó y el marcador es desigual
-     * @throws IndexOutOfBoundsException si no hay tres valores
-     * @throws NumberFormatException si los marcadores o el tiempo no son enteros
+     * @throws GameException si faltan valores o algún parámetro no es entero
      */
     @Override
     public boolean check(List<String> parameters) {
-        int goalLeft = Integer.parseInt(parameters.get(0));
-        int goalRight = Integer.parseInt(parameters.get(1));
-        int minutesInGame = Integer.parseInt(parameters.get(2));
+        int goalLeft = parseInteger(parameters, 0, GameException.INVALID_SCORE_PARAMETERS);
+        int goalRight = parseInteger(parameters, 1, GameException.INVALID_SCORE_PARAMETERS);
+        int minutesInGame = parseInteger(parameters, 2, GameException.INVALID_SCORE_PARAMETERS);
         if (!isTime(minutesInGame)) {
             return true;
         }
@@ -56,6 +54,17 @@ public class ByTime extends TypeOfMatch {
         }
         suddenDeath = false;
         return false;
+    }
+
+    private int parseInteger(List<String> parameters, int index, String message) {
+        if (parameters == null || parameters.size() <= index) {
+            throw new GameException(message);
+        }
+        try {
+            return Integer.parseInt(parameters.get(index));
+        } catch (NumberFormatException exception) {
+            throw new GameException(message, exception);
+        }
     }
 
     /**

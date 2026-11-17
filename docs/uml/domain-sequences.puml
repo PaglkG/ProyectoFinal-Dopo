@@ -8,7 +8,7 @@ G --> Usuario --: instancia Game
 @enduml
 
 @startuml
-title closeSession (PDF: intención; código defectuoso)
+title closeSession (flujo implementado)
 actor Usuario
 participant "game: Game" as G
 participant "sessions: List<GameSession>" as L
@@ -17,13 +17,12 @@ G -> L: remove(session)
 L --> G: sesión retirada
 G --> Usuario --: void
 note over G,L
-  El PDF propone retirar la sesión solicitada.
-  El código actual ejecuta remove(0) y puede cerrar otra sesión.
+  Game elimina de la lista la sesión recibida.
 end note
 @enduml
 
 @startuml
-title movePlayer (PDF: intención; código sin implementar)
+title movePlayer (flujo implementado)
 actor Usuario
 participant "game: Game" as G
 participant "session: GameSession" as S
@@ -31,15 +30,16 @@ participant "player: SessionParticipant" as P
 Usuario -> G: movePlayer(session, player, direction)
 G -> S: movePlayer(player, direction)
 S -> P: move(direction)
+P -> P: get speed statistic
+P -> P: reposition(x ± 150 × speed / 60, y)
 alt direction == true
-  P -> P: moveRight()
+  note right of P: true = derecha
 else direction == false
-  P -> P: moveLeft()
+  note right of P: false = izquierda
 end
 note over G,P
-  En el PDF: true corresponde a derecha y false a izquierda.
-  El movimiento y esa regla no están implementados en Java;
-  la regla no aparece confirmada en logica-proyecto.md.
+  La sesión ignora solicitudes para participantes no registrados
+  o después de finalizar el partido. El paso equivale a 1/60 s.
 end note
 @enduml
 
@@ -79,7 +79,7 @@ end note
 @enduml
 
 @startuml
-title ImproveStatistics (PDF: intención; código sin implementar)
+title ImproveStatistics (implementación actual)
 actor Usuario
 participant "game: Game" as G
 participant "session: GameSession" as S
@@ -88,15 +88,55 @@ participant "stats: Stats" as T
 Usuario -> G: ImproveStatistics(session, player, stat)
 G -> S: ImproveStatistics(player, stat)
 alt player == true
-  S -> P: ImproveStatistics(stat, 1)
+  S -> P: ImproveStatistics(stat) [lado derecho / jugador 1]
 else player == false
-  S -> P: ImproveStatistics(stat, 1)
+  S -> P: ImproveStatistics(stat) [lado izquierdo / jugador 2]
 end
 P -> T: ImproveStatistics(stat)
-note over G,T
-  Todas las operaciones de mejora están declaradas,
-  pero sus cuerpos están vacíos.
-end note
+alt saldo >= 5 y habilidad válida
+  T -> T: incrementar habilidad en 1
+  T -> T: restar 5 puntos
+else saldo insuficiente o habilidad desconocida
+  T --> G: GameException
+end
+@enduml
+
+@startuml
+title kickPlayer contra rival (implementación actual)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "attacker: SessionParticipant" as A
+participant "target: SessionParticipant" as T
+participant "attacker stats: Stats" as ST
+participant "target status: StatusEffect" as E
+Usuario -> G: kickPlayer(sessionIndex, participantId)
+G -> S: kickPlayer(attacker)
+S -> A: blocksMovement()
+alt sesión terminada, atacante inválido o aturdido
+  S --> G: false
+else atacante activo
+  S -> S: buscar rival más cercano a <= 8 unidades
+  alt rival al alcance
+    S -> A: getStats()
+    A -> ST: getKickDamage() [10 + 5 × (kick - 1)]
+    S -> T: takeDamage(damage)
+    alt vida llega a 0
+      T -> T: clamp life a 0
+      T -> E: new StatusEffect(STUNNED, 3 s)
+      note over T,E
+        No puede moverse ni patear.
+        Al expirar el efecto recupera 100 de vida.
+      end note
+    else conserva vida positiva
+      T -> T: restar daño
+    end
+    S --> G: true
+  else ningún rival al alcance
+    S -> S: probar alcance del balón
+    S --> G: resultado del impulso al balón
+  end
+end
 @enduml
 
 @startuml
@@ -136,6 +176,13 @@ G -> S: updateGame()
 alt sesión ya terminada
   S --> G: no avanza
 else sesión activa
+  loop cada participante
+    S -> P: updateStatusEffects()
+    P -> P: StatusEffect.update() [1/60 s]
+    opt aturdimiento expirado
+      P -> P: restaurar vida máxima (100)
+    end
+  end
   S -> S: tiempo += 1/60 s
   S -> F: advanceBalls(1/60, 40)
   loop cada balón
@@ -181,5 +228,11 @@ else sesión activa
     end
   end
   S -> S: checkTypeOfMatch()
+  opt transición a partida terminada con marcador desigual
+    S -> S: awardWinningPlayers()
+    loop cada participante humano del lado ganador
+      S -> P: Stats.awardWin() [sumar 5 puntos]
+    end
+  end
 end
 @enduml

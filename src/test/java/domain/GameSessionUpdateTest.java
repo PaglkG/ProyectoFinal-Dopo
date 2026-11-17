@@ -52,8 +52,38 @@ class GameSessionUpdateTest {
         double elapsed = session.getElapsedSeconds();
 
         assertTrue(session.isFinished());
+        assertEquals(5, session.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(0, session.getParticipantsLeft().get(0).getStats().getPoints());
         session.updateGame();
         assertEquals(elapsed, session.getElapsedSeconds());
+    }
+
+    @Test
+    void finishedMatchAwardsWinnerOnlyOnce() {
+        PlayerVsPlayer session = session(1);
+
+        session.goal("right");
+        session.checkTypeOfMatch();
+        session.checkTypeOfMatch();
+
+        assertEquals(5, session.getParticipantsRight().get(0).getStats().getPoints());
+    }
+
+    @Test
+    void improveStatisticsSelectsRightForTrueAndLeftForFalse() {
+        PlayerVsPlayer session = session(5);
+        Stats rightStats = session.getParticipantsRight().get(0).getStats();
+        Stats leftStats = session.getParticipantsLeft().get(0).getStats();
+        rightStats.awardWin();
+        leftStats.awardWin();
+
+        session.ImproveStatistics(true, "speed");
+        session.ImproveStatistics(false, "jump");
+
+        assertEquals(2, rightStats.getStatistic("speed"));
+        assertEquals(2, leftStats.getStatistic("jump"));
+        assertEquals(0, rightStats.getPoints());
+        assertEquals(0, leftStats.getPoints());
     }
 
     @Test
@@ -78,6 +108,34 @@ class GameSessionUpdateTest {
         assertEquals(6.0 / 60, ball.getX() - 225, 1e-9);
         assertEquals(40.0 / 60, ball.getVelocityY(), 1e-9);
         assertEquals(1.0 / 60, session.getElapsedSeconds(), 1e-9);
+    }
+
+    @Test
+    void movePlayerMovesOnlyParticipantsRegisteredInThisActiveSession() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant participant = session.getParticipantsRight().get(0);
+        participant.resetPosition(100, 20);
+        Player outsider = new Player(99);
+        outsider.resetPosition(200, 30);
+
+        session.movePlayer(participant, true);
+        session.movePlayer(outsider, true);
+
+        assertEquals(102.5, participant.getHitbox().getX(), 1e-9);
+        assertEquals(200, outsider.getHitbox().getX(), 1e-9);
+    }
+
+    @Test
+    void movePlayerDoesNotMoveParticipantAfterSessionFinishes() throws Exception {
+        PlayerVsPlayer session = session(1);
+        SessionParticipant participant = session.getParticipantsRight().get(0);
+        session.goal("left");
+        participant.resetPosition(100, 20);
+
+        session.movePlayer(participant, true);
+
+        assertTrue(session.isFinished());
+        assertEquals(100, participant.getHitbox().getX(), 1e-9);
     }
 
     @Test
@@ -152,6 +210,76 @@ class GameSessionUpdateTest {
     }
 
     @Test
+    void kickHitsAnOpponentInRangeAndPrioritizesThemOverTheBall() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant attacker = session.participantsLeft.get(0);
+        SessionParticipant target = session.participantsRight.get(0);
+        attacker.resetPosition(100, 50);
+        target.resetPosition(130, 50);
+        Ball ball = ball(session);
+        ball.reposition(140.5, 75);
+        ball.applyImpulse(-20, 0);
+
+        assertTrue(session.kickPlayer(attacker));
+
+        assertEquals(90, target.getLife());
+        assertEquals(100, attacker.getLife());
+        assertEquals(-20, ball.getVelocityX());
+    }
+
+    @Test
+    void kickDamageIncreasesByFiveForEachKickSkillLevel() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant attacker = session.participantsLeft.get(0);
+        SessionParticipant target = session.participantsRight.get(0);
+        attacker.resetPosition(100, 50);
+        target.resetPosition(130, 50);
+        attacker.getStats().awardWin();
+        attacker.getStats().ImproveStatistics("kick");
+
+        assertTrue(session.kickPlayer(attacker));
+
+        assertEquals(85, target.getLife());
+    }
+
+    @Test
+    void atZeroLifeTargetCannotMoveOrKickAndRecoversAfterStun() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant attacker = session.participantsLeft.get(0);
+        SessionParticipant target = session.participantsRight.get(0);
+        attacker.resetPosition(100, 50);
+        target.resetPosition(130, 50);
+        for (int hit = 0; hit < 10; hit++) assertTrue(session.kickPlayer(attacker));
+        double targetX = target.getHitbox().getX();
+
+        assertEquals(0, target.getLife());
+        assertTrue(target.blocksMovement());
+        assertFalse(session.kickPlayer(target));
+        session.movePlayer(target, true);
+        assertEquals(targetX, target.getHitbox().getX());
+
+        ball(session).reposition(225, 75);
+        for (int tick = 0; tick < 180; tick++) session.updateGame();
+
+        assertEquals(100, target.getLife());
+        assertFalse(target.blocksMovement());
+    }
+
+    @Test
+    void opponentOutsideKickReachIsNotDamaged() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant attacker = session.participantsLeft.get(0);
+        SessionParticipant target = session.participantsRight.get(0);
+        attacker.resetPosition(100, 50);
+        target.resetPosition(131, 50);
+        ball(session).reposition(225, 75);
+
+        assertFalse(session.kickPlayer(attacker));
+
+        assertEquals(100, target.getLife());
+    }
+
+    @Test
     void kickIsRejectedOutsideReachForUnregisteredOrFinishedSession() throws Exception {
         PlayerVsPlayer session = session(1);
         SessionParticipant left = session.getParticipantsLeft().get(0);
@@ -165,6 +293,7 @@ class GameSessionUpdateTest {
         ball(session).reposition(20, 125);
         session.updateGame();
         assertTrue(session.isFinished());
+        assertEquals(5, session.getParticipantsRight().get(0).getStats().getPoints());
         assertFalse(session.kickPlayer(left));
     }
 
@@ -228,7 +357,7 @@ class GameSessionUpdateTest {
 
     @Test
     void timeModeReceivesCompletedMinutesAndEndsAfterWinnerAppears() throws Exception {
-        PlayerVsPlayer session = new PlayerVsPlayer(true, ByTime.class.getName(), List.of("0"));
+        PlayerVsPlayer session = new PlayerVsPlayer(true, ByTime.class.getName(), List.of("0"), powers());
         session.participantsLeft.get(0).resetPosition(50, 50);
         session.participantsRight.get(0).resetPosition(350, 50);
         session.updateGame();
@@ -236,11 +365,12 @@ class GameSessionUpdateTest {
         ball(session).reposition(20, 125);
         session.updateGame();
         assertTrue(session.isFinished());
+        assertEquals(5, session.getParticipantsRight().get(0).getStats().getPoints());
     }
 
     @Test
     void completedMinuteWithTieContinuesInSuddenDeath() throws Exception {
-        PlayerVsPlayer session = new PlayerVsPlayer(true, ByTime.class.getName(), List.of("1"));
+        PlayerVsPlayer session = new PlayerVsPlayer(true, ByTime.class.getName(), List.of("1"), powers());
         for (int tick = 0; tick < 3600; tick++) session.updateGame();
 
         assertEquals(60.0, session.getElapsedSeconds(), 1e-8);
@@ -248,7 +378,11 @@ class GameSessionUpdateTest {
     }
 
     private static PlayerVsPlayer session(int limit) throws GameException {
-        return new PlayerVsPlayer(true, ByGoals.class.getName(), List.of(Integer.toString(limit)));
+        return new PlayerVsPlayer(true, ByGoals.class.getName(), List.of(Integer.toString(limit)), powers());
+    }
+
+    private static List<String> powers() {
+        return List.of("domain.powers.AuraAzul", "domain.powers.Rayo");
     }
 
     private static Ball ball(GameSession session) throws Exception {

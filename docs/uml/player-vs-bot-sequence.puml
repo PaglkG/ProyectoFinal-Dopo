@@ -5,8 +5,10 @@ participant "session: PlayerVsBot" as S
 participant "GameSession" as Base
 participant "human: Player" as P
 participant "bot: BotPlayer" as B
+participant "humanPower: Power" as WP
+participant "botPower: Power" as WB
 
-Cliente -> S ++: new PlayerVsBot(player, typeMatche, parametersRules)
+Cliente -> S ++: new PlayerVsBot(player, typeMatche, parametersRules, parametersPowers)
 S -> Base ++: super(player, typeMatche, parametersRules)
 Base -> Base: crear listas y cancha; instanciar modalidad reflectivamente
 Base --> S --: inicialización base
@@ -16,12 +18,18 @@ else player == false
   S -> P ++: new Player(2)
 end
 S -> S: participantsRight.add(human)
-S -> B ++: new BotPlayer()
+S -> WP ++: PowerFactory.create(parametersPowers[0])
+S -> P: setSpecialPower(WP)
+S -> S: resolver perfil parametersPowers[2]
+S -> B ++: crearBotReflectivo(nombreCompletoPerfil)
+S -> WB ++: PowerFactory.create(parametersPowers[1])
+S -> B: setSpecialPower(WB)
 S -> S: participantsLeft.add(bot)
 S -> S: positionParticipants()
 S --> Cliente --: sesión lista
 note over S,B
   El humano queda a la derecha y el bot a la izquierda,
-  según la regla confirmada.
+  según la regla confirmada. parametersPowers contiene
+  poder del humano, poder del bot y perfil del bot, en ese orden.
 end note
 @enduml

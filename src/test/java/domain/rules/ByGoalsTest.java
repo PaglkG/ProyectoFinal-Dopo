@@ -51,21 +51,27 @@ class ByGoalsTest {
 
     @Test
     void constructorRejectsNonNumericGoalLimit() {
-        assertThrows(NumberFormatException.class, () -> new ByGoals(List.of("five")));
+        assertEquals(GameException.INVALID_RULE_PARAMETERS,
+                assertThrows(GameException.class, () -> new ByGoals(List.of("five"))).getMessage());
     }
 
     @Test
     void constructorRejectsMissingGoalLimit() {
-        assertThrows(IndexOutOfBoundsException.class, () -> new ByGoals(List.of()));
+        assertEquals(GameException.INVALID_RULE_PARAMETERS,
+                assertThrows(GameException.class, () -> new ByGoals(List.of())).getMessage());
     }
 
     @Test
     void checkRejectsNonNumericScores() {
-        assertThrows(NumberFormatException.class, () -> new ByGoals(List.of("5")).check(List.of("x", "2")));
+        assertEquals(GameException.INVALID_SCORE_PARAMETERS,
+                assertThrows(GameException.class, () -> new ByGoals(List.of("5")).check(List.of("x", "2")))
+                        .getMessage());
     }
 
     @Test
     void checkRejectsMissingScores() {
-        assertThrows(IndexOutOfBoundsException.class, () -> new ByGoals(List.of("5")).check(List.of("2")));
+        assertEquals(GameException.INVALID_SCORE_PARAMETERS,
+                assertThrows(GameException.class, () -> new ByGoals(List.of("5")).check(List.of("2")))
+                        .getMessage());
     }
 }

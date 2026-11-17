@@ -32,26 +32,31 @@ class ByTimeTest {
 
     @Test
     void constructorRejectsNonNumericMinutes() {
-        assertThrows(NumberFormatException.class, () -> new ByTime(List.of("five")));
+        assertEquals(GameException.INVALID_RULE_PARAMETERS,
+                assertThrows(GameException.class, () -> new ByTime(List.of("five"))).getMessage());
     }
 
     @Test
     void constructorRejectsMissingMinutes() {
-        assertThrows(IndexOutOfBoundsException.class, () -> new ByTime(List.of()));
+        assertEquals(GameException.INVALID_RULE_PARAMETERS,
+                assertThrows(GameException.class, () -> new ByTime(List.of())).getMessage());
     }
 
     @Test
     void checkRejectsANonNumericElapsedTime() {
         ByTime match = new ByTime(List.of("5"));
 
-        assertThrows(NumberFormatException.class, () -> match.check(List.of("2", "1", "not-a-time")));
+        assertEquals(GameException.INVALID_SCORE_PARAMETERS,
+                assertThrows(GameException.class, () -> match.check(List.of("2", "1", "not-a-time")))
+                        .getMessage());
     }
 
     @Test
     void checkRejectsMissingElapsedTime() {
         ByTime match = new ByTime(List.of("5"));
 
-        assertThrows(IndexOutOfBoundsException.class, () -> match.check(List.of("2", "1")));
+        assertEquals(GameException.INVALID_SCORE_PARAMETERS,
+                assertThrows(GameException.class, () -> match.check(List.of("2", "1"))).getMessage());
     }
 
     @Test
@@ -117,6 +122,7 @@ class ByTimeTest {
     void checkRejectsNonNumericScores() {
         ByTime match = new ByTime(List.of("5"));
 
-        assertThrows(NumberFormatException.class, () -> match.check(List.of("x", "2", "5")));
+        assertEquals(GameException.INVALID_SCORE_PARAMETERS,
+                assertThrows(GameException.class, () -> match.check(List.of("x", "2", "5"))).getMessage());
     }
 }

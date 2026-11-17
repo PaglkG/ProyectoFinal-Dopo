@@ -18,6 +18,7 @@ import java.util.Set;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -28,11 +29,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.KeyStroke;
 
-import domain.Ball;
-import domain.GameSession;
-import domain.SessionParticipant;
-import domain.SoccerField;
-import domain.exception.GameException;
+import domain.Game;
 
 /** Ventana de pruebas manuales para las mecánicas ya implementadas en el dominio. */
 public final class MechanicsTestPanel extends JPanel {
@@ -46,6 +43,7 @@ public final class MechanicsTestPanel extends JPanel {
     private final JLabel status = new JLabel("Sesión lista. Usa los escenarios para probar contactos.");
     private final JLabel score = new JLabel();
     private final JLabel controlHelp = new JLabel();
+    private final JCheckBox showHitboxes = new JCheckBox("Mostrar todas las hitboxes", true);
     private final FieldView fieldView = new FieldView();
     private final Timer timer = new Timer(16, event -> advanceOneStep(false));
     private final JButton runButton = new JButton("Iniciar simulación");
@@ -87,6 +85,10 @@ public final class MechanicsTestPanel extends JPanel {
         JButton step = new JButton("Un paso");
         step.addActionListener(event -> advanceOneStep(true));
         settings.add(step);
+        showHitboxes.setOpaque(false);
+        showHitboxes.setForeground(Color.WHITE);
+        showHitboxes.addActionListener(event -> fieldView.repaint());
+        settings.add(showHitboxes);
         runButton.addActionListener(event -> toggleSimulation());
         settings.add(runButton);
         return settings;
@@ -109,10 +111,11 @@ public final class MechanicsTestPanel extends JPanel {
         addScenario(panel, "Contacto jugador-balón", MechanicsTestController.Scenario.PLAYER_BALL_CONTACT);
         addScenario(panel, "Rebote en el suelo", MechanicsTestController.Scenario.GROUND_BOUNCE);
         addScenario(panel, "Contacto seguro con límite", MechanicsTestController.Scenario.SAFE_FIELD_CONTACT);
-        addScenario(panel, "Balón fuera de cancha", MechanicsTestController.Scenario.BALL_OUTSIDE);
+        addScenario(panel, "Rebote del balón en límite lateral", MechanicsTestController.Scenario.BALL_SIDE_REBOUND);
         addScenario(panel, "Jugador fuera de cancha", MechanicsTestController.Scenario.PARTICIPANT_OUTSIDE);
         addScenario(panel, "Jugador toca límite lateral", MechanicsTestController.Scenario.PARTICIPANT_TOUCHES_SIDE);
         addScenario(panel, "Jugadores superpuestos", MechanicsTestController.Scenario.PARTICIPANTS_OVERLAP);
+        addScenario(panel, "Preparar patada al rival", MechanicsTestController.Scenario.KICK_OPPONENT);
         addScenario(panel, "Muerte súbita y gol ganador", MechanicsTestController.Scenario.SUDDEN_DEATH_WIN);
         JScrollPane scroll = new JScrollPane(panel);
         scroll.setPreferredSize(new Dimension(220, 400));
@@ -140,11 +143,11 @@ public final class MechanicsTestPanel extends JPanel {
             try {
                 controller.runScenario(scenario);
                 status.setText("Escenario ejecutado: " + title + ".");
-                if (!controller.getSession().isFinished()) {
+                if (!controller.getSessionView().finished()) {
                     timer.start();
                     runButton.setText("Pausar simulación");
                 }
-            } catch (GameException exception) {
+            } catch (RuntimeException exception) {
                 status.setText("Excepción detectada: " + exception.getMessage());
             } finally {
                 refreshView();
@@ -168,6 +171,7 @@ public final class MechanicsTestPanel extends JPanel {
         controlHelp.setForeground(new Color(185, 220, 255));
         hints.add(controlHelp);
         hints.add(label("Simulación visual: 150 u/s · salto 110 · gravedad 180. Poderes aún pendientes."));
+        hints.add(label("Hitboxes: amarillo cancha · naranja arcos · cian/magenta jugadores · blanco balón."));
         footer.add(hints, BorderLayout.SOUTH);
         return footer;
     }
@@ -285,8 +289,8 @@ public final class MechanicsTestPanel extends JPanel {
     private void advanceOneStep(boolean showStepStatus) {
         try {
             controller.step();
-            GameSession session = controller.getSession();
-            if (session.isFinished()) {
+            Game.SessionView session = controller.getSessionView();
+            if (session.finished()) {
                 timer.stop();
                 runButton.setText("Iniciar simulación");
                 String mode = matchMode.getSelectedItem() == MechanicsTestController.MatchMode.TIME
@@ -295,7 +299,7 @@ public final class MechanicsTestPanel extends JPanel {
             } else if (showStepStatus) {
                 status.setText("Actualización aplicada.");
             }
-        } catch (GameException exception) {
+        } catch (RuntimeException exception) {
             timer.stop();
             runButton.setText("Iniciar simulación");
             status.setText("Excepción detectada: " + exception.getMessage());
@@ -305,12 +309,12 @@ public final class MechanicsTestPanel extends JPanel {
 
     /** Actualiza el texto del marcador y solicita redibujar el campo. */
     private void refreshView() {
-        GameSession session = controller.getSession();
-        Ball ball = session.getField().getBalls()[0];
+        Game.SessionView session = controller.getSessionView();
+        Game.BallView ball = session.balls().get(0);
         score.setText(String.format("Izquierda %d  :  %d Derecha  ·  %.2f s  ·  balón vx %.1f / vy %.1f%s",
-                session.getGoalsLeft(), session.getGoalsRight(), session.getElapsedSeconds(),
-                ball.getVelocityX(), ball.getVelocityY(),
-                session.isFinished() ? "     ·     PARTIDA TERMINADA" : ""));
+                session.goalsLeft(), session.goalsRight(), session.elapsedSeconds(),
+                ball.velocityX(), ball.velocityY(),
+                session.finished() ? "     ·     PARTIDA TERMINADA" : ""));
         fieldView.repaint();
     }
 
@@ -331,17 +335,17 @@ public final class MechanicsTestPanel extends JPanel {
 
         /** Dibuja estadio, cancha, arcos, participantes, balón e indicador de velocidad. */
         @Override
-        protected void paintComponent(Graphics graphics) {
+        public void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             drawStadium(g);
-            SoccerField field = controller.getSession().getField();
-            var bounds = field.getHitboxField();
-            double x = bounds[0].getX();
-            double y = bounds[0].getY();
-            double width = bounds[0].getWidth();
-            double height = bounds[2].getHeight();
+            Game.SessionView session = controller.getSessionView();
+            Game.RectangleView court = session.court();
+            double x = court.x();
+            double y = court.y();
+            double width = court.width();
+            double height = court.height();
             double scale = Math.min((getWidth() - 50.0) / width, (getHeight() * .52) / height);
             double offsetX = (getWidth() - width * scale) / 2;
             double offsetY = getHeight() - height * scale;
@@ -363,27 +367,59 @@ public final class MechanicsTestPanel extends JPanel {
                     offsetY + height * scale * .25, width * scale * .25, height * scale * .5));
             g.drawLine((int) (offsetX + width * scale / 2), (int) offsetY,
                     (int) (offsetX + width * scale / 2), (int) (offsetY + height * scale));
-            for (var goal : field.getGoalHitboxes()) {
-                drawRect(g, goal.getX() - x, goal.getY() - y, goal.getWidth(), goal.getHeight(),
+            for (var goal : session.goals()) {
+                drawRect(g, goal.x() - x, goal.y() - y, goal.width(), goal.height(),
                         offsetX, offsetY, scale, new Color(237, 191, 87, 120), true);
             }
             drawGoal(g, offsetX - 14, offsetY + height * scale * .42, 28, height * scale * .58);
             drawGoal(g, offsetX + width * scale - 14, offsetY + height * scale * .42, 28, height * scale * .58);
-            drawParticipants(g, controller.getSession().getParticipantsLeft(), x, y, offsetX, offsetY, scale,
+            drawParticipants(g, session.participants().stream().filter(player -> player.side().equals("left")).toList(),
+                    x, y, offsetX, offsetY, scale,
                     new Color(71, 151, 255));
-            drawParticipants(g, controller.getSession().getParticipantsRight(), x, y, offsetX, offsetY, scale,
+            drawParticipants(g, session.participants().stream().filter(player -> player.side().equals("right")).toList(),
+                    x, y, offsetX, offsetY, scale,
                     new Color(255, 105, 105));
-            for (Ball ball : field.getBalls()) {
-                double radius = ball.getRadius();
-                double ballX = offsetX + (ball.getX() - radius - x) * scale;
-                double ballY = offsetY + (ball.getY() - radius - y) * scale;
+            for (Game.BallView ball : session.balls()) {
+                double radius = ball.radius();
+                double ballX = offsetX + (ball.x() - radius - x) * scale;
+                double ballY = offsetY + (ball.y() - radius - y) * scale;
                 g.setColor(Color.WHITE);
                 g.fill(new Ellipse2D.Double(ballX, ballY, radius * 2 * scale, radius * 2 * scale));
                 g.setColor(Color.DARK_GRAY);
                 g.draw(new Ellipse2D.Double(ballX, ballY, radius * 2 * scale, radius * 2 * scale));
-                drawVelocityIndicator(g, ballX + radius * scale, ballY + radius * scale, ball.getVelocityY());
+                drawVelocityIndicator(g, ballX + radius * scale, ballY + radius * scale, ball.velocityY());
+            }
+            if (showHitboxes.isSelected()) {
+                drawHitboxOverlay(g, session, x, y, offsetX, offsetY, scale);
             }
             g.dispose();
+        }
+
+        /** Dibuja los límites, arcos, hitboxes de jugadores y balones sobre los sprites. */
+        private void drawHitboxOverlay(Graphics2D g, Game.SessionView session,
+                double courtX, double courtY, double offsetX, double offsetY, double scale) {
+            g.setStroke(new BasicStroke(1.5f));
+            for (int index = 0; index < session.boundaries().size(); index++) {
+                Game.RectangleView box = session.boundaries().get(index);
+                drawRect(g, box.x() - courtX, box.y() - courtY, box.width(), box.height(),
+                        offsetX, offsetY, scale, new Color(255, 236, 80), false);
+            }
+            for (Game.RectangleView goal : session.goals()) {
+                drawRect(g, goal.x() - courtX, goal.y() - courtY, goal.width(), goal.height(),
+                        offsetX, offsetY, scale, new Color(255, 153, 40), false);
+            }
+            for (Game.ParticipantView participant : session.participants()) {
+                drawRect(g, participant.x() - courtX, participant.y() - courtY,
+                        participant.width(), participant.height(), offsetX, offsetY, scale,
+                        participant.side().equals("left") ? Color.CYAN : Color.MAGENTA, false);
+            }
+            for (Game.BallView ball : session.balls()) {
+                double diameter = ball.radius() * 2 * scale;
+                double screenX = offsetX + (ball.x() - ball.radius() - courtX) * scale;
+                double screenY = offsetY + (ball.y() - ball.radius() - courtY) * scale;
+                g.setColor(Color.WHITE);
+                g.draw(new Ellipse2D.Double(screenX, screenY, diameter, diameter));
+            }
         }
 
         /** Dibuja el fondo decorativo del estadio y su tribuna. */
@@ -461,14 +497,13 @@ public final class MechanicsTestPanel extends JPanel {
          * @param scale escala entre unidades de dominio y píxeles
          * @param color color del cuerpo del participante
          */
-        private void drawParticipants(Graphics2D g, java.util.List<SessionParticipant> participants,
+        private void drawParticipants(Graphics2D g, java.util.List<Game.ParticipantView> participants,
                 double courtX, double courtY, double offsetX, double offsetY, double scale, Color color) {
-            for (SessionParticipant participant : participants) {
-                var box = participant.getHitbox();
-                double x = offsetX + (box.getX() - courtX) * scale;
-                double y = offsetY + (box.getY() - courtY) * scale;
-                double width = box.getWidth() * scale;
-                double height = box.getHeight() * scale;
+            for (Game.ParticipantView participant : participants) {
+                double x = offsetX + (participant.x() - courtX) * scale;
+                double y = offsetY + (participant.y() - courtY) * scale;
+                double width = participant.width() * scale;
+                double height = participant.height() * scale;
                 double headSize = Math.min(width * .96, height * .46);
                 double headX = x + (width - headSize) / 2;
                 double headY = y + height * .02;

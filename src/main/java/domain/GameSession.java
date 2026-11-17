@@ -62,12 +62,16 @@ public abstract class GameSession {
     }
 
     /**
-     * Punto de extensión para solicitar movimiento. Actualmente no modifica
-     * el participante ni valida la dirección.
+     * Desplaza al participante si pertenece a esta sesión y la partida sigue activa.
+     * {@code true} representa derecha y {@code false} izquierda.
      * @param user participante
      * @param direction dirección
      */
     public void movePlayer(SessionParticipant user, boolean direction) {
+        if (finished || user == null || (!participantsRight.contains(user) && !participantsLeft.contains(user))) {
+            return;
+        }
+        user.move(direction);
     }
 
     /**
@@ -152,20 +156,33 @@ public abstract class GameSession {
     }
 
     /**
-     * Patea el balón desde un participante registrado cuando está a su alcance.
-     * El jugador izquierdo impulsa hacia la derecha y el derecho hacia la izquierda.
+     * Patea al rival si está a 8 unidades o menos de la hitbox del atacante;
+     * si no hay rival en alcance, patea el balón si está a su alcance. El jugador
+     * izquierdo impulsa el balón hacia la derecha y el derecho hacia la izquierda.
      *
      * @param player participante que intenta patear
-     * @return {@code true} si se aplicó el impulso
+     * @return {@code true} si golpeó a un rival o impulsó el balón
      */
     public boolean kickPlayer(SessionParticipant player) {
-        if (finished || player == null) return false;
+        if (finished || player == null || player.blocksMovement()) return false;
         int direction;
-        if (participantsLeft.contains(player)) direction = 1;
-        else if (participantsRight.contains(player)) direction = -1;
+        List<SessionParticipant> opponents;
+        if (participantsLeft.contains(player)) {
+            direction = 1;
+            opponents = participantsRight;
+        }
+        else if (participantsRight.contains(player)) {
+            direction = -1;
+            opponents = participantsLeft;
+        }
         else return false;
 
         var box = player.getHitbox();
+        SessionParticipant opponent = closestOpponentInReach(box, opponents);
+        if (opponent != null) {
+            opponent.takeDamage(player.getStats().getKickDamage());
+            return true;
+        }
         for (Ball ball : field.balls()) {
             double closestX = Math.max(box.getX(), Math.min(ball.getX(), box.getX() + box.getWidth()));
             double closestY = Math.max(box.getY(), Math.min(ball.getY(), box.getY() + box.getHeight()));
@@ -175,6 +192,25 @@ public abstract class GameSession {
             }
         }
         return false;
+    }
+
+    private SessionParticipant closestOpponentInReach(
+            domain.hitbox.RectangularHitbox attacker, List<SessionParticipant> opponents) {
+        SessionParticipant closest = null;
+        double closestDistance = Double.POSITIVE_INFINITY;
+        for (SessionParticipant opponent : opponents) {
+            var target = opponent.getHitbox();
+            double dx = Math.max(0, Math.max(attacker.getX() - target.getX() - target.getWidth(),
+                    target.getX() - attacker.getX() - attacker.getWidth()));
+            double dy = Math.max(0, Math.max(attacker.getY() - target.getY() - target.getHeight(),
+                    target.getY() - attacker.getY() - attacker.getHeight()));
+            double distance = Math.hypot(dx, dy);
+            if (distance <= KICK_REACH && distance < closestDistance) {
+                closest = opponent;
+                closestDistance = distance;
+            }
+        }
+        return closest;
     }
 
     /**
@@ -217,33 +253,58 @@ public abstract class GameSession {
     /**
      * Evalúa la regla activa con los marcadores y, para {@link domain.rules.ByTime},
      * los minutos completos transcurridos. Actualiza {@code finished}; la regla
-     * temporal devuelve si continúa, por lo que su resultado se invierte.
+     * temporal devuelve si continúa, por lo que su resultado se invierte. Al
+     * terminar con marcador desigual, otorga puntos a participantes humanos
+     * del lado ganador una sola vez.
      */
     public void checkTypeOfMatch() {
+        boolean wasFinished = finished;
         if (TypeOfMatch instanceof domain.rules.ByGoals) {
             finished = TypeOfMatch.check(List.of(Integer.toString(goalsLeft), Integer.toString(goalsRight)));
         } else if (TypeOfMatch instanceof domain.rules.ByTime) {
             finished = !TypeOfMatch.check(List.of(Integer.toString(goalsLeft), Integer.toString(goalsRight),
                     Integer.toString((int) Math.floor((timeLeft + 1e-9) / 60))));
         }
+        if (!wasFinished && finished) {
+            awardWinningPlayers();
+        }
     }
 
     /**
      * Mejora una estadística del jugador seleccionado.
      *
-     * @param player indica el jugador seleccionado
+     * @param player {@code true} selecciona derecha/jugador 1; {@code false} izquierda/jugador 2
      * @param stats estadística que se mejorará
+     * @throws GameException si no hay participante seleccionado, faltan puntos
+     *         o la habilidad no existe
      */
     public void ImproveStatistics(boolean player, String stats) {
+        List<SessionParticipant> selectedSide = player ? participantsRight : participantsLeft;
+        if (selectedSide.isEmpty()) {
+            throw new GameException(GameException.INVALID_PARTICIPANT_ID);
+        }
+        selectedSide.get(0).ImproveStatistics(stats);
+    }
+
+    private void awardWinningPlayers() {
+        if (goalsLeft == goalsRight) return;
+        List<SessionParticipant> winningSide = goalsRight > goalsLeft ? participantsRight : participantsLeft;
+        for (SessionParticipant participant : winningSide) {
+            if (participant instanceof Player) {
+                participant.getStats().awardWin();
+            }
+        }
     }
 
     /**
-     * Avanza una sesión activa un paso fijo: incrementa el tiempo, integra el
-     * balón con gravedad, procesa contactos y vuelve a consultar la regla si la
-     * sesión no terminó durante la detección de colisiones.
+     * Avanza una sesión activa un paso fijo: actualiza efectos temporales,
+     * incrementa el tiempo, integra el balón con gravedad, procesa contactos y
+     * vuelve a consultar la regla si la sesión sigue activa.
      */
     public void updateGame() {
         if (finished) return;
+        for (SessionParticipant participant : participantsLeft) participant.updateStatusEffects();
+        for (SessionParticipant participant : participantsRight) participant.updateStatusEffects();
         timeLeft += STEP_SECONDS;
         field.advanceBalls(STEP_SECONDS, GRAVITY);
         collision();
@@ -348,7 +409,7 @@ public abstract class GameSession {
      * Delega a la cancha la colocación simétrica del primer participante de
      * cada lista; si alguno de los lados no tiene participantes, no hace cambios.
      */
-    protected void positionParticipants() {
+    public void positionParticipants() {
         if (!participantsLeft.isEmpty() && !participantsRight.isEmpty()) {
             field.positionParticipants(participantsLeft.get(0), participantsRight.get(0));
         }

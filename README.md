@@ -38,6 +38,7 @@ Los enlaces llevan a los documentos compartidos, los diagramas y las guías del 
 | 📐 Diagrama de clases | [Abrir en diagrams.net](https://viewer.diagrams.net/?tags=%7B%7D&lightbox=1&highlight=0000ff&edit=_blank&layers=1&link-icons=1&tooltip-icons=1&nav=1&title=Head_Soccer.drawio&dark=auto#Uhttps%3A%2F%2Fdrive.google.com%2Fuc%3Fid%3D1kuQxyHiroSopLOlZwFoC23GFreDoKCrz%26export%3Ddownload) | Visualización y edición del diagrama de clases. |
 | 💻 Código fuente | [Repositorio GitHub](https://github.com/PaglkG/ProyectoFinal-Dopo) | Código, versiones, ramas y seguimiento del desarrollo. |
 | 📘 Reglas del proyecto | [`docs/logica-proyecto.md`](docs/logica-proyecto.md) | Reglas confirmadas, estado de implementación y decisiones pendientes. |
+| 📚 Referencia de clases | [`docs/referencia-clases.md`](docs/referencia-clases.md) | Responsabilidad, atributos y métodos de cada tipo declarado en `src/main/java`. |
 | 🧪 Banco de pruebas | [`docs/guia-banco-pruebas.md`](docs/guia-banco-pruebas.md) | Instrucciones para abrir y usar la ventana de prueba de mecánicas. |
 | 📐 Diagramas UML | [`docs/uml/`](docs/uml/) | Diagramas fuente, capturas e informe de contraste con el código. |
 

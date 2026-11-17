@@ -11,7 +11,7 @@ Los diagramas fuente de este directorio están escritos en PlantUML (`.puml`) pa
 - `package-diagram.puml`: dependencias de alto nivel entre presentación y dominio.
 - `player-vs-player-sequence.puml`: inicialización actual de dos jugadores humanos.
 - `presentation.testing`: aplicación independiente de banco de pruebas visual para las mecánicas del dominio.
-- `mechanics-test-sequence.puml`: flujo del banco visual para preparar escenarios, mover participantes, patear el balón y reflejar los goles del dominio.
+- `mechanics-test-sequence.puml`: flujo del banco visual a través de la fachada `Game`, con instantáneas inmutables y preparación de escenarios.
 - `capturas/`: capturas legibles correspondientes a los diagramas cuando se exporten.
 
 Los métodos vacíos no se presentan como comportamientos ya realizados. Las capturas PDF recibidas se conservan en `capturas/`; las páginas vacías se anotan en el informe. Las imágenes PNG de los diagramas PlantUML se regeneran en `capturas/` desde sus fuentes.
@@ -19,7 +19,7 @@ Los métodos vacíos no se presentan como comportamientos ya realizados. Las cap
 ### Lectura rápida del modelo
 
 - **Presentación:** muestra pantallas y recoge acciones. El `GameController` es el puente previsto hacia el dominio; la aplicación oficial todavía no integra una partida completa.
-- **Banco de pruebas:** `MechanicsTestApp` abre una ventana independiente. `MechanicsTestController` crea y actualiza sesiones reales del dominio. `PresentationMovement` simula el desplazamiento de los jugadores solo para facilitar las pruebas visuales.
+- **Banco de pruebas:** `MechanicsTestApp` abre una ventana independiente. `MechanicsTestController`, `MechanicsTestPanel` y `PresentationMovement` solo se comunican con el dominio por medio de `Game` y su instantánea inmutable. El desplazamiento horizontal usa `Game.movePlayer`; el salto permanece como simulación visual.
 - **Partida:** `Game` crea y administra sesiones. `GameSession` mantiene cancha, participantes, marcador y regla; coordina el paso de actualización, las colisiones, los goles y el fin de partida.
 - **Cancha y balón:** `SoccerField` contiene y recorre los balones, administra límites y zonas de gol, y coordina los rebotes contra la cancha. `Ball` conserva su estado físico y ejecuta el avance o rebote solicitado. `GameSession` coordina goles y contactos balón-participante, guardando en la sesión qué contactos continúan entre pasos.
 - **Hitboxes:** `Hitbox` define las operaciones comunes; las formas circulares y rectangulares hacen la comprobación geométrica mediante `HitboxIntersections`. `HitboxContact` indica qué entidad y forma hicieron contacto. El paquete detecta; el dominio decide qué hacer después.

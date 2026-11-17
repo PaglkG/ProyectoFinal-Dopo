@@ -2,19 +2,15 @@ package presentation.testing;
 
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.IdentityHashMap;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
-import domain.GameSession;
-import domain.SessionParticipant;
-import domain.SoccerField;
+import domain.Game;
 
-/** Movimiento arcade exclusivo del banco visual; no escribe reglas de movimiento en el dominio. */
+/** Controla entradas visuales a través de la fachada {@link Game}. */
 final class PresentationMovement {
 
     static final double STEP_SECONDS = 1.0 / 60.0;
-    static final double HORIZONTAL_SPEED = 150.0;
     static final double JUMP_SPEED = 110.0;
     static final double GRAVITY = 180.0;
     private static final double EDGE_GAP = 0.02;
@@ -26,12 +22,11 @@ final class PresentationMovement {
 
     private final EnumSet<Control> held = EnumSet.noneOf(Control.class);
     private final EnumSet<Control> jumpRequested = EnumSet.noneOf(Control.class);
-    private final Map<SessionParticipant, Double> verticalSpeeds =
-            Collections.synchronizedMap(new IdentityHashMap<>());
-    private GameSession activeSession;
+    private final Map<String, Double> verticalSpeeds = Collections.synchronizedMap(new HashMap<>());
+    private Game activeGame;
+    private int activeSessionIndex = -1;
 
-    /** Registra o libera una tecla y detecta el flanco inicial de las solicitudes de salto. */
-    void setControl(Control control, boolean pressed) {
+    public void setControl(Control control, boolean pressed) {
         if (pressed) {
             boolean firstPress = held.add(control);
             if (firstPress && isJump(control)) jumpRequested.add(control);
@@ -40,72 +35,76 @@ final class PresentationMovement {
         }
     }
 
-    /** Elimina todas las teclas mantenidas y las solicitudes de salto pendientes. */
-    void clearInputs() {
+    public void clearInputs() {
         held.clear();
         jumpRequested.clear();
     }
 
-    /** Limpia controles y velocidades verticales y establece la sesión activa. */
-    void reset(GameSession session) {
+    public void reset(Game game, int sessionIndex) {
         clearInputs();
         verticalSpeeds.clear();
-        activeSession = session;
+        activeGame = game;
+        activeSessionIndex = sessionIndex;
     }
 
-    /** Limpia saltos pendientes y velocidades verticales tras reiniciar una ronda. */
-    void resetAfterRound(GameSession session) {
+    public void resetAfterRound(Game game, int sessionIndex) {
         jumpRequested.clear();
         verticalSpeeds.clear();
-        activeSession = session;
+        activeGame = game;
+        activeSessionIndex = sessionIndex;
     }
 
-    /**
-     * Actualiza movimiento visual de los humanos permitidos por la modalidad;
-     * descarta velocidades de una sesión anterior e ignora partidas terminadas.
-     */
-    void update(GameSession session, MechanicsTestController.SessionMode mode) {
-        if (session != activeSession) {
+    public void update(Game game, int sessionIndex, MechanicsTestController.SessionMode mode) {
+        if (game != activeGame || sessionIndex != activeSessionIndex) {
             verticalSpeeds.clear();
-            activeSession = session;
+            activeGame = game;
+            activeSessionIndex = sessionIndex;
         }
-        if (session.isFinished()) return;
-        SoccerField field = session.getField();
-        List<SessionParticipant> left = session.getParticipantsLeft();
-        List<SessionParticipant> right = session.getParticipantsRight();
-        SessionParticipant leftActor = left.isEmpty() ? null : left.get(0);
-        SessionParticipant rightActor = right.isEmpty() ? null : right.get(0);
+        Game.SessionView state = game.inspectSession(sessionIndex);
+        if (state.finished()) return;
 
-        if (mode == MechanicsTestController.SessionMode.PLAYER_VS_PLAYER && leftActor != null) {
-            updateActor(leftActor, rightActor, field, Control.LEFT_LEFT, Control.LEFT_RIGHT, Control.LEFT_JUMP);
+        Game.ParticipantView left = findBySide(state, "left");
+        Game.ParticipantView right = findBySide(state, "right");
+        if (mode == MechanicsTestController.SessionMode.PLAYER_VS_PLAYER && left != null) {
+            updateActor(game, sessionIndex, left, right,
+                    Control.LEFT_LEFT, Control.LEFT_RIGHT, Control.LEFT_JUMP);
         }
-        if (rightActor != null) {
-            updateActor(rightActor, leftActor, field, Control.RIGHT_LEFT, Control.RIGHT_RIGHT, Control.RIGHT_JUMP);
+        if (right != null) {
+            Game.SessionView current = game.inspectSession(sessionIndex);
+            right = findBySide(current, "right");
+            left = findBySide(current, "left");
+            updateActor(game, sessionIndex, right, left,
+                    Control.RIGHT_LEFT, Control.RIGHT_RIGHT, Control.RIGHT_JUMP);
         }
         jumpRequested.clear();
     }
 
-    /**
-     * Calcula el movimiento horizontal y vertical de un actor, limita su posición
-     * a la cancha, bloquea desplazamientos que causarían contacto con el rival y
-     * conserva la velocidad vertical entre pasos.
-     */
-    private void updateActor(SessionParticipant actor, SessionParticipant opponent, SoccerField field,
-            Control leftControl, Control rightControl, Control jumpControl) {
-        var box = actor.getHitbox();
-        double oldX = box.getX();
-        double oldY = box.getY();
+    /** Usa el movimiento real del dominio y limita solo la simulación visual del salto. */
+    private void updateActor(Game game, int sessionIndex, Game.ParticipantView actor,
+            Game.ParticipantView opponent, Control leftControl, Control rightControl, Control jumpControl) {
+        String id = actor.id();
+        double oldX = actor.x();
+        double oldY = actor.y();
         int horizontal = (held.contains(rightControl) ? 1 : 0) - (held.contains(leftControl) ? 1 : 0);
-        double minX = field.getHitboxField()[2].getX() + field.getHitboxField()[2].getWidth() + EDGE_GAP;
-        double maxX = field.getHitboxField()[3].getX() - box.getWidth() - EDGE_GAP;
-        double nextX = clamp(oldX + horizontal * HORIZONTAL_SPEED * STEP_SECONDS, minX, maxX);
+        double nextX = oldX;
+        if (horizontal != 0) {
+            game.movePlayer(sessionIndex, id, horizontal > 0);
+            Game.ParticipantView moved = findById(game.inspectSession(sessionIndex), id);
+            if (moved == null) return;
+            var boundaries = game.inspectSession(sessionIndex).boundaries();
+            double minX = boundaries.get(2).x() + boundaries.get(2).width() + EDGE_GAP;
+            double maxX = boundaries.get(3).x() - moved.width() - EDGE_GAP;
+            nextX = clamp(moved.x(), minX, maxX);
+            if (touches(nextX, oldY, moved.width(), moved.height(), opponent)) nextX = oldX;
+            if (nextX != moved.x()) game.setParticipantPosition(sessionIndex, id, nextX, oldY);
+        }
 
-        actor.resetPosition(nextX, oldY);
-        if (touches(opponent, actor)) actor.resetPosition(oldX, oldY);
-
-        double floorY = field.getHitboxField()[1].getY() - box.getHeight();
-        double ceilingY = field.getHitboxField()[0].getY() + field.getHitboxField()[0].getHeight() + EDGE_GAP;
-        double verticalSpeed = verticalSpeeds.getOrDefault(actor, 0.0);
+        Game.ParticipantView positioned = findById(game.inspectSession(sessionIndex), id);
+        if (positioned == null) return;
+        var boundaries = game.inspectSession(sessionIndex).boundaries();
+        double floorY = boundaries.get(1).y() - positioned.height();
+        double ceilingY = boundaries.get(0).y() + boundaries.get(0).height() + EDGE_GAP;
+        double verticalSpeed = verticalSpeeds.getOrDefault(id, 0.0);
         boolean grounded = oldY >= floorY - EDGE_GAP;
         if (jumpRequested.contains(jumpControl) && grounded) verticalSpeed = -JUMP_SPEED;
         verticalSpeed += GRAVITY * STEP_SECONDS;
@@ -117,27 +116,33 @@ final class PresentationMovement {
             nextY = ceilingY;
             if (verticalSpeed < 0) verticalSpeed = 0;
         }
-
-        double acceptedX = actor.getHitbox().getX();
-        actor.resetPosition(acceptedX, nextY);
-        if (touches(opponent, actor)) {
-            actor.resetPosition(acceptedX, oldY);
+        if (touches(nextX, nextY, positioned.width(), positioned.height(), opponent)) {
+            nextY = oldY;
             verticalSpeed = 0;
         }
-        verticalSpeeds.put(actor, verticalSpeed);
+        game.setParticipantPosition(sessionIndex, id, nextX, nextY);
+        verticalSpeeds.put(id, verticalSpeed);
     }
 
-    /** Comprueba contacto entre actores y trata un primer actor nulo como ausencia de contacto. */
-    private boolean touches(SessionParticipant first, SessionParticipant second) {
-        return first != null && first.intersects(second).isContact();
+    private static Game.ParticipantView findBySide(Game.SessionView state, String side) {
+        return state.participants().stream().filter(player -> player.side().equals(side))
+                .findFirst().orElse(null);
     }
 
-    /** @return {@code true} cuando el control representa una tecla de salto */
+    private static Game.ParticipantView findById(Game.SessionView state, String id) {
+        return state.participants().stream().filter(player -> player.id().equals(id))
+                .findFirst().orElse(null);
+    }
+
+    private boolean touches(double x, double y, double width, double height, Game.ParticipantView other) {
+        return other != null && x <= other.x() + other.width() && x + width >= other.x()
+                && y <= other.y() + other.height() && y + height >= other.y();
+    }
+
     private boolean isJump(Control control) {
         return control == Control.LEFT_JUMP || control == Control.RIGHT_JUMP;
     }
 
-    /** Limita el valor al intervalo cerrado entre el mínimo y el máximo. */
     private double clamp(double value, double minimum, double maximum) {
         return Math.max(minimum, Math.min(maximum, value));
     }

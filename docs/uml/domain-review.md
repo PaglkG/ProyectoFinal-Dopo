@@ -6,29 +6,32 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 
 ## Resumen
 
-- Implementado de forma coherente: construcción básica de `Game`; creación reflectiva de modalidades y sesiones; construcción de `PlayerVsBot` y `PlayerVsPlayer`; colocación fija de participantes; construcción y reinicio del balón; construcción y reposicionamiento de hitboxes; comprobaciones `ByGoals` y `ByTime`; valores iniciales confirmados de `Stats`.
-- Implementado con defecto: `Game.closeSession` ignora el objeto recibido y ejecuta `sessions.remove(0)`.
+- Implementado de forma coherente: construcción básica de `Game`; creación reflectiva de modalidades y sesiones; construcción de `PlayerVsBot` y `PlayerVsPlayer`; colocación fija de participantes; construcción y reinicio del balón; construcción y reposicionamiento de hitboxes; comprobaciones `ByGoals` y `ByTime`; valores iniciales y mejoras de `Stats`.
+- Implementado: `Game.closeSession` elimina de `sessions` el objeto de sesión recibido.
 - Implementado en esta revisión: actualización fija del balón, resolución de contactos confirmados, excepciones por salida/superposición, goles y marcador, reinicio de ronda y cierre por modalidad.
-- Sigue pendiente: entrada de movimiento/salto/poder, mejoras de estadísticas, persistencia, decisiones de bots, efectos de estado y poderes.
+- Implementado en esta revisión: movimiento horizontal delegado por `Game`, escalado por `Stats.speed` y aplicado al participante y su hitbox.
+- Implementado en esta revisión: 5 puntos por victoria humana, costo de 5 puntos por mejora, conservación por ID entre sesiones de una instancia de `Game`, daño de patada, aturdimiento con `StatusEffect` y errores de dominio emitidos como `GameException`.
+- Sigue pendiente: salto/poder, persistencia, decisiones de bots y ejecución de disparos/efectos de los poderes.
 - El UML tiene firmas, clases y mensajes que no coinciden con el código o con reglas ya confirmadas. Ver detalles abajo.
 
 ## Hallazgos por clase
 
 | Clase / grupo | Código observado | Evaluación frente al UML y reglas |
 |---|---|---|
-| `Game` | `startSession` crea una sesión por reflexión y la añade a `sessions`; `new Game()` inicializa la lista. | Flujo base implementado. La secuencia PDF de creación escribe la firma con parámetros en otro orden que la firma Java (`parametersRules, typeGame, typeMatche, player`). |
-| `Game.closeSession` | Ejecuta `sessions.remove(0)`. | Defecto: no retira necesariamente `closeSession`; puede quitar una sesión distinta y falla si la lista está vacía. El PDF representa la eliminación de la sesión recibida. |
-| `Game.movePlayer`, `jumpPlayer`, `powerPlayer`, `resetSession`, `ImproveStatistics`, `updateGame`, `save`, `open` | Cuerpos vacíos. | Pendiente. Las secuencias de movimiento, salto, poder, reinicio, mejora y actualización describen llamadas objetivo que todavía no ocurren. Las páginas de `open` y `save` están vacías. |
-| `GameSession` | Constructor crea listas, modalidad reflectiva y `SoccerField`; fija tiempo transcurrido a cero y usa gravedad 40. Actualiza en pasos de 1/60 s, coordina goles, contactos con participantes, excepciones y cierre de modalidad; registra los contactos continuos durante la sesión. | La secuencia de actualización está implementada conforme a reglas confirmadas. `SoccerField` recorre los balones, los avanza y coordina rebotes contra límites, arcos y suelo; `Ball` ejecuta las operaciones físicas. Siguen pendientes `minParticipants`, `assignRules`, movimiento, salto, poder y mejoras. |
-| `PlayerVsBot` | Crea `Player(1)` o `Player(2)` a la derecha según el booleano y siempre `BotPlayer` a la izquierda. | Coincide con regla confirmada. `addParticipant` no hace nada. El diagrama de secuencia completo contiene llamadas/responsabilidades que no están en el constructor actual. |
-| `PlayerVsPlayer` | Crea jugador 1 a la derecha y jugador 2 a la izquierda; ignora el booleano. | Coincide con regla confirmada. `addParticipants` no hace nada. La secuencia PDF de esta modalidad rotula la sesión como `PlayerVsBot` y muestra la adición de identidades que no corresponden claramente al flujo implementado. |
+| `Game` | `startSession` crea una sesión por reflexión con modalidad, reglas, poderes y perfil; la añade a `sessions`; `new Game()` inicializa la lista. | El flujo implementado pasa la lista de poderes al constructor de la sesión y conserva la traducción reflectiva de errores a `GameException`. |
+| `Game.closeSession` | Ejecuta `sessions.remove(closeSession)`. | Retira de la lista la sesión recibida; si no está presente, no altera la lista. |
+| `Game.movePlayer` | Delega en la sesión para participantes registrados en una partida activa; el participante se desplaza 150 × `speed` / 60 unidades, en la dirección confirmada. | Implementado en esta revisión conforme a dirección y fórmula confirmadas. |
+| `Game.jumpPlayer`, `powerPlayer`, `resetSession`, `save`, `open` | Cuerpos vacíos. | Pendiente. Las secuencias de salto, poder y reinicio describen llamadas objetivo que todavía no ocurren. Las páginas de `open` y `save` están vacías. `ImproveStatistics` ya delega en la sesión. |
+| `GameSession` | Constructor crea listas, modalidad reflectiva y `SoccerField`; fija tiempo transcurrido a cero y usa gravedad 40. Actualiza en pasos de 1/60 s, coordina goles, contactos con participantes, excepciones y cierre de modalidad; registra los contactos continuos durante la sesión. Al terminar con un ganador, otorga puntos a humanos del lado ganador. | La secuencia de actualización está implementada conforme a reglas confirmadas. `SoccerField` recorre los balones, los avanza y coordina rebotes contra límites, arcos y suelo; `Ball` ejecuta las operaciones físicas. Siguen pendientes `minParticipants`, `assignRules`, salto y poder. |
+| `PlayerVsBot` | Crea el jugador humano a la derecha y el perfil bot solicitado a la izquierda; asocia los dos poderes elegidos. | Coincide con el orden confirmado de participantes, poderes y dificultad. Los tipos de bot se crean reflectivamente y sus decisiones siguen pendientes. |
+| `PlayerVsPlayer` | Crea jugador 1 a la derecha y jugador 2 a la izquierda; asocia el poder de cada lado según la lista recibida. | Coincide con posiciones fijas y orden confirmado de parámetros. |
 | `SoccerField` | Crea cancha provisional de 450×150, cuatro límites, dos arcos y balones; proporciona consultas para gol, salida, suelo y ubicación simétrica de participantes. `hitboxs()` expone los elementos asociados. | La intersección devuelve la entidad contactada y su hitbox. `reposition` traslada también los balones; `resetBall(x,y)` centra y detiene. |
 | `Ball` | Construye hitbox circular, reinicia al centro, expone posición/velocidad, suma impulsos, avanza por paso temporal y rebota con retención configurada por la sesión. | Física usada por `GameSession`; `physical` todavía no se utiliza. |
 | `Hitbox`, `CircularHitbox`, `RectangularHitbox` | Interfaz y formas implementan `intersects` y `reposition`; las formas reposicionan sus referencias. | `intersects` devuelve `HitboxContact` con entidad/hitbox, o nombre vacío y hitbox nula sin contacto. `reposition` funciona según el punto de referencia documentado. El PDF de Hitbox no muestra `reposition`, aunque está en la interfaz y ambas formas. |
-| `SessionParticipant` | Tiene posición, hitbox rectangular, estadísticas, estados y poder; `resetPosition` y `reposition` actualizan posición/hitbox. | Reinicio básico de posición e identificación del objeto/hitbox contactados implementados. `move`, `jump`, `power` y mejora siguen pendientes. |
+| `SessionParticipant` | Tiene posición, hitbox rectangular, estadísticas, estados, vida y poder; `move` modifica la coordenada horizontal según `speed`, y `resetPosition`/`reposition` actualizan posición e hitbox. | Movimiento y mejoras implementados; el daño reduce vida hasta cero, aplica `StatusEffect` por 3 segundos y restaura vida máxima al expirar. `jump` y `power` siguen pendientes. |
 | `Player`, `BotPlayer`, perfiles | `Player` conserva un id. `BotPlayer.decideAction` devuelve `null`; `Clumsy`, `Offensive`, `Defensive`, `Expert` no agregan conducta. | Identidad/jerarquía disponibles; altas de usuarios y decisiones de bot pendientes. |
-| `Stats` | Mapa `speed`, `goal`, `kick`, `jump`, cada uno en 1; `points` inicia en 0. | Valores iniciales coinciden con regla confirmada. Los métodos de mejora están vacíos. El UML PDF dibuja `action` como `HashSet`, lo cual contradice el código y la decisión documentada (`Map<String,Integer>`). |
-| `Power`, `StatusEffect` | Métodos de uso/actualización vacíos; consultas de efecto devuelven `false`/`0.0`. | Esqueleto sin comportamiento funcional. El diagrama de secuencia condiciona el poder a `isUsable`, pero el método no implementa esa condición. |
+| `Stats` | Mapa `speed`, `goal`, `kick`, `jump`, cada uno en 1; `points` inicia en 0. Entrega 5 puntos por victoria y cobra 5 por nivel de mejora. | Mejora una habilidad en 1 solo si es válida y hay saldo; estos errores y los parámetros inválidos de reglas se lanzan como `GameException`. El UML PDF dibuja `action` como `HashSet`, lo cual contradice el código y la decisión documentada (`Map<String,Integer>`). |
+| `Power`, `AuraAzul`, `Rayo`, `Tornado`, `Ilusion`, `PowerFactory` | `Power` es abstracta; cada tipo concreto se puede crear y asociar al participante mediante nombre de clase completo. | La selección/asociación está implementada. Lanzamiento, daño, carga y efectos de estado siguen pendientes. |
 | `ByGoals` | Parsea el límite y termina cuando un marcador es exactamente igual al límite. | Coincide con la regla confirmada. `check` recibe una lista de marcadores en Java; el diagrama de clases lo presenta sin parámetros. |
 | `ByTime` | Parsea minutos enteros; continúa antes del límite, activa muerte súbita en empate al límite y termina si hay diferencia. | Coincide con las reglas confirmadas de continuidad/muerte súbita. `check(List<String>)` y sus helpers están en `ByTime`; el UML ubica `isTime` e `isSuddenDeath` bajo `ByGoals`, contradiciendo la decisión documentada. |
 
@@ -37,20 +40,20 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 1. `TypeOfMatch.check` aparece sin parámetros en el PDF; Java declara `check(List<String>)`. `ByGoals.check` y `ByTime.check` también necesitan la lista según el contrato actual.
 2. El PDF coloca `isTime` e `isSuddenDeath` en `ByGoals`; el código y la regla documentada los ubican en `ByTime`.
 3. `Stats.action` aparece como `HashSet` en el PDF; el código/regla acordada definen `Map<String,Integer>`.
-4. La secuencia `closeSession` supone que se borra la sesión solicitada; Java elimina el índice cero.
+4. La secuencia `closeSession` y la implementación eliminan la sesión solicitada.
 5. La secuencia `resetSession` usa cuatro coordenadas y bases distintas por lado; Java expone `SoccerField.resetBall(x,y)` y `GameSession` solo declara `xBase`/`yBase` comunes.
 6. Las secuencias `startSessionPlayerVsBot`/`VsPlayer` tienen inconsistencias de nombres/tipos: llamadas a modalidad con nombres de parámetros intercambiados, creación o retorno rotulado como la modalidad equivocada, y creación de `Scoreboard` aunque esa clase fue retirada del dominio actual. En la secuencia PVP, la sesión aparece rotulada `PlayerVsBot`.
 7. La interfaz y formas del diagrama de Hitbox omiten `reposition(x,y)`, que sí existe en Java.
-8. La secuencia `movePlayer` fija `true = derecha`, `false = izquierda`. Esa correspondencia aparece como nota de diagrama, pero no está confirmada en `logica-proyecto.md` y los métodos Java están vacíos.
+8. La secuencia `movePlayer` fija `true = derecha`, `false = izquierda`; la dirección y fórmula de desplazamiento se confirmaron e implementaron.
 9. La secuencia de `updateGame` se actualizó junto con su implementación: documenta avance fijo, validaciones de participantes, prioridad del gol sobre la salida del balón, rebote, impulso y cierre por modalidad.
 
 ## Pendientes de codificación derivados de los diagramas
 
-1. Corregir `Game.closeSession` para retirar el objeto recibido, una vez que ese contrato se mantenga confirmado.
+1. Mantener `Game.closeSession` alineado con el flujo que elimina el objeto de sesión recibido.
 2. Implementar `Game.resetSession`; aclarar y uniformar las coordenadas de reinicio por lado antes de codificar el contrato divergente del PDF.
-3. Implementar `Game.movePlayer` → `GameSession.movePlayer` → `SessionParticipant.move`; confirmar antes el significado de `direction`.
+3. Extender el movimiento si se confirman límites de cancha, colisiones u otras restricciones adicionales.
 4. Implementar salto y poder a través de `Game`, `GameSession`, participante y `Power` una vez definidos sus efectos y límites.
-5. Completar estadísticas, estados temporales, poderes y decisiones de perfiles de bot según reglas aún pendientes.
+5. Completar estadísticas, estados temporales y ejecución de disparos/efectos de poderes, además de las decisiones de perfiles de bot.
 6. Implementar `save`/`open`; sus páginas de secuencia no muestran interacciones que permitan derivar el formato o el contrato.
 7. Implementar `minParticipants`, `assignRules`, `addParticipant(s)` y otras operaciones declaradas si se mantienen dentro del alcance del producto.
 

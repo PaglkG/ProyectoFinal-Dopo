@@ -17,4 +17,9 @@ public class Player extends SessionParticipant {
         this.user = user;
     }
 
+    /** @return identificador estable usado para conservar estadísticas entre sesiones */
+    public int getUserId() {
+        return user;
+    }
+
 }

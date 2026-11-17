@@ -6,11 +6,56 @@ hide empty members
 package "domain" {
   class Game {
     - sessions: List<GameSession>
-    + startSession(parametersRules: List<String>, typeGame: String, typeMatche: String, player: boolean): GameSession
+    - playerStats: Map<Integer, Stats>
+    + startSession(parametersRules: List<String>, parametersPowers: List<String>, typeGame: String, typeMatche: String, player: boolean): GameSession
+    + startSessionForView(parametersRules: List<String>, parametersPowers: List<String>, typeGame: String, typeMatche: String, player: boolean): int
     + closeSession(closeSession: GameSession): void
+    + movePlayer(session: GameSession, player: SessionParticipant, direction: boolean): void
+    + movePlayer(sessionIndex: int, participantId: String, direction: boolean): void
+    + kickPlayer(sessionIndex: int, participantId: String): boolean
+    + inspectSession(sessionIndex: int): SessionView
+    + setParticipantPosition(sessionIndex: int, participantId: String, x: double, y: double): void
+    + setBallPosition(sessionIndex: int, ballIndex: int, x: double, y: double): void
+    + applyBallImpulse(sessionIndex: int, ballIndex: int, deltaX: double, deltaY: double): void
+    + updateGame(sessionIndex: int): void
     + updateGame(game: GameSession): void
+    + ImproveStatistics(session: GameSession, player: boolean, stats: String): void
     + save(): void
     + open(file: File): void
+  }
+  class "Game.SessionView" as SessionView <<record>> {
+    + court: RectangleView
+    + boundaries: List<RectangleView>
+    + goals: List<RectangleView>
+    + participants: List<ParticipantView>
+    + balls: List<BallView>
+    + goalsLeft: int
+    + goalsRight: int
+    + elapsedSeconds: double
+    + finished: boolean
+  }
+  class "Game.ParticipantView" as ParticipantView <<record>> {
+    + id: String
+    + side: String
+    + x: double
+    + y: double
+    + width: double
+    + height: double
+    + speed: int
+  }
+  class "Game.BallView" as BallView <<record>> {
+    + index: int
+    + x: double
+    + y: double
+    + radius: double
+    + velocityX: double
+    + velocityY: double
+  }
+  class "Game.RectangleView" as RectangleView <<record>> {
+    + x: double
+    + y: double
+    + width: double
+    + height: double
   }
   abstract class GameSession {
     - timeLeft: double
@@ -27,12 +72,14 @@ package "domain" {
     # participantsRight: List<SessionParticipant>
     # participantsLeft: List<SessionParticipant>
     + movePlayer(user: SessionParticipant, direction: boolean): void
+    + kickPlayer(player: SessionParticipant): boolean
     + restartRound(): void
-    # positionParticipants(): void
+    + positionParticipants(): void
     + goal(side: String): void
     + checkTypeOfMatch(): void
     + updateGame(): void
     - collision(): void
+    - closestOpponentInReach(attacker: RectangularHitbox, opponents: List<SessionParticipant>): SessionParticipant
     + getGoalsLeft(): int
     + getGoalsRight(): int
     + isFinished(): boolean
@@ -40,25 +87,46 @@ package "domain" {
     + getField(): SoccerField
     + getParticipantsLeft(): List<SessionParticipant>
     + getParticipantsRight(): List<SessionParticipant>
+    + ImproveStatistics(player: boolean, stats: String): void
+    - awardWinningPlayers(): void
   }
-  class PlayerVsBot
-  class PlayerVsPlayer
+  class PlayerVsBot {
+    + PlayerVsBot(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
+    - createBot(difficulty: String): BotPlayer
+  }
+  class PlayerVsPlayer {
+    + PlayerVsPlayer(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
+  }
   abstract class SessionParticipant {
     - x: double
     - y: double
+    - life: int = 100
+    - maxLife: int = 100
     - UserHitbox: RectangularHitbox
     - stats: Stats
     - status: List<StatusEffect>
     - specialPower: Power
     + move(dir: boolean): void
+    + getStats(): Stats
+    + setStats(stats: Stats): void
+    + getLife(): int
+    + getMaxLife(): int
+    + blocksMovement(): boolean
+    + takeDamage(damage: int): void
+    + applyStatusEffect(effect: StatusEffect): void
+    + updateStatusEffects(): void
     + jump(): void
     + power(): void
+    + getSpecialPower(): Power
+    + setSpecialPower(specialPower: Power): void
     + resetPosition(x: double, y: double): void
-    ~ resizeHitbox(width: double, height: double): void
+    + resizeHitbox(width: double, height: double): void
+    + ImproveStatistics(stats: String): void
     + intersects(hitbox: Hitbox): HitboxContact
   }
   class Player {
     - user: int
+    + getUserId(): int
   }
   class BotPlayer {
     + decideAction(field: SoccerField): Set<Action>
@@ -72,9 +140,16 @@ package "domain" {
     - RightGoalHitbox: RectangularHitbox
     - fieldHitbox: RectangularHitbox[]
     - balls: Ball[]
-    ~ advanceBalls(deltaSeconds: double, gravity: double): void
-    ~ bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
-    ~ bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
+    + advanceBalls(deltaSeconds: double, gravity: double): void
+    + balls(): Ball[]
+    + courtX(): double
+    + courtY(): double
+    + courtWidth(): double
+    + courtHeight(): double
+    + boundaryThickness(): double
+    + groundY(): double
+    + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
     + resetBall(x: double, y: double): void
     + getHitboxField(): RectangularHitbox[]
     + getHitboxBalls(): CircularHitbox[]
@@ -83,13 +158,13 @@ package "domain" {
     + getGoalHitboxes(): RectangularHitbox[]
     + contactingPart(other: Hitbox): HitboxContact
     + intersects(hitbox: Hitbox): HitboxContact
-    ~ goalSideFor(ball: Ball): String
-    ~ isOutside(ball: Ball): boolean
-    ~ isOutside(participant: SessionParticipant): boolean
-    ~ touchesForbiddenBoundary(participant: SessionParticipant): boolean
-    ~ touchesGround(ball: Ball): boolean
-    ~ groundCenterY(ball: Ball): double
-    ~ positionParticipants(left: SessionParticipant, right: SessionParticipant): void
+    + goalSideFor(ball: Ball): String
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    + touchesGround(ball: Ball): boolean
+    + groundCenterY(ball: Ball): double
+    + positionParticipants(left: SessionParticipant, right: SessionParticipant): void
   }
   class Ball {
     - physical: boolean
@@ -104,18 +179,44 @@ package "domain" {
     + getVelocityX(): double
     + getVelocityY(): double
     + applyImpulse(deltaX: double, deltaY: double): void
-    ~ ensureHorizontalDirection(direction: int, minimumSpeed: double): void
+    + ensureHorizontalDirection(direction: int, minimumSpeed: double): void
     + advance(deltaSeconds: double, gravity: double): void
-    ~ bounceAt(centerY: double, retention: double, minimumSpeed: double): void
+    + bounceAt(centerY: double, retention: double, minimumSpeed: double): void
+    + bounceHorizontallyAt(centerX: double, retention: double): void
+    + bounceVerticallyAt(centerY: double, retention: double): void
     + intersects(hitbox: Hitbox): HitboxContact
   }
   class Stats {
+    + POINTS_PER_WIN: int = 5 {static, readOnly}
+    + POINTS_PER_UPGRADE: int = 5 {static, readOnly}
+    + KICK_BASE_DAMAGE: int = 10 {static, readOnly}
+    + KICK_DAMAGE_PER_LEVEL: int = 5 {static, readOnly}
     - points: int = 0
     - action: Map<String, Integer>
+    + getSpeed(): int
+    + getKickDamage(): int
+    + getPoints(): int
+    + getStatistic(statistic: String): int
+    + awardWin(): void
     + ImproveStatistics(stats: String): void
   }
-  class StatusEffect
-  abstract class Power
+  class StatusEffect {
+    + STUNNED: String = "stunned" {static, readOnly}
+    + STUN_DURATION_SECONDS: double = 3.0 {static, readOnly}
+    - type: String
+    - duration: double
+    - remaining: double
+    + StatusEffect(type: String, duration: double)
+    + update(): void
+    + isExpired(): boolean
+    + refresh(): void
+    + getType(): String
+    + getDuration(): double
+    + getRemaining(): double
+    + getSpeedFactor(): double
+    + getJumpFactor(): double
+    + blocksMovement(): boolean
+  }
   enum Action {
     LEFT
     RIGHT
@@ -135,6 +236,28 @@ package "domain.rules" {
     - minutes: int
     - suddenDeath: boolean
   }
+}
+
+package "domain.exception" {
+  class GameException {
+    + GameException(message: String)
+    + GameException(message: String, cause: Throwable)
+  }
+}
+package "domain.powers" {
+  abstract class Power
+  class AuraAzul
+  class Rayo
+  class Tornado
+  class Ilusion
+  class PowerFactory {
+    + {static} create(className: String): Power
+  }
+  PowerFactory ..> Power
+  Power <|-- AuraAzul
+  Power <|-- Rayo
+  Power <|-- Tornado
+  Power <|-- Ilusion
 }
 package "domain.hitbox" {
   interface Hitbox {
@@ -181,13 +304,15 @@ package "presentation.testing" {
   }
   class MechanicsTestController {
     - game: Game
-    - session: GameSession
+    - activeSessionIndex: int
     - movement: PresentationMovement
     + startNewSession(sessionMode: SessionMode, matchMode: MatchMode, limit: int): void
     + step(): void
-    ~ setMovementControl(control: Control, pressed: boolean): void
+    + setMovementControl(control: Control, pressed: boolean): void
+    + kickLeft(): boolean
+    + kickRight(): boolean
     + runScenario(scenario: Scenario): void
-    + getSession(): GameSession
+    + getSessionView(): Game.SessionView
   }
   enum Scenario {
     LEFT_GOAL
@@ -195,7 +320,7 @@ package "presentation.testing" {
     PLAYER_BALL_CONTACT
     GROUND_BOUNCE
     SAFE_FIELD_CONTACT
-    BALL_OUTSIDE
+    BALL_SIDE_REBOUND
     PARTICIPANT_OUTSIDE
     PARTICIPANT_TOUCHES_SIDE
     PARTICIPANTS_OVERLAP
@@ -212,12 +337,16 @@ package "presentation.testing" {
   class PresentationMovement <<presentation-only>> {
     - held: EnumSet<Control>
     - jumpRequested: EnumSet<Control>
-    - verticalSpeeds: Map<SessionParticipant, Double>
-    - HORIZONTAL_SPEED: double = 150
+    - verticalSpeeds: Map<String, Double>
+    - activeGame: Game
+    - activeSessionIndex: int
     - JUMP_SPEED: double = 110
     - GRAVITY: double = 180
-    ~ setControl(control: Control, pressed: boolean): void
-    ~ update(session: GameSession, mode: SessionMode): void
+    + setControl(control: Control, pressed: boolean): void
+    + clearInputs(): void
+    + reset(game: Game, sessionIndex: int): void
+    + resetAfterRound(game: Game, sessionIndex: int): void
+    + update(game: Game, sessionIndex: int, mode: SessionMode): void
   }
   enum Control {
     LEFT_LEFT
@@ -229,12 +358,19 @@ package "presentation.testing" {
   }
 }
 
+Game *-- SessionView
+SessionView *-- RectangleView
+SessionView *-- ParticipantView
+SessionView *-- BallView
+
 Game "1" *-- "0..*" GameSession : sessions
 GameSession <|-- PlayerVsBot
 GameSession <|-- PlayerVsPlayer
 GameSession "1" *-- "1" SoccerField : field
 GameSession "1" o-- "0..*" SessionParticipant : participants
 GameSession --> TypeOfMatch
+GameSession ..> GameException : errors
+Stats ..> GameException : invalid upgrade
 GameSession ..> Hitbox : allHitbox[]
 SessionParticipant <|-- Player
 SessionParticipant <|-- BotPlayer
@@ -249,7 +385,7 @@ Ball "1" *-- "1" CircularHitbox : BallHitbox
 SessionParticipant "1" *-- "1" RectangularHitbox : UserHitbox
 SessionParticipant --> Stats
 SessionParticipant --> "0..*" StatusEffect
-SessionParticipant --> Power
+SessionParticipant --> Power : specialPower
 SessionParticipant ..> Action
 Hitbox <|.. CircularHitbox
 Hitbox <|.. RectangularHitbox
@@ -276,9 +412,10 @@ GameController --> GameSession
 MechanicsTestApp ..> MechanicsTestPanel
 MechanicsTestPanel --> MechanicsTestController
 MechanicsTestController --> Game
-MechanicsTestController --> GameSession
 MechanicsTestController ..> Scenario
 MechanicsTestController --> PresentationMovement
+MechanicsTestPanel ..> Game : Game.SessionView
+PresentationMovement --> Game
 MechanicsTestPanel ..> Control
 
 note bottom of Hitbox
@@ -292,8 +429,9 @@ note bottom of GameSession
   y contactos con participantes. SoccerField
   avanza los balones y resuelve sus contactos
   con límites, arcos y suelo.
-  kickPlayer() valida participante, sesión
-  y alcance antes de impulsar el balón.
+  kickPlayer() valida participante y sesión,
+  prioriza un rival en alcance para aplicar daño
+  y, si no lo hay, impulsa el balón alcanzable.
 end note
 note right of SoccerField
   Contiene y recorre los balones, límites
