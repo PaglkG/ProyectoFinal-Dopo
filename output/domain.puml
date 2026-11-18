@@ -7,7 +7,7 @@
 skinparam classAttributeIconSize 0
 hide circle
 
-class AuraAzul {
+class BlueAura {
 }
 
 class Ball {
@@ -94,7 +94,7 @@ class Game {
   +jumpPlayer(session: GameSession, player: SessionParticipant): void
   +powerPlayer(session: GameSession, player: SessionParticipant): void
   -whatSession(name: String, player: boolean, parametersRules: List<String>, typeMatche: String, parametersPowers: List<String>): GameSession
-  +ImproveStatistics(session: GameSession, player: boolean, stats: String): void
+  +improveStatistics(session: GameSession, player: boolean, stats: String): void
   +save(): void
   +open(file: File): void
   +updateGame(game: GameSession): void
@@ -161,9 +161,9 @@ abstract class GameSession {
   +powerPlayer(player: SessionParticipant): void
   +kickPlayer(player: SessionParticipant): boolean
   -closestOpponentInReach(attacker: domain.hitbox.RectangularHitbox, opponents: List<SessionParticipant>): SessionParticipant
-  -whatsRules(typeGame: String, parametersRules: List<String>): TypeOfMatch
+  -createMatchRule(typeGame: String, parametersRules: List<String>): TypeOfMatch
   +checkTypeOfMatch(): void
-  +ImproveStatistics(player: boolean, stats: String): void
+  +improveStatistics(player: boolean, stats: String): void
   -awardWinningPlayers(): void
   +updateGame(): void
   -collision(): void
@@ -222,7 +222,7 @@ class RectangularHitbox {
   +resize(width: double, height: double): void
 }
 
-class Ilusion {
+class Illusion {
 }
 
 class Offensive {
@@ -258,7 +258,7 @@ class PowerFactory {
   -{static} instantiate(className: String, expectedType: Class<T>): T
 }
 
-class Rayo {
+class Lightning {
 }
 
 abstract class SessionParticipant {
@@ -282,13 +282,13 @@ abstract class SessionParticipant {
   +applyStatusEffect(effect: StatusEffect): void
   +updateStatusEffects(): void
   +setStats(stats: Stats): void
-  +gerHitbox(): Hitbox
+  +getHitboxAsInterface(): Hitbox
   +jump(): void
   +resetPosition(x: double, y: double): void
   +power(): void
   +getSpecialPower(): Power
   +setSpecialPower(specialPower: Power): void
-  +ImproveStatistics(stats: String): void
+  +improveStatistics(stats: String): void
   +getHitbox(): RectangularHitbox
   +resizeHitbox(width: double, height: double): void
   +intersects(hitbox: Hitbox): HitboxContact
@@ -310,7 +310,7 @@ class SoccerField {
   -resolveBallPair(first: Ball, second: Ball, restitution: double): void
   -resolveBallParticipant(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
   -validBallPosition(candidate: Ball, moved: SessionParticipant, participants: Iterable<SessionParticipant>): boolean
-  +hitboxs(): Hitbox[]
+  +getHitboxes(): Hitbox[]
   +resetBall(x: double, y: double): void
   +getHitboxField(): RectangularHitbox[]
   +getHitboxBalls(): CircularHitbox[]
@@ -352,11 +352,11 @@ class Stats {
   +getPoints(): int
   +getStatistic(statistic: String): int
   +awardWin(): void
-  +ImproveStatistics(stats: String): void
-  -aumentSpeed(): void
-  -aumentGoal(): void
-  -aumentKick(): void
-  -aumentJump(): void
+  +improveStatistics(stats: String): void
+  -increaseSpeed(): void
+  -increaseGoals(): void
+  -increaseKick(): void
+  -increaseJump(): void
 }
 
 class StatusEffect {
@@ -387,7 +387,7 @@ abstract class TypeOfMatch {
   +check(parameters: List<String>): boolean
 }
 
-AuraAzul --|> Power
+BlueAura --|> Power
 Ball ..|> Hitbox
 Ball *-- CircularHitbox
 BotPlayer --|> SessionParticipant
@@ -414,14 +414,14 @@ HitboxIntersections ..> Hitbox
 HitboxIntersections ..> CircularHitbox
 HitboxIntersections ..> RectangularHitbox
 RectangularHitbox ..|> Hitbox
-Ilusion --|> Power
+Illusion --|> Power
 Offensive --|> BotPlayer
 Player --|> SessionParticipant
 PlayerVsBot --|> GameSession
 PlayerVsBot ..> BotPlayer
 PlayerVsPlayer --|> GameSession
 PowerFactory ..> Power
-Rayo --|> Power
+Lightning --|> Power
 SessionParticipant ..|> Hitbox
 SessionParticipant *-- RectangularHitbox
 SessionParticipant *-- Stats

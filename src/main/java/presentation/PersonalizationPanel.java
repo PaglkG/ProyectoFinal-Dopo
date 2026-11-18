@@ -106,10 +106,6 @@ public class PersonalizationPanel extends BasePanel
         prepareController();
     }
 
-    // ------------------------------------------------------------------
-    // Vista
-    // ------------------------------------------------------------------
-
     @Override
     public void prepareView() 
     {
@@ -282,7 +278,6 @@ public class PersonalizationPanel extends BasePanel
         content.add(Box.createVerticalGlue());
     }
 
-    // ----- Componentes reutilizables -----
 
     /**
      * Crea una columna con un título pequeño encima de un campo.
@@ -409,10 +404,6 @@ public class PersonalizationPanel extends BasePanel
         component.setAlignmentX(Component.LEFT_ALIGNMENT);
         component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
     }
-
-    // ------------------------------------------------------------------
-    // Controlador
-    // ------------------------------------------------------------------
 
     @Override
     public void prepareController() 

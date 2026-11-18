@@ -81,10 +81,6 @@ public class StoreImprovementPanel extends BasePanel
         prepareController();
     }
 
-    // ------------------------------------------------------------------
-    // Vista
-    // ------------------------------------------------------------------
-
     @Override
     public void prepareView() 
     {
@@ -310,10 +306,6 @@ public class StoreImprovementPanel extends BasePanel
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, ROW_HEIGHT));
         return row;
     }
-
-    // ------------------------------------------------------------------
-    // Controlador
-    // ------------------------------------------------------------------
 
     @Override
     public void prepareController() 

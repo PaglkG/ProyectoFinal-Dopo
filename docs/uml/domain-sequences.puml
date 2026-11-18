@@ -95,20 +95,20 @@ end note
 @enduml
 
 @startuml
-title ImproveStatistics (implementación actual)
+title improveStatistics (implementación actual)
 actor Usuario
 participant "game: Game" as G
 participant "session: GameSession" as S
 participant "participante seleccionado" as P
 participant "stats: Stats" as T
-Usuario -> G: ImproveStatistics(session, player, stat)
-G -> S: ImproveStatistics(player, stat)
+Usuario -> G: improveStatistics(session, player, stat)
+G -> S: improveStatistics(player, stat)
 alt player == true
-  S -> P: ImproveStatistics(stat) [lado derecho / jugador 1]
+  S -> P: improveStatistics(stat) [lado derecho / jugador 1]
 else player == false
-  S -> P: ImproveStatistics(stat) [lado izquierdo / jugador 2]
+  S -> P: improveStatistics(stat) [lado izquierdo / jugador 2]
 end
-P -> T: ImproveStatistics(stat)
+P -> T: improveStatistics(stat)
 alt saldo >= 5 y habilidad válida
   T -> T: incrementar habilidad en 1
   T -> T: restar 5 puntos

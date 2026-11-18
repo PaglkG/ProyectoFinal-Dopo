@@ -20,11 +20,13 @@ public class PreparationPanel extends BasePanel
     {
     }
 
+    /** Prepara el título y el indicador de carga; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareView() 
     {
     }
 
+    /** Conecta la acción para cancelar la preparación; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareController() 
     {

@@ -59,7 +59,7 @@ public class Stats {
      * @param stats nombre de la estadística que se mejorará
      * @throws GameException si la habilidad no existe o faltan puntos
      */
-    public void ImproveStatistics(String stats) {
+    public void improveStatistics(String stats) {
         if (!action.containsKey(stats)) {
             throw new GameException(GameException.UNKNOWN_STAT);
         }
@@ -67,32 +67,32 @@ public class Stats {
             throw new GameException(GameException.INSUFFICIENT_STAT_POINTS);
         }
         switch (stats) {
-            case "speed" -> aumentSpeed();
-            case "goal" -> aumentGoal();
-            case "kick" -> aumentKick();
-            case "jump" -> aumentJump();
+            case "speed" -> increaseSpeed();
+            case "goal" -> increaseGoals();
+            case "kick" -> increaseKick();
+            case "jump" -> increaseJump();
             default -> throw new GameException(GameException.UNKNOWN_STAT);
         }
         points -= POINTS_PER_UPGRADE;
     }
 
     /** Incrementa la clave {@code speed}. */
-    private void aumentSpeed() {
+    private void increaseSpeed() {
         action.put("speed", action.get("speed") + 1);
     }
 
     /** Incrementa la clave {@code goal}. */
-    private void aumentGoal() {
+    private void increaseGoals() {
         action.put("goal", action.get("goal") + 1);
     }
 
     /** Incrementa la clave {@code kick}. */
-    private void aumentKick() {
+    private void increaseKick() {
         action.put("kick", action.get("kick") + 1);
     }
 
     /** Incrementa la clave {@code jump}. */
-    private void aumentJump() {
+    private void increaseJump() {
         action.put("jump", action.get("jump") + 1);
     }
 }

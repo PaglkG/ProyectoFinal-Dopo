@@ -13,17 +13,17 @@ import domain.exception.GameException;
 class PowerTest {
 
     @Test
-    void factoryCreatesAuraAzulByItsFullClassName() throws GameException {
-        Power power = PowerFactory.create(AuraAzul.class.getName());
+    void factoryCreatesBlueAuraByItsFullClassName() throws GameException {
+        Power power = PowerFactory.create(BlueAura.class.getName());
 
-        assertInstanceOf(AuraAzul.class, power);
+        assertInstanceOf(BlueAura.class, power);
     }
 
     @Test
-    void factoryCreatesRayoByItsFullClassName() throws GameException {
-        Power power = PowerFactory.create(Rayo.class.getName());
+    void factoryCreatesLightningByItsFullClassName() throws GameException {
+        Power power = PowerFactory.create(Lightning.class.getName());
 
-        assertInstanceOf(Rayo.class, power);
+        assertInstanceOf(Lightning.class, power);
     }
 
     @Test
@@ -34,10 +34,10 @@ class PowerTest {
     }
 
     @Test
-    void factoryCreatesIlusionByItsFullClassName() throws GameException {
-        Power power = PowerFactory.create(Ilusion.class.getName());
+    void factoryCreatesIllusionByItsFullClassName() throws GameException {
+        Power power = PowerFactory.create(Illusion.class.getName());
 
-        assertInstanceOf(Ilusion.class, power);
+        assertInstanceOf(Illusion.class, power);
     }
 
     @Test

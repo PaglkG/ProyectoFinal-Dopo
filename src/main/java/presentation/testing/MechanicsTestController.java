@@ -62,8 +62,8 @@ public final class MechanicsTestController {
         configuration = new MechanicsTestConfiguration(sessionMode, matchMode, selectedLimit,
                 sessionMode == SessionMode.PLAYER_VS_BOT ? "domain.PlayerVsBot" : "domain.PlayerVsPlayer",
                 matchMode == MatchMode.TIME ? "domain.rules.ByTime" : "domain.rules.ByGoals",
-                List.of(Integer.toString(selectedLimit)), "domain.powers.AuraAzul",
-                "domain.powers.Rayo", "Clumsy", true);
+                List.of(Integer.toString(selectedLimit)), "domain.powers.BlueAura",
+                "domain.powers.Lightning", "Clumsy", true);
         createConfiguredSession();
     }
 

@@ -4,10 +4,14 @@ package presentation;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Image;
+import java.awt.RenderingHints;
 import java.net.URL;
 
 import javax.swing.BorderFactory;
@@ -221,10 +225,6 @@ public class MainMenuPanel extends BasePanel
         content.add(bottomRow);
     }
  
-    // ------------------------------------------------------------------
-    // Controlador
-    // ------------------------------------------------------------------
- 
     @Override
     public void prepareController() 
     {
@@ -277,6 +277,80 @@ public class MainMenuPanel extends BasePanel
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) 
         {
             // Pendiente: abrir chooser.getSelectedFile() cuando el dominio implemente Game.open(File).
+        }
+    }
+
+    /**
+     * Panel con esquinas redondeadas.
+     */
+    private static class RoundedPanel extends JPanel 
+    {
+        private final int arc;
+
+        RoundedPanel(Color color, int arc) 
+        {
+            this.arc = arc;
+            setBackground(color);
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) 
+        {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(getBackground());
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    /**
+     * Botón con esquinas redondeadas y borde de color.
+     */
+    private static class RoundedButton extends JButton 
+    {
+        private static final int ARC = 22;
+        private final Color borderColor;
+
+        RoundedButton(String text, Color background, Color foreground, Color borderColor, int fontSize) 
+        {
+            super(text);
+            this.borderColor = borderColor;
+            setBackground(background);
+            setForeground(foreground);
+            setFont(new Font("SansSerif", Font.BOLD, fontSize));
+            setContentAreaFilled(false);
+            setOpaque(false);
+            setFocusPainted(false);
+            setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) 
+        {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Color fill = getBackground();
+
+            if (getModel().isPressed()) 
+            {
+                fill = fill.darker();
+            }
+
+            else if (getModel().isRollover()) 
+            {
+                fill = fill.brighter();
+            }
+
+            g2.setColor(fill);
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, ARC, ARC);
+            g2.setColor(borderColor);
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, ARC, ARC);
+            g2.dispose();
+            super.paintComponent(g);
         }
     }
 }

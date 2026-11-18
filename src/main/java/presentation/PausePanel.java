@@ -21,11 +21,13 @@ public class PausePanel extends BasePanel
     {
     }
 
+    /** Prepara el marcador y las acciones de pausa; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareView() 
     {
     }
 
+    /** Conecta continuar, reiniciar y volver al menú; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareController() 
     {

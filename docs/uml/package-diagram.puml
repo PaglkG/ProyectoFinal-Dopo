@@ -25,10 +25,10 @@ package "domain" {
   }
   class StatusEffect
   abstract class Power
-  class AuraAzul
-  class Rayo
+  class BlueAura
+  class Lightning
   class Tornado
-  class Ilusion
+  class Illusion
   class PowerFactory
   class GameException
   enum Action

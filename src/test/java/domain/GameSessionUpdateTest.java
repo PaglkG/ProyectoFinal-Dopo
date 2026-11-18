@@ -77,8 +77,8 @@ class GameSessionUpdateTest {
         rightStats.awardWin();
         leftStats.awardWin();
 
-        session.ImproveStatistics(true, "speed");
-        session.ImproveStatistics(false, "jump");
+        session.improveStatistics(true, "speed");
+        session.improveStatistics(false, "jump");
 
         assertEquals(2, rightStats.getStatistic("speed"));
         assertEquals(2, leftStats.getStatistic("jump"));
@@ -235,7 +235,7 @@ class GameSessionUpdateTest {
         attacker.resetPosition(100, 50);
         target.resetPosition(130, 50);
         attacker.getStats().awardWin();
-        attacker.getStats().ImproveStatistics("kick");
+        attacker.getStats().improveStatistics("kick");
 
         assertTrue(session.kickPlayer(attacker));
 
@@ -468,7 +468,7 @@ class GameSessionUpdateTest {
     }
 
     private static List<String> powers() {
-        return List.of("domain.powers.AuraAzul", "domain.powers.Rayo");
+        return List.of("domain.powers.BlueAura", "domain.powers.Lightning");
     }
 
     private static Ball ball(GameSession session) throws Exception {

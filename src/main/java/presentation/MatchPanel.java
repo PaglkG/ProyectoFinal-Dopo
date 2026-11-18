@@ -24,11 +24,13 @@ public class MatchPanel extends BasePanel
     {
     }
 
+    /** Prepara los componentes visuales del partido; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareView() 
     {
     }
 
+    /** Prepara el controlador del partido; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareController() 
     {
