@@ -61,9 +61,9 @@ public class DOPOSoccerGUI extends JFrame
     private void prepareViewPanels() 
     {
         mainMenuPanel = new MainMenuPanel(navigationController);
-        configurationPanel = new ConfigurationPanel();
-        personalizationPanel = new PersonalizationPanel();
-        storeImprovementPanel = new StoreImprovementPanel();
+        configurationPanel = new ConfigurationPanel(navigationController);
+        personalizationPanel = new PersonalizationPanel(navigationController);
+        storeImprovementPanel = new StoreImprovementPanel(navigationController);
         preparationPanel = new PreparationPanel();
         matchPanel = new MatchPanel();
         pausePanel = new PausePanel();
