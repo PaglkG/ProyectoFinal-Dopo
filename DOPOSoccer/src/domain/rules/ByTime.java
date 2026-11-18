@@ -35,7 +35,7 @@ public class ByTime extends TypeOfMatch {
         if (!isTime(minutesInGame)) {
             return true;
         }
-        return isSudenDeath(goalLeft, goalRight);
+        return isSuddenDeath(goalLeft, goalRight);
     }
 
     /**
@@ -45,7 +45,7 @@ public class ByTime extends TypeOfMatch {
      * @param goalRight marcador del lado derecho
      * @return {@code true} si ambos marcadores son iguales
      */
-    private boolean isSudenDeath(int goalLeft, int goalRight) {
+    private boolean isSuddenDeath(int goalLeft, int goalRight) {
         return goalLeft == goalRight;
     }
 

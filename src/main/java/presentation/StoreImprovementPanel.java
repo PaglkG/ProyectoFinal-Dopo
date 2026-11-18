@@ -26,11 +26,13 @@ public class StoreImprovementPanel extends BasePanel
     {
     }
 
+    /** Prepara los puntos, niveles, precios y botones de mejora; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareView() 
     {
     }
 
+    /** Conecta los botones de mejora y navegación; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareController() 
     {

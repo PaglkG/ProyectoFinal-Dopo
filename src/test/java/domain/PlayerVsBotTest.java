@@ -8,8 +8,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import domain.rules.ByGoals;
-import domain.powers.AuraAzul;
-import domain.powers.Rayo;
+import domain.powers.BlueAura;
+import domain.powers.Lightning;
 import domain.Clumsy;
 import domain.Expert;
 import domain.Defensive;
@@ -23,21 +23,21 @@ class PlayerVsBotTest {
     @Test
     void constructorCreatesOneHumanAndOneBot() throws Exception {
         PlayerVsBot session = new PlayerVsBot(true, ByGoals.class.getName(), List.of("5"),
-                List.of("domain.powers.AuraAzul", "domain.powers.Rayo", "Clumsy"));
+                List.of("domain.powers.BlueAura", "domain.powers.Lightning", "Clumsy"));
 
         assertEquals(1, session.participantsRight.size());
         assertEquals(1, session.participantsLeft.size());
         assertInstanceOf(Player.class, session.participantsRight.get(0));
         assertInstanceOf(BotPlayer.class, session.participantsLeft.get(0));
-        assertInstanceOf(AuraAzul.class, session.participantsRight.get(0).getSpecialPower());
-        assertInstanceOf(Rayo.class, session.participantsLeft.get(0).getSpecialPower());
+        assertInstanceOf(BlueAura.class, session.participantsRight.get(0).getSpecialPower());
+        assertInstanceOf(Lightning.class, session.participantsLeft.get(0).getSpecialPower());
         assertInstanceOf(Clumsy.class, session.participantsLeft.get(0));
     }
 
     @Test
     void constructorCreatesSameParticipantKindsForEitherPlayerOption() throws Exception {
         PlayerVsBot session = new PlayerVsBot(false, ByGoals.class.getName(), List.of("5"),
-                List.of("domain.powers.AuraAzul", "domain.powers.Rayo", "Expert"));
+                List.of("domain.powers.BlueAura", "domain.powers.Lightning", "Expert"));
 
         assertInstanceOf(Player.class, session.participantsRight.get(0));
         assertInstanceOf(BotPlayer.class, session.participantsLeft.get(0));
@@ -54,7 +54,7 @@ class PlayerVsBotTest {
     @Test
     void humanReceivesFivePointsWhenWinningAgainstBotAndBotReceivesNone() throws Exception {
         PlayerVsBot session = new PlayerVsBot(true, ByGoals.class.getName(), List.of("1"),
-                List.of("domain.powers.AuraAzul", "domain.powers.Rayo", "Clumsy"));
+                List.of("domain.powers.BlueAura", "domain.powers.Lightning", "Clumsy"));
 
         session.goal("right");
 
@@ -65,7 +65,7 @@ class PlayerVsBotTest {
     @Test
     void botWinDoesNotAwardPointsToEitherBotOrLosingHuman() throws Exception {
         PlayerVsBot session = new PlayerVsBot(true, ByGoals.class.getName(), List.of("1"),
-                List.of("domain.powers.AuraAzul", "domain.powers.Rayo", "Clumsy"));
+                List.of("domain.powers.BlueAura", "domain.powers.Lightning", "Clumsy"));
 
         session.goal("left");
 
@@ -89,6 +89,6 @@ class PlayerVsBotTest {
 
     private static PlayerVsBot createSession(String difficulty) throws GameException {
         return new PlayerVsBot(true, ByGoals.class.getName(), List.of("5"),
-                List.of("domain.powers.AuraAzul", "domain.powers.Rayo", difficulty));
+                List.of("domain.powers.BlueAura", "domain.powers.Lightning", difficulty));
     }
 }

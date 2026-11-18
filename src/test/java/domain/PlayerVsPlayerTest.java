@@ -8,8 +8,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import domain.rules.ByGoals;
-import domain.powers.AuraAzul;
-import domain.powers.Rayo;
+import domain.powers.BlueAura;
+import domain.powers.Lightning;
 
 /** Pruebas de la composición de participantes de una sesión entre dos jugadores. */
 class PlayerVsPlayerTest {
@@ -17,14 +17,14 @@ class PlayerVsPlayerTest {
     @Test
     void constructorCreatesOneHumanPlayerOnEachSide() throws Exception {
         PlayerVsPlayer session = new PlayerVsPlayer(true, ByGoals.class.getName(), List.of("5"),
-                List.of("domain.powers.AuraAzul", "domain.powers.Rayo"));
+                List.of("domain.powers.BlueAura", "domain.powers.Lightning"));
 
         assertEquals(1, session.participantsRight.size());
         assertEquals(1, session.participantsLeft.size());
         assertInstanceOf(Player.class, session.participantsRight.get(0));
         assertInstanceOf(Player.class, session.participantsLeft.get(0));
-        assertInstanceOf(AuraAzul.class, session.participantsRight.get(0).getSpecialPower());
-        assertInstanceOf(Rayo.class, session.participantsLeft.get(0).getSpecialPower());
+        assertInstanceOf(BlueAura.class, session.participantsRight.get(0).getSpecialPower());
+        assertInstanceOf(Lightning.class, session.participantsLeft.get(0).getSpecialPower());
     }
 
 }

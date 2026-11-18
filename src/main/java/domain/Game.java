@@ -283,14 +283,6 @@ public class Game {
         }
     }
 
-    /**
-     * Punto de extensión para solicitar un salto; actualmente el cuerpo está vacío.
-     *
-     * @param session sesión activa
-     * @param player participante que saltará
-     */
-    public void jumpPlayer(GameSession session, SessionParticipant player) {
-    }
 
     /**
      * Punto de extensión para activar el poder. El cuerpo está vacío y no aplica
@@ -352,12 +344,12 @@ public class Game {
      * @param player indicador del jugador al que se mejorará
      * @param stats estadística que se mejorará
      */
-    public void ImproveStatistics(
+    public void improveStatistics(
             GameSession session,
             boolean player,
             String stats) {
         if (session != null) {
-            session.ImproveStatistics(player, stats);
+            session.improveStatistics(player, stats);
         }
     }
 

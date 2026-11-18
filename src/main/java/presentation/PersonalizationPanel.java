@@ -35,11 +35,13 @@ public class PersonalizationPanel extends BasePanel
     {
     }
 
+    /** Prepara los selectores, campos y vistas previas; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareView() 
     {
     }
 
+    /** Prepara las acciones del panel; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareController() 
     {

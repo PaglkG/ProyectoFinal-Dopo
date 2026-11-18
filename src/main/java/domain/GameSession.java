@@ -24,10 +24,7 @@ public abstract class GameSession {
     private static final double KICK_VERTICAL_IMPULSE = -50.0;
 
     private double timeLeft;
-    private int yBase;
-    private int xBase;
     private TypeOfMatch TypeOfMatch;
-    private Hitbox[] allHitbox;
     private SoccerField field;
     private int goalsLeft;
     private int goalsRight;
@@ -50,7 +47,7 @@ public abstract class GameSession {
     public GameSession(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
         participantsRight = new ArrayList<>();
         participantsLeft = new ArrayList<>();
-        Object typeMatcheObject = whatsRules(typeMatche, parametersRules);
+        Object typeMatcheObject = createMatchRule(typeMatche, parametersRules);
         TypeOfMatch typeMatcheFinal = (TypeOfMatch) typeMatcheObject;
         field = new SoccerField();
         timeLeft = 0;
@@ -84,26 +81,6 @@ public abstract class GameSession {
         positionParticipants();
     }
 
-    /**
-     * Punto de extensión para cambiar la modalidad. Actualmente no modifica la
-     * regla asociada a esta sesión.
-     *
-     * @param typeMatche nombre de la modalidad que se asignará
-     */
-    public void assignRules(String typeMatche) {
-    }
-
-    /**
-     * Punto de extensión para validar el mínimo de participantes. Actualmente
-     * no valida la lista y devuelve {@code null}.
-     * @return {@code null} en la implementación actual
-     */
-    public GameSession minParticipants() {
-        return null;
-    }
-
-
-    
 
     /**
      * Registra el gol si {@code side} es {@code "left"} o {@code "right"}; en
@@ -138,13 +115,6 @@ public abstract class GameSession {
         }
     }
 
-    /**
-     * Punto de extensión para solicitar un salto; actualmente no modifica al
-     * participante.
-     * @param player participante que saltará
-     */
-    public void jumpPlayer(SessionParticipant player) {
-    }
 
     /**
      * Punto de extensión para solicitar un poder; actualmente no modifica al
@@ -224,7 +194,7 @@ public abstract class GameSession {
      *         {@link TypeOfMatch}, falta el constructor de lista o la clase no
      *         puede instanciarse
      */
-    private TypeOfMatch whatsRules(String typeGame, List<String> parametersRules) throws GameException{
+    private TypeOfMatch createMatchRule(String typeGame, List<String> parametersRules) throws GameException{
         try {
             Class<?> targetClass = Class.forName(typeGame);
             if (!TypeOfMatch.class.isAssignableFrom(targetClass)) {
@@ -278,12 +248,12 @@ public abstract class GameSession {
      * @throws GameException si no hay participante seleccionado, faltan puntos
      *         o la habilidad no existe
      */
-    public void ImproveStatistics(boolean player, String stats) {
+    public void improveStatistics(boolean player, String stats) {
         List<SessionParticipant> selectedSide = player ? participantsRight : participantsLeft;
         if (selectedSide.isEmpty()) {
             throw new GameException(GameException.INVALID_PARTICIPANT_ID);
         }
-        selectedSide.get(0).ImproveStatistics(stats);
+        selectedSide.get(0).improveStatistics(stats);
     }
 
     /** Otorga los puntos de victoria a los jugadores humanos del lado ganador. */

@@ -215,6 +215,7 @@ public class MainMenuPanel extends BasePanel
         content.add(bottomRow);
     }
 
+    /** Conecta los botones principales con sus acciones de navegación y apertura. */
     @Override
     public void prepareController() 
     {

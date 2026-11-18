@@ -104,7 +104,7 @@ public abstract class SessionParticipant implements Hitbox {
      *
      * @return la hitbox rectangular asociada al participante
      */
-    public Hitbox gerHitbox(){
+    public Hitbox getHitboxAsInterface(){
         return  UserHitbox;
     }
 
@@ -142,8 +142,8 @@ public abstract class SessionParticipant implements Hitbox {
      * @param stats estadística que se mejorará
      * @param points puntos asignados a la mejora
      */
-    public void ImproveStatistics(String stats) {
-        this.stats.ImproveStatistics(stats);
+    public void improveStatistics(String stats) {
+        this.stats.improveStatistics(stats);
     }
 
     /**

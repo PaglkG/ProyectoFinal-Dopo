@@ -19,7 +19,7 @@ package "domain" {
     + applyBallImpulse(sessionIndex: int, ballIndex: int, deltaX: double, deltaY: double): void
     + updateGame(sessionIndex: int): void
     + updateGame(game: GameSession): void
-    + ImproveStatistics(session: GameSession, player: boolean, stats: String): void
+    + improveStatistics(session: GameSession, player: boolean, stats: String): void
     + save(): void
     + open(file: File): void
   }
@@ -86,7 +86,7 @@ package "domain" {
     + getField(): SoccerField
     + getParticipantsLeft(): List<SessionParticipant>
     + getParticipantsRight(): List<SessionParticipant>
-    + ImproveStatistics(player: boolean, stats: String): void
+    + improveStatistics(player: boolean, stats: String): void
     - awardWinningPlayers(): void
   }
   class PlayerVsBot {
@@ -121,7 +121,7 @@ package "domain" {
     + setSpecialPower(specialPower: Power): void
     + resetPosition(x: double, y: double): void
     + resizeHitbox(width: double, height: double): void
-    + ImproveStatistics(stats: String): void
+    + improveStatistics(stats: String): void
     + intersects(hitbox: Hitbox): HitboxContact
   }
   class Player {
@@ -161,7 +161,7 @@ package "domain" {
     + resetBall(x: double, y: double): void
     + getHitboxField(): RectangularHitbox[]
     + getHitboxBalls(): CircularHitbox[]
-    + hitboxs(): Hitbox[]
+    + getHitboxes(): Hitbox[]
     + getBalls(): Ball[]
     + getGoalHitboxes(): RectangularHitbox[]
     + contactingPart(other: Hitbox): HitboxContact
@@ -206,7 +206,7 @@ package "domain" {
     + getPoints(): int
     + getStatistic(statistic: String): int
     + awardWin(): void
-    + ImproveStatistics(stats: String): void
+    + improveStatistics(stats: String): void
   }
   class StatusEffect {
     + STUNNED: String = "stunned" {static, readOnly}
@@ -246,18 +246,18 @@ package "domain" {
     + GameException(message: String, cause: Throwable)
   }
   abstract class Power
-  class AuraAzul
-  class Rayo
+  class BlueAura
+  class Lightning
   class Tornado
-  class Ilusion
+  class Illusion
   class PowerFactory {
     + {static} create(className: String): Power
   }
   PowerFactory ..> Power
-  Power <|-- AuraAzul
-  Power <|-- Rayo
+  Power <|-- BlueAura
+  Power <|-- Lightning
   Power <|-- Tornado
-  Power <|-- Ilusion
+  Power <|-- Illusion
 }
 
 package "domain.hitbox" {

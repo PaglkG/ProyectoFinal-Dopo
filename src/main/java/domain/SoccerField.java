@@ -193,7 +193,7 @@ public class SoccerField implements Hitbox {
      *
      * @return arreglo de objetos que exponen hitboxes
      */
-    public Hitbox[] hitboxs() {
+    public Hitbox[] getHitboxes() {
         Hitbox[] hitbox = new Hitbox[fieldHitbox.length + 2 + balls.length];
         System.arraycopy(fieldHitbox, 0, hitbox, 0, fieldHitbox.length);
         hitbox[fieldHitbox.length] = LeftGoalHitbox;

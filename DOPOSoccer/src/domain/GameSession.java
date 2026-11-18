@@ -44,7 +44,7 @@ public abstract class GameSession {
     public GameSession(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
         participantsRight = new ArrayList<>();
         participantsLeft = new ArrayList<>();
-        Object typeMatcheObject = whatsRules(typeMatche, parametersRules);
+        Object typeMatcheObject = createMatchRule(typeMatche, parametersRules);
         TypeOfMatch typeMatcheFinal = (TypeOfMatch) typeMatcheObject;
         scoreboard = new Scoreboard();
         field = new SoccerField();
@@ -112,7 +112,7 @@ public abstract class GameSession {
      * @return instancia de la modalidad creada
      * @throws GameException si la clase no existe o no se puede instanciar
      */
-    private Object whatsRules(String typeGame, List<String> parametersRules) throws GameException{
+    private Object createMatchRule(String typeGame, List<String> parametersRules) throws GameException{
         try {
             Class<?> targetClass = Class.forName(typeGame);
             if (!TypeOfMatch.class.isAssignableFrom(targetClass)) {

@@ -17,10 +17,10 @@ note right of S
   jugador derecho, luego jugador izquierdo.
   PlayerVsBot recibe jugador derecho, bot izquierdo
   y perfil Clumsy/Offensive/Defensive/Expert.
-  Las clases de poder son AuraAzul, Rayo, Tornado e Ilusion.
+  Las clases de poder son BlueAura, Lightning, Tornado e Illusion.
 end note
 S -> S: inicializar listas de participantes
-S -> S: whatsRules(typeMatche, parametersRules)
+S -> S: createMatchRule(typeMatche, parametersRules)
 S -> T ++: constructor(List<String>) reflectivo
 T --> S --: instancia concreta
 S -> S: crear SoccerField y fijar timeLeft = 0

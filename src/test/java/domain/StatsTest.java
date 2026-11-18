@@ -40,7 +40,7 @@ class StatsTest {
             Stats stats = new Stats();
             stats.awardWin();
 
-            stats.ImproveStatistics(statistic);
+            stats.improveStatistics(statistic);
 
             assertEquals(2, stats.getStatistic(statistic));
             assertEquals(0, stats.getPoints());
@@ -51,7 +51,7 @@ class StatsTest {
     void upgradeWithoutFivePointsThrowsGameExceptionAndLeavesStateUnchanged() {
         Stats stats = new Stats();
 
-        GameException exception = assertThrows(GameException.class, () -> stats.ImproveStatistics("speed"));
+        GameException exception = assertThrows(GameException.class, () -> stats.improveStatistics("speed"));
 
         assertEquals(GameException.INSUFFICIENT_STAT_POINTS, exception.getMessage());
         assertEquals(1, stats.getStatistic("speed"));
@@ -63,7 +63,7 @@ class StatsTest {
         Stats stats = new Stats();
         stats.awardWin();
 
-        GameException exception = assertThrows(GameException.class, () -> stats.ImproveStatistics("stamina"));
+        GameException exception = assertThrows(GameException.class, () -> stats.improveStatistics("stamina"));
 
         assertEquals(GameException.UNKNOWN_STAT, exception.getMessage());
         assertEquals(5, stats.getPoints());
@@ -75,7 +75,7 @@ class StatsTest {
 
         assertEquals(10, stats.getKickDamage());
         stats.awardWin();
-        stats.ImproveStatistics("kick");
+        stats.improveStatistics("kick");
 
         assertEquals(15, stats.getKickDamage());
     }

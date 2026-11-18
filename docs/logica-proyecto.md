@@ -25,11 +25,11 @@
 
 ### Personajes y poderes
 
-- Se ofrecen al menos cuatro personajes con poderes únicos: Corea del Sur usa `domain.AuraAzul`, Camerún usa `domain.Rayo`, Nigeria usa `domain.Tornado` y Estados Unidos usa `domain.Ilusion`.
-- `AuraAzul` viaja recto y horizontal a alta velocidad; al impactar empuja al rival hacia su propio arco. Su efecto dura 1,5 segundos y causa 8 puntos de daño base.
-- `Rayo` viaja recto cubierto de electricidad; al impactar impide saltar y reduce a la mitad la velocidad del rival durante 3 segundos. Causa 12 puntos de daño base.
+- Se ofrecen al menos cuatro personajes con poderes únicos: Corea del Sur usa `domain.powers.BlueAura`, Camerún usa `domain.powers.Lightning`, Nigeria usa `domain.powers.Tornado` y Estados Unidos usa `domain.powers.Illusion`.
+- `BlueAura` viaja recto y horizontal a alta velocidad; al impactar empuja al rival hacia su propio arco. Su efecto dura 1,5 segundos y causa 8 puntos de daño base.
+- `Lightning` viaja recto cubierto de electricidad; al impactar impide saltar y reduce a la mitad la velocidad del rival durante 3 segundos. Causa 12 puntos de daño base.
 - `Tornado` viaja a ras del suelo y rebota rápidamente; al impactar lanza al rival al aire y le impide moverse, saltar o patear durante 3 segundos. Causa 8 puntos de daño base.
-- `Ilusion` divide visualmente el balón en ocho copias idénticas; siete son falsas y desaparecen al terminar el efecto de 2,5 segundos. Confunde al rival, que no puede distinguir el balón real. Causa 6 puntos de daño base.
+- `Illusion` divide visualmente el balón en ocho copias idénticas; siete son falsas y desaparecen al terminar el efecto de 2,5 segundos. Confunde al rival, que no puede distinguir el balón real. Causa 6 puntos de daño base.
 - La barra de poder se llena en 10 segundos. Recibir un gol agrega inmediatamente un cuarto de carga. Con la barra llena, activar el poder vacía la barra e inicia su recarga; el participante conserva un aura visible sin límite temporal hasta que toca el balón y ejecuta el tiro, momento en que el aura desaparece.
 - Si el tiro de poder golpea al rival, causa `dañoBase × multiplicadorKick` y aplica su efecto. Si entra al arco sin tocar al rival, cuenta como gol y no causa daño ni efecto. Mientras conserva un poder activo, el participante no puede activar otro. Los efectos no se acumulan: uno nuevo reemplaza al anterior.
 - La vida no baja de cero. Al llegar a cero por una patada o tiro de poder, el jugador queda aturdido durante 3 segundos; no puede moverse, saltar ni patear, y al terminar recupera su vida máxima.
@@ -93,7 +93,7 @@
 - Cada jugador humano que gana una partida recibe 5 puntos; en jugador contra bot, el bot no recibe puntos de victoria.
 - Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`.
 - Mejorar `speed`, `goal`, `kick` o `jump` aumenta su nivel en 1 y cuesta 5 puntos. Si el saldo es menor a 5 o la habilidad no existe, se lanza `GameException` y no se modifica el estado.
-- En `GameSession.ImproveStatistics`, `true` selecciona el lado derecho/jugador 1 y `false` el lado izquierdo/jugador 2.
+- En `GameSession.improveStatistics`, `true` selecciona el lado derecho/jugador 1 y `false` el lado izquierdo/jugador 2.
 
 ### Excepciones
 
@@ -160,9 +160,9 @@
 | 2026-11-15 | Se confirma el paso fijo de 1/60 s, gravedad 3.14, rebote con retención 70 % y umbral 0.5; impulso participante-balón ±4 horizontal y -1 vertical una vez por contacto; gol al entrar el centro en el arco, punto para el lado opuesto y reinicio simétrico. Se confirman las dos excepciones literales para objetos fuera/superpuestos y la actualización temporal ByTime en segundos con minutos enteros completados. | Pablo |
 | 2026-11-15 | Se reemplaza la gravedad anterior por 40 unidades/s². El balón se separa horizontalmente del participante hasta salir de su hitbox; al tocarlo se redirige hacia fuera con impulso horizontal de magnitud 4 y suma impulso vertical -1 una vez por contacto. | Pablo |
 | 2026-11-16 | El balón creado por `SoccerField` tiene radio 10 unidades. | Pablo |
-| 2026-11-17 | Se definen los poderes Aura Azul, Rayo, Tornado e Ilusión con sus trayectorias, efectos, duración y daño base del anexo del PDF; el orden y formato de la lista de poderes/perfil al iniciar sesión; y las prioridades de los cuatro perfiles de bot. | Pablo |
+| 2026-11-17 | Se definen los poderes BlueAura, Lightning, Tornado e Illusion con sus trayectorias, efectos, duración y daño base del anexo del PDF; el orden y formato de la lista de poderes/perfil al iniciar sesión; y las prioridades de los cuatro perfiles de bot. | Pablo |
 | 2026-11-17 | Se confirma que `Game.movePlayer` usa `true` para derecha y `false` para izquierda, y aplica por llamada un paso de 1/60 s a 150 unidades/s multiplicadas por `speed`. | Pablo |
-| 2026-11-17 | Cada victoria humana otorga 5 puntos; mejorar `speed`, `goal`, `kick` o `jump` cuesta 5 y aumenta un nivel; `GameSession.ImproveStatistics(true, ...)` selecciona derecha/jugador 1 y `false` izquierda/jugador 2. Las excepciones explícitas de la aplicación son `GameException`. | Pablo |
+| 2026-11-17 | Cada victoria humana otorga 5 puntos; mejorar `speed`, `goal`, `kick` o `jump` cuesta 5 y aumenta un nivel; `GameSession.improveStatistics(true, ...)` selecciona derecha/jugador 1 y `false` izquierda/jugador 2. Las excepciones explícitas de la aplicación son `GameException`. | Pablo |
 | 2026-11-17 | Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`. | Pablo |
 | 2026-11-17 | La vida máxima/inicial es 100; la patada causa 10 de daño base y cada nivel adicional de `kick` suma 5; alcanzar cero activa un aturdimiento de 3 segundos con `StatusEffect` y recuperación de vida al expirar. | Pablo |
 | 2026-11-17 | Se reemplaza la respuesta de contacto participante-balón: al caminar, el jugador puede empujar balones quietos en pasos pequeños sin atravesarlos; el empuje no cambia su velocidad. Un balón en movimiento rebota contra el jugador en lugar de ser empujado. El empuje se bloquea si causaría colisión con la cancha u otra entidad. | Pablo |

@@ -25,8 +25,8 @@ public final class MechanicsTestSetupPanel extends JPanel {
     private final JTextField matchClass = new JTextField("domain.rules.ByGoals");
     private final JTextField ruleParameters = new JTextField("5");
     private final JTextField limit = new JTextField("5");
-    private final JTextField rightPower = new JTextField("domain.powers.AuraAzul");
-    private final JTextField leftPower = new JTextField("domain.powers.Rayo");
+    private final JTextField rightPower = new JTextField("domain.powers.BlueAura");
+    private final JTextField leftPower = new JTextField("domain.powers.Lightning");
     private final JTextField botProfile = new JTextField("Clumsy");
     private final JCheckBox playerOne = new JCheckBox("Seleccionar jugador 1", true);
 

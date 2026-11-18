@@ -32,7 +32,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `jumpPlayer(session, player)` | Está vacío; no delega el salto. |
 | `powerPlayer(session, player)` | Está vacío; no activa poderes. |
 | `whatSession(name, player, parametersRules, typeMatche, parametersPowers)` | Método privado que valida y crea la subclase de sesión solicitada; traduce errores de reflexión a `GameException`. |
-| `ImproveStatistics(session, player, stats)` | Delega en la sesión para mejorar la habilidad seleccionada; `true` selecciona derecha/jugador 1. |
+| `improveStatistics(session, player, stats)` | Delega en la sesión para mejorar la habilidad seleccionada; `true` selecciona derecha/jugador 1. |
 | `save()` | Está vacío; no persiste datos. |
 | `open(file)` | Está vacío; no lee ni restaura datos. |
 | `updateGame(game)` | Delega un paso de actualización a `game.updateGame()`. |
@@ -77,9 +77,9 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `jumpPlayer(player)` | Está vacío; no delega el salto. |
 | `powerPlayer(player)` | Está vacío; no activa poderes. |
 | `kickPlayer(player)` | Rechaza sesiones terminadas, nulos, no registrados o aturdidos; si el rival está a 8 unidades o menos, le aplica daño según `kick` y prioriza ese golpe. Si no, patea el balón al alcance. |
-| `whatsRules(typeGame, parametersRules)` | Privado: carga una modalidad por nombre, valida su tipo y constructor, y la instancia. |
+| `createMatchRule(typeGame, parametersRules)` | Privado: carga una modalidad por nombre, valida su tipo y constructor, y la instancia. |
 | `checkTypeOfMatch()` | Pasa marcadores y, para `ByTime`, minutos completos transcurridos a la modalidad; actualiza `finished`. |
-| `ImproveStatistics(player, stats)` | Mejora un nivel de la habilidad del lado elegido con costo de 5 puntos; premia con 5 puntos a los jugadores humanos al ganar. |
+| `improveStatistics(player, stats)` | Mejora un nivel de la habilidad del lado elegido con costo de 5 puntos; premia con 5 puntos a los jugadores humanos al ganar. |
 | `updateGame()` | Si la sesión sigue activa, avanza los efectos temporales un paso, suma tiempo, delega el avance de balones a la cancha, procesa colisiones y comprueba el término. |
 | `collision()` | Privado: valida participantes, procesa goles, delega en la cancha las colisiones entre balones y entre balones y participantes, y procesa rebotes contra límites/arcos/suelo; puede lanzar `GameException`. |
 | `positionParticipants()` | Público: delega a `SoccerField` la colocación simétrica del primer participante de cada lado, si ambos lados tienen uno. |
@@ -135,7 +135,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `resolveBallPair(first, second, restitution)` | Privado: corrige la penetración de dos círculos y aplica impulso normal solo si se aproximan. |
 | `resolveBallParticipant(ball, participant, restitution, minimumLandingSpeed)` | Privado: corrige la penetración círculo-rectángulo y refleja la velocidad normal entrante; si el balón rebota al contacto desde arriba, establece una velocidad descendente mínima. |
 | `validBallPosition(candidate, moved, participants)` | Privado: valida que el balón empujado siga dentro de cancha y sin contacto con otros balones o participantes. |
-| `hitboxs()` | Devuelve un arreglo nuevo con límites, arcos y balones como objetos `Hitbox`. |
+| `getHitboxes()` | Devuelve un arreglo nuevo con límites, arcos y balones como objetos `Hitbox`. |
 | `resetBall(x, y)` | Reinicia cada balón con centro en `(x, y)` y velocidad cero. |
 | `getHitboxField()` | Devuelve el arreglo interno de límites. |
 | `getHitboxBalls()` | Devuelve un arreglo nuevo con las hitboxes circulares de los balones. |
@@ -214,13 +214,13 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `getStats()` / `setStats(stats)` | Consultan o asocian las estadísticas; `Game` comparte por ID humano la instancia guardada entre sesiones. `setStats(null)` produce `GameException`. |
 | `takeDamage(damage)` | Reduce vida sin bajar de cero; al llegar a cero aplica `StatusEffect.STUNNED` por 3 segundos. |
 | `blocksMovement()` / `updateStatusEffects()` | Bloquea movimiento durante el aturdimiento, avanza su temporizador y restaura vida máxima al expirar. |
-| `gerHitbox()` | Devuelve la hitbox a través del tipo general `Hitbox` (el nombre actual está escrito así). |
+| `getHitboxAsInterface()` | Devuelve la hitbox asociada usando el tipo general `Hitbox`. |
 | `jump()` | Está vacío; no modifica el estado. |
 | `resetPosition(x, y)` | Delega el cambio de posición a `reposition`. |
 | `power()` | Está vacío; no aplica poder. |
 | `getSpecialPower()` | Devuelve el poder asociado. |
 | `setSpecialPower(power)` | Asocia el poder al participante. |
-| `ImproveStatistics(stats)` | Delega en `Stats` la mejora de un nivel, que cuesta 5 puntos. |
+| `improveStatistics(stats)` | Delega en `Stats` la mejora de un nivel, que cuesta 5 puntos. |
 | `getHitbox()` | Devuelve la hitbox rectangular. |
 | `resizeHitbox(width, height)` | Público: cambia sus dimensiones sin moverla. |
 | `intersects(hitbox)` | Delega la detección geométrica a `HitboxIntersections`. |
@@ -266,7 +266,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `getKickDamage()` | Devuelve 10 de daño base y suma 5 por cada nivel de `kick` sobre el primero. |
 | `getStatistic(statistic)` | Devuelve el nivel de una habilidad válida o lanza `GameException`. |
 | `awardWin()` | Agrega 5 puntos por victoria. |
-| `ImproveStatistics(stats)` | Incrementa una habilidad en 1 y descuenta 5 puntos; lanza `GameException` si faltan puntos o la habilidad es inválida. |
+| `improveStatistics(stats)` | Incrementa una habilidad en 1 y descuenta 5 puntos; lanza `GameException` si faltan puntos o la habilidad es inválida. |
 
 ### `StatusEffect`
 
@@ -284,7 +284,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Métodos:** `Power()` no altera el valor inicial; `usePower()` está vacío; `isUsable()` es privado, está vacío y no consulta ni devuelve disponibilidad.
 
-**Subclases:** `AuraAzul`, `Rayo`, `Tornado` e `Ilusion` son tipos concretos sin lógica de disparo implementada todavía.
+**Subclases:** `BlueAura`, `Lightning`, `Tornado` e `Illusion` son tipos concretos sin lógica de disparo implementada todavía.
 
 **`PowerFactory`:** `create(className)` instancia reflectivamente un poder por nombre de clase completo. Los errores de clase, tipo, constructor e invocación se traducen a `GameException` como en la fábrica reflectiva de sesiones. `PlayerVsBot` resuelve el perfil por nombre y usa el mismo mapeo de excepciones al instanciarlo.
 

@@ -26,11 +26,13 @@ public class ConfigurationPanel extends BasePanel
     {
     }
  
+    /** Prepara controles de sonido, volumen y teclas; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareView() 
     {
     }
  
+    /** Conecta guardado y navegación; el cuerpo está pendiente de implementación. */
     @Override
     public void prepareController() 
     {
