@@ -27,11 +27,25 @@ actor Usuario
 participant "game: Game" as G
 participant "session: GameSession" as S
 participant "player: SessionParticipant" as P
+participant "field: SoccerField" as F
+participant "ball: Ball" as B
 Usuario -> G: movePlayer(session, player, direction)
 G -> S: movePlayer(player, direction)
+S -> P: guardar posición horizontal anterior
 S -> P: move(direction)
-P -> P: get speed statistic
-P -> P: reposition(x ± 150 × speed / 60, y)
+S -> F: resolveWalkingContact(player, previousX, participants, 0.70)
+loop balones que intersectan al participante
+  alt balón quieto y empuje permitido
+    F -> B: reposicionar en pasos pequeños
+    note over S,B: El empuje no cambia la velocidad
+  else balón en movimiento
+    F -> B: separar y reflejar velocidad normal
+    F -> P: restaurar posición horizontal anterior
+  else el empuje choca con límite, balón o participante
+    F -> B: conservar la última posición válida
+    F -> P: restaurar posición horizontal anterior
+  end
+end
 alt direction == true
   note right of P: true = derecha
 else direction == false
@@ -39,7 +53,9 @@ else direction == false
 end
 note over G,P
   La sesión ignora solicitudes para participantes no registrados
-  o después de finalizar el partido. El paso equivale a 1/60 s.
+  o después de finalizar el partido. El desplazamiento total
+  equivale a 150 × speed / 60. Empuja balones quietos; ante un
+  balón en movimiento, resuelve el rebote sin atravesarlo.
 end note
 @enduml
 
@@ -196,6 +212,7 @@ else sesión activa
   opt participantes superpuestos
     S --> G: GameException("dos objetos super puestos")
   end
+  S -> S: goal()
   loop cada balón
     S -> F: goalSideFor(ball)
     alt centro dentro de un arco
@@ -203,35 +220,43 @@ else sesión activa
       S -> F: resetBall(centro)
       S -> S: reposicionar participantes simétricamente
       S -> S: checkTypeOfMatch()
-    else sin gol
-      S -> F: bounceBallAtWallsAndGoalFrames(ball, 70%)
-      F -> B: bounceHorizontallyAt / bounceVerticallyAt
-      S -> F: isOutside(ball)
-      alt hitbox fuera
-        S --> G: GameException("objeto fuera de la partida")
-      else dentro
-        S -> F: bounceBallAtGround(ball, 70%, 0.5)
-        opt toca suelo
-          F -> B: bounceAt(70%, mínimo 0.5)
-        end
-        loop cada participante
-          S -> B: intersects(participant)
-          opt hay contacto
-            S -> B: reposicionar hasta quedar fuera de hitbox
-            opt nuevo contacto
-              S -> B: applyImpulse(±4, -1)
-              S -> B: ensureHorizontalDirection(afuera)
-            end
-          end
-        end
-      end
     end
   end
-  S -> S: checkTypeOfMatch()
-  opt transición a partida terminada con marcador desigual
-    S -> S: awardWinningPlayers()
-    loop cada participante humano del lado ganador
-      S -> P: Stats.awardWin() [sumar 5 puntos]
+  alt se anotó un gol
+    S --> G: terminar procesamiento de colisiones
+  else no hubo gol
+    S -> F: resolveBallCollisions(70%)
+    loop pares de balones en contacto
+      F -> B: corregir penetración entre hitboxes circulares
+      opt se aproximan sobre la normal
+        F -> B: intercambiar velocidades normales (masas iguales, e=0.70)
+      end
+    end
+    S -> F: resolveBallParticipantCollisions(participants, 70%, 0.5)
+    loop cada balón y participante en contacto
+      F -> B: corregir penetración contra hitbox rectangular
+      opt el balón se aproxima al participante
+        F -> B: reflejar velocidad normal (superficie fija, e=0.70)
+      end
+      opt contacto desde arriba y velocidad descendente menor a 0.5
+        F -> B: establecer velocidad vertical descendente mínima (0.5)
+      end
+    end
+    loop cada balón
+      S -> F: bounceBallAtWallsAndGoalFrames(ball, 70%)
+      F -> B: bounceHorizontallyAt / bounceVerticallyAt
+      S -> F: keepBallInsideCourt(ball, 70%)
+      opt una colisión desplazó el balón más allá de un límite
+        F -> B: corregir al borde y reflejar velocidad si iba hacia fuera
+      end
+      note over S,F: La cancha corrige la posición contra los límites y mantiene el balón dentro.
+    end
+    S -> S: checkTypeOfMatch()
+    opt transición a partida terminada con marcador desigual
+      S -> S: awardWinningPlayers()
+      loop cada participante humano del lado ganador
+        S -> P: Stats.awardWin() [sumar 5 puntos]
+      end
     end
   end
 end

@@ -5,6 +5,7 @@ import domain.hitbox.Hitbox;
 import domain.hitbox.HitboxContact;
 import domain.hitbox.CircularHitbox;
 import domain.hitbox.RectangularHitbox;
+import domain.exception.GameException;
 
 /**
  * Representa la cancha, sus hitboxes y los balones que contiene.
@@ -31,6 +32,158 @@ public class SoccerField implements Hitbox {
     public void advanceBalls(double deltaSeconds, double gravity) {
         for (Ball ball : balls) {
             ball.advance(deltaSeconds, gravity);
+        }
+    }
+
+    /** Agrega a la cancha un balón nuevo, conservando sus coordenadas y estado iniciales. */
+    public void addBall(Ball ball) {
+        if (ball == null || Arrays.stream(balls).anyMatch(existing -> existing == ball)) {
+            throw new GameException(GameException.INVALID_BALL);
+        }
+        Ball[] expanded = Arrays.copyOf(balls, balls.length + 1);
+        expanded[balls.length] = ball;
+        balls = expanded;
+    }
+
+    /** Resuelve las colisiones entre todos los pares de balones con masas iguales. */
+    public void resolveBallCollisions(double restitution) {
+        for (int first = 0; first < balls.length; first++) {
+            for (int second = first + 1; second < balls.length; second++) {
+                resolveBallPair(balls[first], balls[second], restitution);
+            }
+        }
+    }
+
+    /** Resuelve la penetración y el rebote de cada balón contra participantes. */
+    public void resolveBallParticipantCollisions(Iterable<SessionParticipant> participants,
+            double restitution, double minimumLandingSpeed) {
+        for (Ball ball : balls) {
+            for (SessionParticipant participant : participants) {
+                resolveBallParticipant(ball, participant, restitution, minimumLandingSpeed);
+            }
+        }
+    }
+
+    /** Resuelve contactos creados por caminar: empuja balones quietos y bloquea el paso ante los móviles. */
+    public void resolveWalkingContact(SessionParticipant moved, double previousX,
+            Iterable<SessionParticipant> participants, double restitution) {
+        double movement = moved.getHitbox().getX() - previousX;
+        if (movement == 0) return;
+        int direction = movement > 0 ? 1 : -1;
+        for (Ball ball : balls) {
+            if (!ball.intersects(moved).isContact()) continue;
+            double speed = Math.hypot(ball.getVelocityX(), ball.getVelocityY());
+            if (speed > 1e-6) {
+                resolveBallParticipant(ball, moved, restitution, 0.5);
+                moved.reposition(previousX, moved.getHitbox().getY());
+                continue;
+            }
+            double overlap = direction > 0
+                    ? moved.getHitbox().getX() + moved.getHitbox().getWidth()
+                            + ball.getRadius() - ball.getX()
+                    : ball.getX() + ball.getRadius() - moved.getHitbox().getX();
+            double distance = Math.max(0, overlap) + 1e-6;
+            double originalX = ball.getX();
+            double movedDistance = 0;
+            while (movedDistance + 1e-9 < distance) {
+                double step = Math.min(0.1, distance - movedDistance);
+                ball.reposition(ball.getX() + direction * step, ball.getY());
+                if (!validBallPosition(ball, moved, participants)) {
+                    ball.reposition(originalX + direction * movedDistance, ball.getY());
+                    moved.reposition(previousX, moved.getHitbox().getY());
+                    break;
+                }
+                movedDistance += step;
+            }
+        }
+    }
+
+    /** Revisa que el balón empujado siga dentro de cancha y separado de entidades. */
+    private boolean validBallPosition(Ball candidate, SessionParticipant moved,
+            Iterable<SessionParticipant> participants) {
+        double radius = candidate.getRadius();
+        if (candidate.getX() - radius < courtX() + boundaryThickness()
+                || candidate.getX() + radius > courtX() + courtWidth() - boundaryThickness()
+                || candidate.getY() - radius < courtY() + boundaryThickness()
+                || candidate.getY() + radius > groundY()) return false;
+        for (Ball other : balls) {
+            if (other != candidate && candidate.intersects(other).isContact()) return false;
+        }
+        for (SessionParticipant participant : participants) {
+            if (participant != moved && candidate.intersects(participant).isContact()) return false;
+        }
+        return true;
+    }
+
+    /** Corrige la salida del balón y aplica rebote hacia el interior en cada borde de cancha. */
+    public void keepBallInsideCourt(Ball ball, double retention) {
+        double radius = ball.getRadius();
+        double left = courtX() + boundaryThickness() + radius;
+        double right = courtX() + courtWidth() - boundaryThickness() - radius;
+        double top = courtY() + boundaryThickness() + radius;
+        double bottom = groundY() - radius;
+        if (ball.getX() < left) ball.bounceHorizontallyAt(left, ball.getVelocityX() < 0 ? retention : 1);
+        if (ball.getX() > right) ball.bounceHorizontallyAt(right, ball.getVelocityX() > 0 ? retention : 1);
+        if (ball.getY() < top) ball.bounceVerticallyAt(top, ball.getVelocityY() < 0 ? retention : 1);
+        if (ball.getY() > bottom) ball.bounceVerticallyAt(bottom, ball.getVelocityY() > 0 ? retention : 1);
+    }
+
+    /** Separa dos círculos y aplica impulso normal solo cuando se aproximan. */
+    private void resolveBallPair(Ball first, Ball second, double restitution) {
+        double dx = second.getX() - first.getX();
+        double dy = second.getY() - first.getY();
+        double distance = Math.hypot(dx, dy);
+        double minDistance = first.getRadius() + second.getRadius();
+        if (distance > minDistance) return;
+        double nx = distance == 0 ? 1 : dx / distance;
+        double ny = distance == 0 ? 0 : dy / distance;
+        double overlap = minDistance - distance;
+        first.reposition(first.getX() - nx * overlap / 2, first.getY() - ny * overlap / 2);
+        second.reposition(second.getX() + nx * overlap / 2, second.getY() + ny * overlap / 2);
+        double relativeNormal = (second.getVelocityX() - first.getVelocityX()) * nx
+                + (second.getVelocityY() - first.getVelocityY()) * ny;
+        if (relativeNormal >= 0) return;
+        double impulse = -(1 + restitution) * relativeNormal / 2;
+        first.applyImpulse(-impulse * nx, -impulse * ny);
+        second.applyImpulse(impulse * nx, impulse * ny);
+    }
+
+    /** Separa un círculo de una hitbox rectangular y refleja solo velocidad entrante. */
+    private void resolveBallParticipant(Ball ball, SessionParticipant participant,
+            double restitution, double minimumLandingSpeed) {
+        RectangularHitbox box = participant.getHitbox();
+        double closestX = Math.max(box.getX(), Math.min(ball.getX(), box.getX() + box.getWidth()));
+        double closestY = Math.max(box.getY(), Math.min(ball.getY(), box.getY() + box.getHeight()));
+        double dx = ball.getX() - closestX;
+        double dy = ball.getY() - closestY;
+        double distance = Math.hypot(dx, dy);
+        if (distance > ball.getRadius()) return;
+        double nx;
+        double ny;
+        if (distance > 1e-9) {
+            nx = dx / distance;
+            ny = dy / distance;
+        } else {
+            double left = Math.abs(ball.getX() - box.getX());
+            double right = Math.abs(box.getX() + box.getWidth() - ball.getX());
+            double top = Math.abs(ball.getY() - box.getY());
+            double bottom = Math.abs(box.getY() + box.getHeight() - ball.getY());
+            double nearest = Math.min(Math.min(left, right), Math.min(top, bottom));
+            nx = nearest == left ? -1 : nearest == right ? 1 : 0;
+            ny = nearest == top ? -1 : nearest == bottom ? 1 : 0;
+            distance = -nearest;
+        }
+        double penetration = ball.getRadius() - distance;
+        ball.reposition(ball.getX() + nx * (penetration + 1e-6),
+                ball.getY() + ny * (penetration + 1e-6));
+        double normalSpeed = ball.getVelocityX() * nx + ball.getVelocityY() * ny;
+        boolean bounced = normalSpeed < 0;
+        if (bounced) {
+            double delta = (1 + restitution) * normalSpeed;
+            ball.applyImpulse(-delta * nx, -delta * ny);
+        }
+        if (bounced && ny < -0.7 && ball.getVelocityY() < minimumLandingSpeed) {
+            ball.applyImpulse(0, minimumLandingSpeed - ball.getVelocityY());
         }
     }
 

@@ -48,6 +48,7 @@ public class PlayerVsBot extends GameSession {
         positionParticipants();
     }
 
+    /** Construye el perfil de bot solicitado y convierte errores de reflexión a GameException. */
     private static BotPlayer createBot(String difficulty) throws GameException {
         if (difficulty == null) {
             throw new GameException(GameException.NO_FOUND_SESSION);

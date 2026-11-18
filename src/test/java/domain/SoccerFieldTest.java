@@ -2,6 +2,7 @@ package domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.reflect.Field;
 
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import domain.hitbox.CircularHitbox;
 import domain.hitbox.RectangularHitbox;
+import domain.exception.GameException;
 
 /** Pruebas de las hitboxes y del reinicio de los balones de la cancha. */
 class SoccerFieldTest {
@@ -81,6 +83,29 @@ class SoccerFieldTest {
         assertEquals(40.0, readValue(ball.getHitbox(), "y"));
         assertEquals(0.0, readValue(ball, "velocityX"));
         assertEquals(0.0, readValue(ball, "velocityY"));
+    }
+
+    @Test
+    void addBallAddsASecondBallToTheField() {
+        SoccerField field = new SoccerField();
+        Ball additional = new Ball(450, 150, 12);
+
+        field.addBall(additional);
+
+        assertEquals(2, field.balls().length);
+        assertSame(additional, field.balls()[1]);
+    }
+
+    @Test
+    void addBallRejectsNullAndDuplicateInstancesWithGameException() {
+        SoccerField field = new SoccerField();
+        Ball existing = field.balls()[0];
+
+        GameException nullBall = assertThrows(GameException.class, () -> field.addBall(null));
+        GameException duplicate = assertThrows(GameException.class, () -> field.addBall(existing));
+
+        assertEquals(GameException.INVALID_BALL, nullBall.getMessage());
+        assertEquals(GameException.INVALID_BALL, duplicate.getMessage());
     }
 
     private static Ball[] readBalls(SoccerField field) throws ReflectiveOperationException {

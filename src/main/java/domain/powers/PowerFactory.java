@@ -7,6 +7,7 @@ import domain.exception.GameException;
 /** Crea poderes y perfiles de bot por nombre de clase con errores de dominio. */
 public final class PowerFactory {
 
+    /** Evita instanciar la fábrica, cuyas operaciones son estáticas. */
     private PowerFactory() {
     }
 

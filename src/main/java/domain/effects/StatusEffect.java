@@ -17,6 +17,7 @@ public class StatusEffect {
     private double duration;
     private double remaining;
 
+    /** Crea un efecto temporal con el tipo y la duración indicados. */
     public StatusEffect(String type, double duration) {
         if (type == null || type.isBlank() || !Double.isFinite(duration) || duration <= 0) {
             throw new GameException(GameException.INVALID_STATUS_EFFECT);
@@ -44,10 +45,13 @@ public class StatusEffect {
         remaining = duration;
     }
 
+    /** Devuelve el identificador del efecto. */
     public String getType() { return type; }
 
+    /** Devuelve la duración inicial del efecto en segundos. */
     public double getDuration() { return duration; }
 
+    /** Devuelve el tiempo restante del efecto en segundos. */
     public double getRemaining() { return remaining; }
 
     /**

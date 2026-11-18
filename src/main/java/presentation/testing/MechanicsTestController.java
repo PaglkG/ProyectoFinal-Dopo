@@ -11,19 +11,23 @@ public final class MechanicsTestController {
         GOALS("Por goles"), TIME("Por tiempo");
         private final String label;
         MatchMode(String label) { this.label = label; }
-        @Override public String toString() { return label; }
+        /** Devuelve la etiqueta que se muestra en los controles de Swing. */
+        @Override
+        public String toString() { return label; }
     }
 
     public enum SessionMode {
         PLAYER_VS_PLAYER("Dos jugadores"), PLAYER_VS_BOT("Jugador contra bot");
         private final String label;
         SessionMode(String label) { this.label = label; }
-        @Override public String toString() { return label; }
+        /** Devuelve la etiqueta que se muestra en los controles de Swing. */
+        @Override
+        public String toString() { return label; }
     }
 
     public enum Scenario {
         LEFT_GOAL, RIGHT_GOAL, PLAYER_BALL_CONTACT, GROUND_BOUNCE,
-        SAFE_FIELD_CONTACT, BALL_SIDE_REBOUND, PARTICIPANT_OUTSIDE,
+        SAFE_FIELD_CONTACT, BALL_SIDE_REBOUND, BALL_BALL_COLLISION, PARTICIPANT_OUTSIDE,
         PARTICIPANT_TOUCHES_SIDE, PARTICIPANTS_OVERLAP, SUDDEN_DEATH_WIN,
         KICK_OPPONENT
     }
@@ -33,11 +37,21 @@ public final class MechanicsTestController {
     private MatchMode selectedMatchMode = MatchMode.GOALS;
     private int selectedLimit = 5;
     private int activeSessionIndex;
+    private MechanicsTestConfiguration configuration;
     private final PresentationMovement movement = new PresentationMovement();
 
     /** Inicia el banco con una sesión local de dos jugadores y límite de cinco goles. */
     public MechanicsTestController() {
-        startNewSession(SessionMode.PLAYER_VS_PLAYER, MatchMode.GOALS, 5);
+        this(MechanicsTestConfiguration.defaults());
+    }
+
+    /** Inicia el controlador con una configuración extensible elegida en la pantalla inicial. */
+    public MechanicsTestController(MechanicsTestConfiguration configuration) {
+        this.configuration = configuration;
+        selectedSessionMode = configuration.sessionMode();
+        selectedMatchMode = configuration.matchMode();
+        selectedLimit = configuration.limit();
+        createConfiguredSession();
     }
 
     /** Guarda las opciones y crea una sesión nueva con esos valores. */
@@ -45,19 +59,27 @@ public final class MechanicsTestController {
         selectedSessionMode = sessionMode;
         selectedMatchMode = matchMode;
         selectedLimit = Math.max(0, limit);
-        createSession(sessionMode, matchMode, selectedLimit);
+        configuration = new MechanicsTestConfiguration(sessionMode, matchMode, selectedLimit,
+                sessionMode == SessionMode.PLAYER_VS_BOT ? "domain.PlayerVsBot" : "domain.PlayerVsPlayer",
+                matchMode == MatchMode.TIME ? "domain.rules.ByTime" : "domain.rules.ByGoals",
+                List.of(Integer.toString(selectedLimit)), "domain.powers.AuraAzul",
+                "domain.powers.Rayo", "Clumsy", true);
+        createConfiguredSession();
     }
 
-    private void createSession(SessionMode sessionMode, MatchMode matchMode, int limit) {
+    /** Reinicia la sesión con las clases y parámetros definidos en la configuración inicial. */
+    public void restartConfiguredSession() {
+        createConfiguredSession();
+    }
+
+    /** Crea la sesión configurada a través de la fachada pública de Game. */
+    private void createConfiguredSession() {
         game = new Game();
-        String sessionClass = sessionMode == SessionMode.PLAYER_VS_BOT
-                ? "domain.PlayerVsBot" : "domain.PlayerVsPlayer";
-        String ruleClass = matchMode == MatchMode.TIME ? "domain.rules.ByTime" : "domain.rules.ByGoals";
-        List<String> selectedPowers = sessionMode == SessionMode.PLAYER_VS_BOT
-                ? List.of("domain.powers.AuraAzul", "domain.powers.Rayo", "Clumsy")
-                : List.of("domain.powers.AuraAzul", "domain.powers.Rayo");
-        activeSessionIndex = game.startSessionForView(List.of(Integer.toString(limit)), selectedPowers,
-                sessionClass, ruleClass, true);
+        List<String> powers = configuration.sessionMode() == SessionMode.PLAYER_VS_BOT
+                ? List.of(configuration.rightPowerClass(), configuration.leftPowerClass(), configuration.botProfile())
+                : List.of(configuration.rightPowerClass(), configuration.leftPowerClass());
+        activeSessionIndex = game.startSessionForView(configuration.ruleParameters(), powers,
+                configuration.sessionClass(), configuration.matchClass(), configuration.playerOne());
         movement.reset(game, activeSessionIndex);
     }
 
@@ -69,6 +91,7 @@ public final class MechanicsTestController {
         advanceDomainOnly(before);
     }
 
+    /** Avanza la lógica del dominio y reinicia el movimiento visual cuando cambió el marcador. */
     private void advanceDomainOnly(Game.SessionView before) {
         game.updateGame(activeSessionIndex);
         Game.SessionView after = game.inspectSession(activeSessionIndex);
@@ -84,7 +107,7 @@ public final class MechanicsTestController {
 
     /** @return {@code true} si la patada del jugador izquierdo alcanzó el balón */
     public boolean kickLeft() {
-        return selectedSessionMode == SessionMode.PLAYER_VS_PLAYER
+        return configuration.sessionMode() == SessionMode.PLAYER_VS_PLAYER
                 && game.kickPlayer(activeSessionIndex, "left:0");
     }
 
@@ -95,7 +118,7 @@ public final class MechanicsTestController {
 
     /** Prepara el escenario solicitado a través de las operaciones de {@link Game}. */
     public void runScenario(Scenario scenario) {
-        createSession(selectedSessionMode, selectedMatchMode, selectedLimit);
+        createConfiguredSession();
         neutralizeBall();
         Game.SessionView state = game.inspectSession(activeSessionIndex);
         Game.BallView ball = state.balls().get(0);
@@ -122,6 +145,18 @@ public final class MechanicsTestController {
                 game.setBallPosition(activeSessionIndex, ball.index(),
                         walls.get(2).x() - 3, walls.get(0).y() + walls.get(0).height() + 30);
                 game.applyBallImpulse(activeSessionIndex, ball.index(), -10, 0);
+            }
+            case BALL_BALL_COLLISION -> {
+                if (state.balls().size() < 2) {
+                    return;
+                }
+                Game.BallView first = state.balls().get(0);
+                Game.BallView second = state.balls().get(1);
+                double contactDistance = first.radius() + second.radius();
+                game.setBallPosition(activeSessionIndex, first.index(), 225 - contactDistance / 2, 70);
+                game.setBallPosition(activeSessionIndex, second.index(), 225 + contactDistance / 2, 70);
+                game.applyBallImpulse(activeSessionIndex, first.index(), 15, 0);
+                game.applyBallImpulse(activeSessionIndex, second.index(), -15, 0);
             }
             case PARTICIPANT_OUTSIDE -> {
                 Game.ParticipantView player = participant(state, "left");
@@ -153,7 +188,11 @@ public final class MechanicsTestController {
                 game.setParticipantPosition(activeSessionIndex, right.id(), rightX, right.y());
             }
             case SUDDEN_DEATH_WIN -> {
-                createSession(selectedSessionMode, MatchMode.TIME, 0);
+                configuration = new MechanicsTestConfiguration(selectedSessionMode, MatchMode.TIME, 0,
+                        configuration.sessionClass(), "domain.rules.ByTime", List.of("0"),
+                        configuration.rightPowerClass(), configuration.leftPowerClass(),
+                        configuration.botProfile(), configuration.playerOne());
+                createConfiguredSession();
                 step();
                 placeInGoal(0);
             }
@@ -161,6 +200,7 @@ public final class MechanicsTestController {
         advanceDomainOnly(game.inspectSession(activeSessionIndex));
     }
 
+    /** Coloca el balón en el centro del arco indicado para preparar un gol. */
     private void placeInGoal(int goalIndex) {
         Game.SessionView state = game.inspectSession(activeSessionIndex);
         Game.RectangleView goal = state.goals().get(goalIndex);
@@ -168,11 +208,13 @@ public final class MechanicsTestController {
                 goal.x() + goal.width() / 2, goal.y() + goal.height() / 2);
     }
 
+    /** Cancela la velocidad actual del balón antes de ubicar un escenario. */
     private void neutralizeBall() {
         Game.BallView ball = game.inspectSession(activeSessionIndex).balls().get(0);
         game.applyBallImpulse(activeSessionIndex, ball.index(), -ball.velocityX(), -ball.velocityY());
     }
 
+    /** Busca la instantánea del primer participante del lado indicado. */
     private static Game.ParticipantView participant(Game.SessionView state, String side) {
         return state.participants().stream()
                 .filter(player -> player.side().equals(side))

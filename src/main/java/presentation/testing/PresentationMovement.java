@@ -26,6 +26,7 @@ final class PresentationMovement {
     private Game activeGame;
     private int activeSessionIndex = -1;
 
+    /** Registra la presión o liberación de una tecla de movimiento o salto. */
     public void setControl(Control control, boolean pressed) {
         if (pressed) {
             boolean firstPress = held.add(control);
@@ -35,11 +36,13 @@ final class PresentationMovement {
         }
     }
 
+    /** Limpia las teclas sostenidas y las solicitudes de salto pendientes. */
     public void clearInputs() {
         held.clear();
         jumpRequested.clear();
     }
 
+    /** Asocia una sesión y borra los estados visuales de movimiento anteriores. */
     public void reset(Game game, int sessionIndex) {
         clearInputs();
         verticalSpeeds.clear();
@@ -47,6 +50,7 @@ final class PresentationMovement {
         activeSessionIndex = sessionIndex;
     }
 
+    /** Reinicia el salto y la velocidad vertical después de comenzar una ronda. */
     public void resetAfterRound(Game game, int sessionIndex) {
         jumpRequested.clear();
         verticalSpeeds.clear();
@@ -54,6 +58,7 @@ final class PresentationMovement {
         activeSessionIndex = sessionIndex;
     }
 
+    /** Actualiza participantes controlados y delega el desplazamiento horizontal a Game. */
     public void update(Game game, int sessionIndex, MechanicsTestController.SessionMode mode) {
         if (game != activeGame || sessionIndex != activeSessionIndex) {
             verticalSpeeds.clear();
@@ -99,13 +104,15 @@ final class PresentationMovement {
             if (nextX != moved.x()) game.setParticipantPosition(sessionIndex, id, nextX, oldY);
         }
 
-        Game.ParticipantView positioned = findById(game.inspectSession(sessionIndex), id);
+        Game.SessionView currentState = game.inspectSession(sessionIndex);
+        Game.ParticipantView positioned = findById(currentState, id);
         if (positioned == null) return;
-        var boundaries = game.inspectSession(sessionIndex).boundaries();
+        var boundaries = currentState.boundaries();
         double floorY = boundaries.get(1).y() - positioned.height();
         double ceilingY = boundaries.get(0).y() + boundaries.get(0).height() + EDGE_GAP;
         double verticalSpeed = verticalSpeeds.getOrDefault(id, 0.0);
-        boolean grounded = oldY >= floorY - EDGE_GAP;
+        boolean grounded = oldY >= floorY - EDGE_GAP
+                || supportedByBall(currentState.balls(), nextX, oldY, positioned.width(), positioned.height());
         if (jumpRequested.contains(jumpControl) && grounded) verticalSpeed = -JUMP_SPEED;
         verticalSpeed += GRAVITY * STEP_SECONDS;
         double nextY = oldY + verticalSpeed * STEP_SECONDS;
@@ -120,29 +127,72 @@ final class PresentationMovement {
             nextY = oldY;
             verticalSpeed = 0;
         }
+        nextY = resolveBallVerticalContact(currentState.balls(), nextX, oldY, nextY,
+                positioned.width(), positioned.height(), verticalSpeed);
+        if (nextY == oldY) verticalSpeed = 0;
         game.setParticipantPosition(sessionIndex, id, nextX, nextY);
         verticalSpeeds.put(id, verticalSpeed);
     }
 
+    /** Detecta apoyo desde arriba para permitir que el participante vuelva a saltar. */
+    private boolean supportedByBall(java.util.List<Game.BallView> balls,
+            double x, double y, double width, double height) {
+        for (Game.BallView ball : balls) {
+            double top = ball.y() - ball.radius();
+            if (Math.abs(y + height - top) <= EDGE_GAP
+                    && overlapsHorizontally(x, width, ball)) return true;
+        }
+        return false;
+    }
+
+    /** Detiene el salto vertical en la cara del balón que encontró en su trayectoria. */
+    private double resolveBallVerticalContact(java.util.List<Game.BallView> balls,
+            double x, double oldY, double nextY, double width, double height, double verticalSpeed) {
+        if (verticalSpeed > 0) {
+            for (Game.BallView ball : balls) {
+                double top = ball.y() - ball.radius();
+                if (oldY + height <= top + EDGE_GAP && nextY + height >= top
+                        && overlapsHorizontally(x, width, ball)) return top - height;
+            }
+        } else if (verticalSpeed < 0) {
+            for (Game.BallView ball : balls) {
+                double bottom = ball.y() + ball.radius();
+                if (oldY >= bottom - EDGE_GAP && nextY <= bottom
+                        && overlapsHorizontally(x, width, ball)) return bottom;
+            }
+        }
+        return nextY;
+    }
+
+    /** Comprueba si el círculo del balón alcanza el intervalo horizontal del participante. */
+    private boolean overlapsHorizontally(double x, double width, Game.BallView ball) {
+        return ball.x() + ball.radius() >= x && ball.x() - ball.radius() <= x + width;
+    }
+
+    /** Busca un participante por el lado que ocupa en la instantánea. */
     private static Game.ParticipantView findBySide(Game.SessionView state, String side) {
         return state.participants().stream().filter(player -> player.side().equals(side))
                 .findFirst().orElse(null);
     }
 
+    /** Busca un participante por su identificador opaco. */
     private static Game.ParticipantView findById(Game.SessionView state, String id) {
         return state.participants().stream().filter(player -> player.id().equals(id))
                 .findFirst().orElse(null);
     }
 
+    /** Comprueba si el rectángulo propuesto toca o se superpone con otro participante. */
     private boolean touches(double x, double y, double width, double height, Game.ParticipantView other) {
         return other != null && x <= other.x() + other.width() && x + width >= other.x()
                 && y <= other.y() + other.height() && y + height >= other.y();
     }
 
+    /** Indica si el control corresponde a una tecla de salto. */
     private boolean isJump(Control control) {
         return control == Control.LEFT_JUMP || control == Control.RIGHT_JUMP;
     }
 
+    /** Limita un valor al intervalo permitido. */
     private double clamp(double value, double minimum, double maximum) {
         return Math.max(minimum, Math.min(maximum, value));
     }

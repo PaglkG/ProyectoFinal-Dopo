@@ -52,8 +52,10 @@ public abstract class SessionParticipant implements Hitbox {
         return stats;
     }
 
+    /** Devuelve la vida actual del participante. */
     public int getLife() { return life; }
 
+    /** Devuelve la vida máxima del participante. */
     public int getMaxLife() { return maxLife; }
 
     /** @return {@code true} cuando algún efecto activo bloquea el movimiento */

@@ -1,20 +1,28 @@
 @startuml
 title Banco visual: acciones y escenarios por la fachada Game
 actor Usuario
+participant "setup: MechanicsTestSetupPanel" as Setup
 participant "panel: MechanicsTestPanel" as P
 participant "controller: MechanicsTestController" as C
 participant "movement: PresentationMovement" as M
 participant "game: Game" as G
 participant "session: GameSession (interno)" as S
 
-Usuario -> P: elegir modo, regla y límite
-Usuario -> P: Nueva sesión
-P -> C: startNewSession(sessionMode, matchMode, limit)
-C -> G: startSessionForView(parametersRules, parametersPowers, typeGame, typeMatch, player)
+Usuario -> Setup: seleccionar clases de sesión, regla y poderes
+Usuario -> Setup: indicar parámetros y perfil del bot
+Usuario -> Setup: Iniciar banco de pruebas
+Setup -> P: abrir MechanicsTestPanel(configuration)
+P -> C: crear controlador(configuration)
+C -> G: startSessionForView(ruleParameters, powerClasses, sessionClass, matchClass, player)
 G --> C: sessionIndex
 C -> G: inspectSession(sessionIndex)
 G --> C: SessionView inmutable
 P -> P: dibujar estado recibido del controlador
+
+Usuario -> P: Nueva sesión
+P -> C: restartConfiguredSession()
+C -> G: startSessionForView(configuration)
+G --> C: sessionIndex
 
 Usuario -> P: mantener dirección o pulsar salto
 P -> C: setMovementControl(control, pressed)
@@ -37,6 +45,13 @@ loop cada paso de simulación
   opt ajustar salto visual o límites del banco
     M -> G: setParticipantPosition(sessionIndex, participantId, x, y)
   end
+  M -> M: comprobar colisión vertical del salto con balones
+  alt ascenso desde debajo o caída sobre el balón
+    M -> M: limitar posición al borde circular
+    M -> G: setParticipantPosition(sessionIndex, participantId, x, y)
+  else salta alejándose desde arriba
+    M -> M: conservar movimiento y permitir despegar
+  end
   C -> G: updateGame(sessionIndex)
   G -> S: updateGame()
   opt gol detectado
@@ -50,8 +65,12 @@ end
 Usuario -> P: elegir escenario
 P -> C: runScenario(scenario)
 C -> G: crear sesión y consultar SessionView
-alt escenario de gol, rebote o contacto
+alt escenario de gol, rebote o contacto entre entidades
   C -> G: setBallPosition / applyBallImpulse
+  opt escenario entre balones y hay al menos dos
+    C -> G: setBallPosition / applyBallImpulse para ambos
+    note over C,G: La actualización común siguiente resuelve la colisión con restitución 0.70.
+  end
 else escenario de salida o superposición
   C -> G: setParticipantPosition
 end
@@ -66,6 +85,7 @@ note over P,G
   La presentación de pruebas solo llama a Game.
   Game expone instantáneas inmutables y operaciones
   para acciones y preparación de escenarios.
-  PresentationMovement conserva únicamente la simulación visual del salto.
+  PresentationMovement simula el salto visual, bloquea
+  el cruce vertical del balón y permite saltar desde su cara superior.
 end note
 @enduml

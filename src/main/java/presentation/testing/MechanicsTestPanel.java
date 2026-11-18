@@ -34,7 +34,7 @@ import domain.Game;
 /** Ventana de pruebas manuales para las mecánicas ya implementadas en el dominio. */
 public final class MechanicsTestPanel extends JPanel {
 
-    private final MechanicsTestController controller = new MechanicsTestController();
+    private final MechanicsTestController controller;
     private final JComboBox<MechanicsTestController.SessionMode> sessionMode =
             new JComboBox<>(MechanicsTestController.SessionMode.values());
     private final JComboBox<MechanicsTestController.MatchMode> matchMode =
@@ -53,7 +53,19 @@ public final class MechanicsTestPanel extends JPanel {
 
     /** Construye controles, escenarios, área de juego y enlaces de teclado; después crea la sesión inicial. */
     public MechanicsTestPanel() {
+        this(MechanicsTestConfiguration.defaults());
+    }
+
+    /** Construye el banco usando la configuración elegida en la pantalla inicial. */
+    public MechanicsTestPanel(MechanicsTestConfiguration configuration) {
         super(new BorderLayout(10, 10));
+        controller = new MechanicsTestController(configuration);
+        sessionMode.setSelectedItem(configuration.sessionMode());
+        matchMode.setSelectedItem(configuration.matchMode());
+        limit.setValue(configuration.limit());
+        sessionMode.setEnabled(false);
+        matchMode.setEnabled(false);
+        limit.setEnabled(false);
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         setBackground(new Color(24, 30, 39));
         add(buildSettings(), BorderLayout.NORTH);
@@ -112,6 +124,7 @@ public final class MechanicsTestPanel extends JPanel {
         addScenario(panel, "Rebote en el suelo", MechanicsTestController.Scenario.GROUND_BOUNCE);
         addScenario(panel, "Contacto seguro con límite", MechanicsTestController.Scenario.SAFE_FIELD_CONTACT);
         addScenario(panel, "Rebote del balón en límite lateral", MechanicsTestController.Scenario.BALL_SIDE_REBOUND);
+        addScenario(panel, "Colisión entre dos balones", MechanicsTestController.Scenario.BALL_BALL_COLLISION);
         addScenario(panel, "Jugador fuera de cancha", MechanicsTestController.Scenario.PARTICIPANT_OUTSIDE);
         addScenario(panel, "Jugador toca límite lateral", MechanicsTestController.Scenario.PARTICIPANT_TOUCHES_SIDE);
         addScenario(panel, "Jugadores superpuestos", MechanicsTestController.Scenario.PARTICIPANTS_OVERLAP);
@@ -141,6 +154,12 @@ public final class MechanicsTestPanel extends JPanel {
             timer.stop();
             runButton.setText("Iniciar simulación");
             try {
+                if (scenario == MechanicsTestController.Scenario.BALL_BALL_COLLISION
+                        && controller.getSessionView().balls().size() < 2) {
+                    status.setText("Este escenario requiere una sesión con al menos dos balones.");
+                    refreshView();
+                    return;
+                }
                 controller.runScenario(scenario);
                 status.setText("Escenario ejecutado: " + title + ".");
                 if (!controller.getSessionView().finished()) {
@@ -255,10 +274,7 @@ public final class MechanicsTestPanel extends JPanel {
     private void startSession() {
         timer.stop();
         runButton.setText("Iniciar simulación");
-        controller.startNewSession(
-                (MechanicsTestController.SessionMode) sessionMode.getSelectedItem(),
-                (MechanicsTestController.MatchMode) matchMode.getSelectedItem(),
-                (Integer) limit.getValue());
+        controller.restartConfiguredSession();
         kickKeysDown.clear();
         status.setText("Sesión nueva. Simulación en marcha; usa las teclas para jugar.");
         boolean playerVsPlayer = sessionMode.getSelectedItem()

@@ -41,7 +41,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 ### `GameSession` (abstracta)
 
-**Responsabilidad:** mantener el estado de una partida concreta y coordinar participantes, cancha, marcador, contactos, goles y condición de término.
+**Responsabilidad:** mantener el estado de una partida concreta y coordinar participantes, cancha, marcador, movimiento, colisiones, goles y condición de término.
 
 **Atributos:**
 
@@ -61,7 +61,6 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `field: SoccerField` | Cancha de la sesión y acceso a sus balones y geometría. |
 | `goalsLeft`, `goalsRight: int` | Marcadores de ambos lados. |
 | `finished: boolean` | Indica si la sesión terminó según su modalidad. |
-| `activeBallContacts: IdentityHashMap<Ball, Set<SessionParticipant>>` | Participantes en contacto continuo con cada instancia de balón, para aplicar el impulso solo al inicio del contacto. |
 | `participantsRight`, `participantsLeft: List<SessionParticipant>` | Participantes registrados por lado; son `protected` para las subclases de sesión. |
 
 **Métodos:**
@@ -69,8 +68,8 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | Método | Qué hace |
 |---|---|
 | `GameSession(player, typeMatche, parametersRules)` | Crea las listas, instancia reflectivamente la modalidad, crea la cancha y fija el tiempo inicial en cero. |
-| `movePlayer(user, direction)` | Está vacío; no mueve ni valida al participante. |
-| `restartRound()` | Centra y detiene todos los balones, posiciona participantes y limpia los contactos continuos. |
+| `movePlayer(user, direction)` | Valida participante y sesión, guarda la coordenada anterior, delega el paso de movimiento en el participante y delega a `SoccerField` la resolución del contacto con balones. |
+| `restartRound()` | Centra y detiene todos los balones y posiciona los participantes. |
 | `assignRules(typeMatche)` | Está vacío; no cambia la modalidad. |
 | `minParticipants()` | Está sin implementar; devuelve `null`. |
 | `goal(side)` | Si `side` es `left` o `right`, incrementa ese marcador, reinicia la ronda y consulta la modalidad. Otros textos no producen cambios. |
@@ -82,9 +81,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `checkTypeOfMatch()` | Pasa marcadores y, para `ByTime`, minutos completos transcurridos a la modalidad; actualiza `finished`. |
 | `ImproveStatistics(player, stats)` | Mejora un nivel de la habilidad del lado elegido con costo de 5 puntos; premia con 5 puntos a los jugadores humanos al ganar. |
 | `updateGame()` | Si la sesión sigue activa, avanza los efectos temporales un paso, suma tiempo, delega el avance de balones a la cancha, procesa colisiones y comprueba el término. |
-| `collision()` | Privado: valida participantes, resuelve gol antes de colisiones/salida del balón, procesa rebotes y contactos continuos con participantes; puede lanzar `GameException`. |
-| `applyParticipantImpulse(ball, awayDirection)` | Privado: añade al balón el impulso de contacto y garantiza que avance alejándose del participante. |
-| `separateBallFromParticipant(ball, participant)` | Privado: desplaza el balón horizontalmente fuera de la hitbox y elige dirección compatible con los límites laterales. |
+| `collision()` | Privado: valida participantes, procesa goles, delega en la cancha las colisiones entre balones y entre balones y participantes, y procesa rebotes contra límites/arcos/suelo; puede lanzar `GameException`. |
 | `positionParticipants()` | Público: delega a `SoccerField` la colocación simétrica del primer participante de cada lado, si ambos lados tienen uno. |
 | `getGoalsLeft()`, `getGoalsRight()` | Devuelven el marcador correspondiente. |
 | `isFinished()` | Devuelve si la sesión terminó. |
@@ -114,7 +111,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 ### `SoccerField`
 
-**Responsabilidad:** contener los balones y la geometría de cancha, contestar consultas espaciales y resolver contactos entre los balones y la cancha.
+**Responsabilidad:** contener los balones y la geometría de cancha, contestar consultas espaciales y resolver los contactos físicos de balones con otros balones, participantes y cancha.
 
 **Atributos:**
 
@@ -130,6 +127,14 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 |---|---|
 | `SoccerField()` | Crea la cancha de `450 × 150`, un balón de radio 10 y posiciona la geometría en el origen. |
 | `advanceBalls(deltaSeconds, gravity)` | Avanza todos los balones delegando a `Ball.advance`. |
+| `addBall(ball)` | Agrega un balón conservando su estado inicial; rechaza nulos y la misma instancia duplicada con `GameException`. Permite a una sesión extendida componer varios balones. |
+| `resolveBallCollisions(restitution)` | Público: corrige penetraciones entre pares de balones y aplica el rebote de masas iguales sobre la normal del contacto con la restitución indicada. |
+| `resolveBallParticipantCollisions(participants, restitution, minimumLandingSpeed)` | Público: separa los balones de las hitboxes participantes y refleja su velocidad normal cuando se aproximan; al aterrizar sobre un balón, lo manda hacia abajo con la velocidad mínima configurada. |
+| `resolveWalkingContact(moved, previousX, participants, restitution)` | Público: impide atravesar balones al caminar; empuja los quietos en pasos pequeños sin cambiar velocidad y rebota/bloquea ante balones móviles. Detiene el empuje si colisionaría con cancha u otra entidad. |
+| `keepBallInsideCourt(ball, retention)` | Público: corrige la posición del balón fuera de los límites y lo rebota hacia el interior. |
+| `resolveBallPair(first, second, restitution)` | Privado: corrige la penetración de dos círculos y aplica impulso normal solo si se aproximan. |
+| `resolveBallParticipant(ball, participant, restitution, minimumLandingSpeed)` | Privado: corrige la penetración círculo-rectángulo y refleja la velocidad normal entrante; si el balón rebota al contacto desde arriba, establece una velocidad descendente mínima. |
+| `validBallPosition(candidate, moved, participants)` | Privado: valida que el balón empujado siga dentro de cancha y sin contacto con otros balones o participantes. |
 | `hitboxs()` | Devuelve un arreglo nuevo con límites, arcos y balones como objetos `Hitbox`. |
 | `resetBall(x, y)` | Reinicia cada balón con centro en `(x, y)` y velocidad cero. |
 | `getHitboxField()` | Devuelve el arreglo interno de límites. |
@@ -205,6 +210,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 |---|---|
 | `SessionParticipant()` | Crea una hitbox provisional en el origen, con dimensiones iniciales basadas en `450 × 150`. |
 | `move(dir)` | Desplaza el participante 150 × `speed` / 60 unidades en la dirección indicada. |
+| `moveBy(horizontalDistance)` | De paquete: desplaza al participante la distancia horizontal indicada; lo usa la sesión para moverlo en pasos pequeños y permitir empujar balones. |
 | `getStats()` / `setStats(stats)` | Consultan o asocian las estadísticas; `Game` comparte por ID humano la instancia guardada entre sesiones. `setStats(null)` produce `GameException`. |
 | `takeDamage(damage)` | Reduce vida sin bajar de cero; al llegar a cero aplica `StatusEffect.STUNNED` por 3 segundos. |
 | `blocksMovement()` / `updateStatusEffects()` | Bloquea movimiento durante el aturdimiento, avanza su temporizador y restaura vida máxima al expirar. |
@@ -286,11 +292,11 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Responsabilidad:** comunicar errores del dominio como `IllegalArgumentException`, con mensajes compartidos para usos conocidos.
 
-**Atributos:** constantes públicas de mensaje. `NO_FOUND_TYPE_GAME` indica que no se encontró la modalidad; `NO_FOUND_SESSION`, que no se encontró la sesión; `NO_CONSTRUCTOR_FOUND`, que no existe el constructor requerido; `NO_INSTANTIATE_CLASS`, que no se pudo instanciar; `NO_ACCESSIBLE_CONSTRUCTOR`, que el constructor no es accesible; `EXCEPTION_IN_METHOD`, que un constructor o método interno lanzó una excepción; `MINUTES_NOT_NEGATIVE` y `GOALS_NOT_NEGATIVE` identifican parámetros negativos; `OBJECT_OUT_OF_MATCH` indica objeto fuera de partida; `OBJECTS_OVERLAPPED` indica participantes superpuestos.
+**Atributos:** constantes públicas de mensaje. `NO_FOUND_TYPE_GAME` indica que no se encontró la modalidad; `NO_FOUND_SESSION`, que no se encontró la sesión; `NO_CONSTRUCTOR_FOUND`, que no existe el constructor requerido; `NO_INSTANTIATE_CLASS`, que no se pudo instanciar; `NO_ACCESSIBLE_CONSTRUCTOR`, que el constructor no es accesible; `EXCEPTION_IN_METHOD`, que un constructor o método interno lanzó una excepción; `MINUTES_NOT_NEGATIVE` y `GOALS_NOT_NEGATIVE` identifican parámetros negativos; `OBJECT_OUT_OF_MATCH` indica objeto fuera de partida; `OBJECTS_OVERLAPPED` indica participantes superpuestos; `INVALID_BALL` identifica un balón nulo o una instancia ya agregada.
 
 **Métodos:** `GameException(message)` construye la excepción con mensaje; `GameException(message, cause)` conserva además la causa original.
 
-## Reglas (`domain.rules`)
+## Reglas
 
 ### `TypeOfMatch` (abstracta)
 
@@ -498,7 +504,23 @@ Todos extienden `BasePanel` y declaran `prepareView()` y `prepareController()` v
 
 **Atributos:** ninguno.
 
-**Métodos:** constructor privado impide crear instancias; `main(args)` prepara y muestra la ventana Swing; el manejador `windowClosed(event)` detiene el temporizador del panel al cerrar.
+**Métodos:** constructor privado impide crear instancias; `main(args)` presenta la configuración inicial; `showMechanicsWindow(configuration)` abre el banco con las opciones escogidas; el manejador `windowClosed(event)` detiene el temporizador del panel al cerrar.
+
+### `MechanicsTestConfiguration`
+
+**Responsabilidad:** conservar los nombres completos de clases y parámetros elegidos para crear o reiniciar una sesión del banco.
+
+**Componentes:** `sessionMode` y `matchMode` indican los modos seleccionados; `limit` contiene el límite visible; `sessionClass` y `matchClass` guardan los nombres completos de clase; `ruleParameters` conserva sus argumentos; `rightPowerClass` y `leftPowerClass` identifican los poderes; `botProfile` especifica el perfil del bot; `playerOne` selecciona la identidad humana.
+
+**Métodos:** constructor compacto copia la lista de parámetros para hacerla inmutable; `defaults()` produce la configuración estándar PVP por goles.
+
+### `MechanicsTestSetupPanel`
+
+**Responsabilidad:** recoger la configuración extensible antes de abrir la ventana de simulación.
+
+**Atributos:** `onStart: Consumer<MechanicsTestConfiguration>` recibe la configuración; selectores para modo de sesión/modalidad; campos de texto para nombres de clase, límite, parámetros, poderes y perfil de bot; `playerOne` marca la identidad seleccionada.
+
+**Métodos:** `MechanicsTestSetupPanel(onStart)` arma el formulario; `addField(panel, label, field)` privado agrega una fila; `start()` privado valida el límite, convierte los parámetros separados por coma en lista y entrega la configuración al consumidor, mostrando errores en un diálogo.
 
 ### `MechanicsTestController`
 
@@ -508,35 +530,38 @@ Todos extienden `BasePanel` y declaran `prepareView()` y `prepareController()` v
 
 - `MatchMode`: `GOALS` y `TIME`, con atributo `label`; constructor asigna etiqueta y `toString()` la devuelve para la interfaz.
 - `SessionMode`: `PLAYER_VS_PLAYER` y `PLAYER_VS_BOT`, con atributo `label`; constructor asigna etiqueta y `toString()` devuelve texto legible.
-- `Scenario`: enumera gol izquierdo/derecho, contacto, rebote del balón en límite, participante fuera/límite, superposición y victoria en muerte súbita; no declara campos ni métodos.
+- `Scenario`: enumera gol izquierdo/derecho, contacto, rebotes, colisión entre dos balones, participante fuera/límite, superposición, patada y victoria en muerte súbita; no declara campos ni métodos.
 
-**Atributos:** `game: Game` única puerta al dominio; `activeSessionIndex: int` índice de la sesión; `selectedSessionMode`, `selectedMatchMode` y `selectedLimit` opciones seleccionadas; `movement: PresentationMovement` entrada visual.
+**Atributos:** `game: Game` única puerta al dominio; `activeSessionIndex: int` índice de la sesión; `selectedSessionMode`, `selectedMatchMode` y `selectedLimit` opciones seleccionadas; `configuration: MechanicsTestConfiguration` clases y parámetros elegidos; `movement: PresentationMovement` entrada visual.
 
 **Métodos:**
 
 | Método | Qué hace |
 |---|---|
-| `MechanicsTestController()` | Inicia una sesión local PVP por goles con límite cinco. |
-| `startNewSession(sessionMode, matchMode, limit)` | Guarda opciones, limita el mínimo a cero y crea una sesión nueva. |
-| `createSession(sessionMode, matchMode, limit)` | Privado: crea `Game`, pide una sesión por `startSessionForView` y reinicia el simulador visual. |
+| `MechanicsTestController()` | Inicia el banco con la configuración predeterminada. |
+| `MechanicsTestController(configuration)` | Crea la sesión usando la configuración recibida y únicamente la fachada `Game`. |
+| `startNewSession(sessionMode, matchMode, limit)` | Guarda opciones y crea una sesión estándar nueva. |
+| `restartConfiguredSession()` | Vuelve a crear la sesión con la configuración elegida. |
+| `createConfiguredSession()` | Privado: ordena parámetros de regla y poderes, crea `Game` y solicita la sesión mediante `startSessionForView`. |
 | `step()` | Consulta si la sesión sigue activa, actualiza controles visuales y avanza el dominio mediante `Game`; limpia movimiento tras un gol. |
 | `setMovementControl(control, pressed)` | Paquete: reenvía el estado de tecla a `PresentationMovement`. |
 | `kickLeft()` | Paquete: intenta patear con el primer jugador izquierdo; no aplica en modo contra bot. |
 | `kickRight()` | Paquete: intenta patear con el primer participante derecho. |
-| `runScenario(scenario)` | Crea sesión limpia, prepara el escenario mediante `Game` y ejecuta el dominio sin que el movimiento visual altere el estado preparado. |
+| `runScenario(scenario)` | Crea sesión limpia, prepara el escenario mediante `Game` y ejecuta el dominio; la colisión entre balones necesita al menos dos. |
 | `getSessionView()` | Devuelve una instantánea `Game.SessionView` para que la interfaz la dibuje. |
 
 ### `MechanicsTestPanel`
 
-**Responsabilidad:** exponer controles Swing para elegir sesiones, simular, patear y activar escenarios, además de dibujar la instantánea proporcionada por el controlador.
+**Responsabilidad:** exponer la configuración seleccionada, simular, patear y activar escenarios, además de dibujar la instantánea proporcionada por el controlador.
 
-**Atributos:** `controller: MechanicsTestController` coordina el dominio; `sessionMode` y `matchMode` son selectores `JComboBox`; `limit: JSpinner` almacena el límite; `status`, `score`, `controlHelp: JLabel` muestran mensajes, marcador e instrucciones; `fieldView: FieldView` dibuja la cancha; `timer: Timer` avanza pasos visuales; `runButton`, `kickLeftButton`, `kickRightButton: JButton` son botones de control; `kickKeysDown: Set<Integer>` evita repetir patadas por mantener una tecla pulsada.
+**Atributos:** `controller: MechanicsTestController` coordina el dominio; `sessionMode`, `matchMode` y `limit` muestran opciones de solo lectura elegidas al inicio; `status`, `score`, `controlHelp: JLabel` muestran mensajes, marcador e instrucciones; `fieldView: FieldView` dibuja la cancha; `timer: Timer` avanza pasos visuales; `runButton`, `kickLeftButton`, `kickRightButton: JButton` son botones de control; `kickKeysDown: Set<Integer>` evita repetir patadas por mantener una tecla pulsada.
 
 **Métodos:**
 
 | Método | Qué hace |
 |---|---|
 | `MechanicsTestPanel()` | Construye y organiza controles, escenarios, campo, teclado y sesión inicial. |
+| `MechanicsTestPanel(configuration)` | Construye la ventana de simulación con las opciones elegidas al inicio. |
 | `stopSimulation()` | Detiene el temporizador Swing. |
 | `buildSettings()` | Privado: crea selectores y controles de nueva sesión, paso y simulación. |
 | `buildScenarios()` | Privado: crea acciones de patada y lista desplazable de escenarios. |
@@ -548,7 +573,7 @@ Todos extienden `BasePanel` y declaran `prepareView()` y `prepareController()` v
 | `bindKickKey(keyCode, name, leftPlayer)` | Privado: conecta patada y limita la acción a una por pulsación. |
 | `performKick(leftPlayer)` | Privado: intenta patear, escribe el resultado y refresca el dibujo. |
 | `label(text)` | Privado: crea una etiqueta de texto con el estilo común. |
-| `startSession()` | Privado: detiene la anterior, crea una sesión con los selectores e inicia la simulación. |
+| `startSession()` | Privado: detiene la sesión anterior, reinicia la configuración elegida e inicia la simulación. |
 | `toggleSimulation()` | Privado: pausa o reanuda el temporizador. |
 | `advanceOneStep(showStepStatus)` | Privado: avanza el controlador; detiene por término/error y refresca el panel. |
 | `refreshView()` | Privado: actualiza el texto de marcador/tiempo/velocidad y solicita repintado. |
@@ -575,11 +600,14 @@ Todos extienden `BasePanel` y declaran `prepareView()` y `prepareController()` v
 | `reset(game, sessionIndex)` | Limpia controles y velocidades y establece la sesión activa. |
 | `resetAfterRound(game, sessionIndex)` | Limpia solicitudes de salto/velocidades tras gol y conserva la sesión activa. |
 | `update(game, sessionIndex, mode)` | Consulta una instantánea, envía movimiento horizontal por `Game` y actualiza el salto visual. |
-| `updateActor(game, sessionIndex, actor, opponent, controls...)` | Privado: delega el movimiento horizontal a `Game` y calcula el salto visual con la instantánea. |
+| `updateActor(game, sessionIndex, actor, opponent, controls...)` | Privado: delega el movimiento horizontal a `Game`, calcula el salto visual y limita el cruce vertical del balón; puede saltar desde la cara superior. |
+| `supportedByBall(balls, x, y, width, height)` | Privado: identifica si un balón sostiene al participante para permitir un nuevo salto. |
+| `resolveBallVerticalContact(balls, x, oldY, nextY, width, height, verticalSpeed)` | Privado: detiene el desplazamiento vertical en la cara superior al caer o en la inferior al ascender. |
+| `overlapsHorizontally(x, width, ball)` | Privado: comprueba que el participante esté horizontalmente sobre el círculo del balón. |
 | `touches(x, y, width, height, other)` | Privado: comprueba el solapamiento geométrico de dos vistas de participante. |
 | `isJump(control)` | Privado: indica si el control representa salto. |
 | `clamp(value, minimum, maximum)` | Privado: restringe el valor al intervalo indicado. |
 
 ## Estado de las implementaciones
 
-Los métodos vacíos y los campos no inicializados se describen como tales porque esta referencia documenta el código actual, no las funciones previstas. En especial, las pantallas de presentación, los poderes, efectos, estadísticas, movimiento del dominio y persistencia tienen partes aún no implementadas.
+Los métodos vacíos y los campos no inicializados se describen como tales porque esta referencia documenta el código actual, no las funciones previstas. En especial, las pantallas de presentación, los poderes, efectos, salto del dominio y persistencia tienen partes aún no implementadas; el banco simula visualmente el salto y permite aterrizar sobre los balones.

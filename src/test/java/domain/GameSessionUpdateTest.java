@@ -298,22 +298,108 @@ class GameSessionUpdateTest {
     }
 
     @Test
-    void participantBallImpulseRunsOnceUntilTheySeparate() throws Exception {
+    void movingBallBouncesFromParticipantWithoutTeleportingOrAddingRepeatedImpulse() throws Exception {
         PlayerVsPlayer session = session(5);
         SessionParticipant participant = session.participantsLeft.get(0);
+        participant.resetPosition(100, 50);
         Ball ball = ball(session);
-        ball.reposition(participant.getHitbox().getX() + participant.getHitbox().getWidth() / 2, 120);
+        double contactX = participant.getHitbox().getX() + participant.getHitbox().getWidth() + ball.getRadius() - 0.1;
+        ball.reposition(contactX, 75);
+        ball.applyImpulse(-20, 0);
 
         session.updateGame();
-        double afterFirstContact = ball.getVelocityX();
+        assertTrue(ball.getVelocityX() > 0);
+        assertTrue(ball.getX() >= participant.getHitbox().getX()
+                + participant.getHitbox().getWidth() + ball.getRadius());
+        double afterBounce = ball.getVelocityX();
         session.updateGame();
-        assertEquals(afterFirstContact, ball.getVelocityX(), 1e-9);
+        assertEquals(afterBounce, ball.getVelocityX(), 1e-9);
+        assertTrue(ball.getX() > contactX);
+    }
 
-        ball.reposition(225, 75);
+    @Test
+    void walkingIntoStationaryBallPushesItWithoutChangingItsVelocity() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant participant = session.participantsLeft.get(0);
+        participant.resetPosition(100, 50);
+        Ball ball = ball(session);
+        ball.reposition(100 + participant.getHitbox().getWidth() + ball.getRadius() + 1, 75);
+        double originalBallX = ball.getX();
+
+        session.movePlayer(participant, true);
+
+        assertEquals(102.5, participant.getHitbox().getX(), 1e-9);
+        assertEquals(originalBallX + 1.5, ball.getX(), 1e-6);
+        assertEquals(0, ball.getVelocityX(), 1e-9);
+        assertEquals(0, ball.getVelocityY(), 1e-9);
+        assertFalse(ball.intersects(participant).isContact());
+    }
+
+    @Test
+    void walkingPushStopsAtCourtBoundaryAndKeepsPlayerFromPassingThrough() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant participant = session.participantsLeft.get(0);
+        participant.resetPosition(405, 50);
+        Ball ball = ball(session);
+        ball.reposition(438, 75);
+
+        session.movePlayer(participant, true);
+
+        assertEquals(405, participant.getHitbox().getX(), 1e-9);
+        assertTrue(ball.getX() >= 438.4 && ball.getX() <= 438.5);
+        assertFalse(ball.intersects(participant).isContact());
+    }
+
+    @Test
+    void landingOnTopKeepsParticipantAboveAndSendsBallDownward() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant participant = session.participantsLeft.get(0);
+        participant.resetPosition(100, 70);
+        Ball ball = ball(session);
+        ball.reposition(111.25, 59.83);
+        ball.applyImpulse(0, 10);
+
         session.updateGame();
-        ball.reposition(participant.getHitbox().getX() + participant.getHitbox().getWidth() / 2, 120);
+
+        assertEquals(60, ball.getY(), 2e-6);
+        assertEquals(0.5, ball.getVelocityY(), 1e-9);
+        assertTrue(ball.getY() + ball.getRadius() <= participant.getHitbox().getY() + 1e-9);
+    }
+
+    @Test
+    void equalMassBallsExchangeNormalVelocityWithSeventyPercentRestitution() throws Exception {
+        PlayerVsPlayer session = session(5);
+        Ball first = ball(session);
+        Ball second = new Ball(450, 150, 10);
+        session.getField().addBall(second);
+        first.reposition(200, 70);
+        second.reposition(219, 70);
+        first.applyImpulse(10, 0);
+        second.applyImpulse(-10, 0);
+
         session.updateGame();
-        assertEquals(afterFirstContact + 4, ball.getVelocityX(), 1e-9);
+
+        assertEquals(-7, first.getVelocityX(), 1e-9);
+        assertEquals(7, second.getVelocityX(), 1e-9);
+        assertEquals(20, second.getX() - first.getX(), 1e-9);
+    }
+
+    @Test
+    void overlappingSeparatingBallsAreSeparatedWithoutASecondImpulse() throws Exception {
+        PlayerVsPlayer session = session(5);
+        Ball first = ball(session);
+        Ball second = new Ball(450, 150, 10);
+        session.getField().addBall(second);
+        first.reposition(200, 70);
+        second.reposition(219, 70);
+        first.applyImpulse(-5, 0);
+        second.applyImpulse(5, 0);
+
+        session.updateGame();
+
+        assertEquals(-5, first.getVelocityX(), 1e-9);
+        assertEquals(5, second.getVelocityX(), 1e-9);
+        assertTrue(second.getX() - first.getX() >= 20);
     }
 
     @Test

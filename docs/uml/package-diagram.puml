@@ -7,6 +7,8 @@ package "presentation" {
   }
   package "testing" {
     class MechanicsTestApp
+    class MechanicsTestSetupPanel
+    class MechanicsTestConfiguration
     class MechanicsTestPanel
     class MechanicsTestController
     class PresentationMovement
@@ -17,23 +19,21 @@ package "domain" {
   class Game
   class GameSession
   class SessionParticipant
-  package "rules" {
-    class TypeOfMatch
-  }
+  class TypeOfMatch
   package "hitbox" {
     interface Hitbox
   }
-  package "effects" {
-    class StatusEffect
-  }
-  package "powers" {
-    abstract class Power
-    class AuraAzul
-    class Rayo
-    class Tornado
-    class Ilusion
-    class PowerFactory
-  }
+  class StatusEffect
+  abstract class Power
+  class AuraAzul
+  class Rayo
+  class Tornado
+  class Ilusion
+  class PowerFactory
+  class GameException
+  enum Action
+  class ByGoals
+  class ByTime
 }
 GameController ..> Game
 GameController ..> GameSession
@@ -47,6 +47,10 @@ SessionParticipant ..> Power
 PowerFactory ..> Power
 UI ..> GameController : futuras llamadas desde UI
 MechanicsTestPanel ..> MechanicsTestController
+MechanicsTestSetupPanel ..> MechanicsTestConfiguration
+MechanicsTestApp ..> MechanicsTestSetupPanel
+MechanicsTestApp ..> MechanicsTestPanel
+MechanicsTestPanel ..> MechanicsTestConfiguration
 MechanicsTestPanel ..> Game : vista inmutable
 MechanicsTestController ..> Game
 PresentationMovement ..> Game
@@ -63,8 +67,9 @@ end note
 note bottom of GameSession
   Coordina una partida: guarda cancha,
   participantes, marcador y modalidad.
-  Coordina goles, contactos con jugadores
-  y revisa el final de la partida.
+  Coordina movimiento, goles, colisiones
+  entre balones y participantes, y revisa
+  el final de la partida.
 end note
 note bottom of Hitbox
   Representa una entidad que puede

@@ -20,6 +20,7 @@ public class GameException extends IllegalArgumentException {
     public static final String UNKNOWN_STAT = "la habilidad seleccionada no existe";
     public static final String INVALID_SESSION_INDEX = "el índice de sesión no es válido";
     public static final String INVALID_BALL_INDEX = "el índice de balón no es válido";
+    public static final String INVALID_BALL = "el balón no es válido";
     public static final String INVALID_PARTICIPANT_ID = "el identificador del participante no es válido";
     public static final String INVALID_STATISTICS = "las estadísticas no pueden ser nulas";
     public static final String INVALID_STATUS_EFFECT = "el efecto de estado no es válido";

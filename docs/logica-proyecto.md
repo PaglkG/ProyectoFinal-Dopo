@@ -25,7 +25,7 @@
 
 ### Personajes y poderes
 
-- Se ofrecen al menos cuatro personajes con poderes únicos: Corea del Sur usa `domain.powers.AuraAzul`, Camerún usa `domain.powers.Rayo`, Nigeria usa `domain.powers.Tornado` y Estados Unidos usa `domain.powers.Ilusion`.
+- Se ofrecen al menos cuatro personajes con poderes únicos: Corea del Sur usa `domain.AuraAzul`, Camerún usa `domain.Rayo`, Nigeria usa `domain.Tornado` y Estados Unidos usa `domain.Ilusion`.
 - `AuraAzul` viaja recto y horizontal a alta velocidad; al impactar empuja al rival hacia su propio arco. Su efecto dura 1,5 segundos y causa 8 puntos de daño base.
 - `Rayo` viaja recto cubierto de electricidad; al impactar impide saltar y reduce a la mitad la velocidad del rival durante 3 segundos. Causa 12 puntos de daño base.
 - `Tornado` viaja a ras del suelo y rebota rápidamente; al impactar lanza al rival al aire y le impide moverse, saltar o patear durante 3 segundos. Causa 8 puntos de daño base.
@@ -64,11 +64,13 @@
 
 - `GameSession.updateGame()` avanza en pasos fijos de `1/60` segundo. En cada paso, el balón suma `40 × paso` a su velocidad vertical y luego se desplaza usando las velocidades resultantes.
 - Al tocar el suelo, el balón se coloca con su parte inferior sobre el suelo, invierte la velocidad vertical y conserva el 70 % de su magnitud. Si la nueva magnitud es menor que `0.5`, la velocidad vertical queda en cero. La velocidad horizontal se conserva.
-- El balón no permanece superpuesto con un participante: al detectarse el contacto, se reposiciona horizontalmente hasta quedar fuera de su hitbox y del lado que lo aleja, eligiendo el otro lado si el primero lo sacaría de la cancha. En el primer paso del contacto se suma `Δvx = ±4` hacia fuera y `Δvy = -1`; la velocidad horizontal se redirige hacia fuera si aún apuntaba hacia el participante. El impulso se aplica una vez por contacto continuo y puede repetirse tras separarse y volver a tocarse.
+- Los balones son sólidos entre sí. Al tocarse, la cancha corrige la penetración y aplica una colisión de masas iguales con coeficiente de restitución `0.70` sobre la normal del contacto; la componente tangencial se conserva. Si ya se separan, solo se corrige la penetración y no se aplica un segundo impulso.
+- Un participante no puede atravesar el balón al desplazarse: al caminar empuja los balones quietos en la misma dirección, en pasos pequeños, conservando el contacto sin superposición. El empuje no cambia la velocidad del balón. Si el balón ya está en movimiento, el contacto se resuelve como rebote en vez de empuje. El empuje se detiene si sacaría el balón de la cancha, lo superpondría con otro balón o con otro participante. Un participante que ya está en contacto puede alejarse sin mover el balón.
+- Durante cada actualización, un balón que toca a un participante rebota contra su hitbox rectangular: la cancha corrige la penetración y refleja la componente normal de la velocidad con restitución `0.70`. El participante se trata como una superficie fija. Si un jugador cae sobre el balón, permanece encima y el balón se mueve hacia abajo a una velocidad mínima de `0.5` unidades/s.
 - Un gol ocurre cuando el centro del balón entra en el rectángulo de gol dentro de la cancha. Las hitboxes de gol conservan ancho `cancha/10` y alto `cancha/3`, y quedan apoyadas sobre la línea del suelo dentro del límite inferior. La entrada frontal del arco permanece libre para permitir el gol; los bordes del arco rebotan el balón. El arco izquierdo concede un punto al lado derecho y viceversa. La detección del gol precede a la comprobación de salida del balón.
 - Después de un gol se reinicia el balón al centro y se ubican los participantes de forma simétrica: hitbox de ancho `cancha/20`, alto `cancha/3`, centros horizontales en `1/4` y `3/4` del ancho, apoyados sobre el suelo.
-- Cualquier parte de la hitbox de un participante o balón que salga del rectángulo exterior de la cancha produce `GameException` con mensaje `objeto fuera de la partida`. Un participante que toque el límite superior o los límites laterales también produce esa excepción. El contacto participante-participante produce `GameException` con mensaje `dos objetos super puestos`.
-- El balón puede tocar límites laterales o superior sin efecto; toca el suelo para rebotar. El contacto participante-balón aplica el impulso descrito. Otros contactos con la cancha no tienen efecto.
+- Una colisión que empuje el balón contra un límite lo mantiene dentro del área jugable y lo rebota hacia el interior. Un participante que salga del rectángulo exterior o toque el límite superior o lateral produce `GameException` con mensaje `objeto fuera de la partida`. El contacto participante-participante produce `GameException` con mensaje `dos objetos super puestos`.
+- El balón rebota contra laterales, techo, arcos y suelo con retención de `0.70`. Después de una colisión, la cancha corrige cualquier salida de los límites interiores y devuelve el balón hacia dentro. El movimiento del participante empuja balones quietos o rebota contra los que ya se mueven; durante la actualización el contacto físico con participantes también se resuelve como rebote.
 - La sesión conserva goles izquierdo y derecho. En `ByGoals`, alcanzar el límite termina la sesión; en `ByTime`, el tiempo transcurrido se cuenta en segundos y se pasan a `check` los minutos enteros completos. La modalidad temporal continúa en empate (muerte súbita) y termina al quedar un ganador una vez agotado el límite. Una sesión terminada no avanza más.
 
 ### Hitboxes y medidas provisionales
@@ -95,7 +97,7 @@
 
 ### Excepciones
 
-- Toda excepción que lance explícitamente el código de la aplicación debe ser `domain.exception.GameException`, con un mensaje definido en esa clase. Los errores de formato, índices e inputs de reglas también se convierten a `GameException`.
+- Toda excepción que lance explícitamente el código de la aplicación debe ser `domain.GameException`, con un mensaje definido en esa clase. Los errores de formato, índices e inputs de reglas también se convierten a `GameException`.
 
 ### Reglas futuras fuera del diagrama actual
 
@@ -104,7 +106,7 @@
 ## Estado actual del código (no equivale a una regla confirmada)
 
 - `presentation.testing` usa únicamente la fachada `Game`, que entrega instantáneas inmutables y operaciones para acciones y preparación de escenarios. El controlador de la presentación principal aún conserva referencias a `GameSession` y `SessionParticipant`; esa parte sigue pendiente de adaptación a la regla de arquitectura.
-- La fachada de prueba `Game.startSessionForView`, `inspectSession`, `movePlayer`, `kickPlayer`, `updateGame`, `setParticipantPosition`, `setBallPosition` y `applyBallImpulse` permite crear, consultar y preparar escenarios sin exponer referencias mutables de sesión, participante, cancha o balón a la presentación de pruebas. El salto de `PresentationMovement` continúa siendo únicamente visual.
+- La fachada de prueba `Game.startSessionForView`, `inspectSession`, `movePlayer`, `kickPlayer`, `updateGame`, `setParticipantPosition`, `setBallPosition` y `applyBallImpulse` permite crear, consultar y preparar escenarios sin exponer referencias mutables de sesión, participante, cancha o balón a la presentación de pruebas. El salto de `PresentationMovement` es visual, pero la posición resultante participa en las colisiones y permite aterrizar encima de un balón.
 - `Game.movePlayer` delega en `GameSession`; la sesión solo delega el movimiento si el participante pertenece a ella y no está terminada. `SessionParticipant` actualiza su posición y su hitbox con `150 × speed / 60`; `speed` inicia en 1.
 - `Game.startSession` crea reflectivamente una subclase de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, y agrega la instancia a la lista de sesiones.
 - `PlayerVsBot` construye un jugador humano y un bot; `PlayerVsPlayer` construye dos jugadores humanos.
@@ -116,7 +118,7 @@
 - `ByTime.suddenDeath` se activa cuando se agota el tiempo con empate; en ese caso `check` devuelve `true` y, si un marcador queda desigual, se apaga al terminar.
 - Para ajustarse al diagrama, se retiraron de `domain` `Scoreboard`, `Outfit`, `Head`, `Shoe`, `Rule` y `Side`. `Action` se conserva porque aparece en el tipo de retorno de `BotPlayer.decideAction`.
 - Se conservan los parámetros de jugador y reglas en los constructores de `GameSession`, `PlayerVsBot` y `PlayerVsPlayer`, y la lista de parámetros en las fábricas reflectivas. `TypeOfMatch.check` conserva su contrato `boolean` con parámetros, de acuerdo con la regla de continuidad confirmada.
-- `GameSession` coordina el paso de juego, aplica contactos balón-participante, registra el marcador, reposiciona a los participantes tras gol y detiene sesiones terminadas conforme a la modalidad. `SoccerField` recorre sus balones para avanzar su estado y coordina los rebotes contra límites, arcos y suelo; `Ball` conserva estado físico y ejecuta las operaciones delegadas.
+- `GameSession` coordina el paso de juego, el movimiento y los goles. `SoccerField` contiene y avanza los balones, resuelve colisiones entre balones y participantes, y rebotes contra límites, arcos y suelo; `Ball` conserva el estado físico y ejecuta las operaciones delegadas.
 - `GameSession.kickPlayer` permite la patada a participantes registrados en sesiones activas, si no están aturdidos. Prioriza dañar al rival si está dentro de 8 unidades entre hitboxes; sin rival al alcance, permite patear el balón cuando su superficie está a 8 unidades o menos del borde de la hitbox. El dominio aplica al balón un impulso horizontal de 150 unidades/s hacia el arco contrario y uno vertical de -50 unidades/s.
 
 ## Decisiones pendientes
@@ -163,3 +165,5 @@
 | 2026-11-17 | Cada victoria humana otorga 5 puntos; mejorar `speed`, `goal`, `kick` o `jump` cuesta 5 y aumenta un nivel; `GameSession.ImproveStatistics(true, ...)` selecciona derecha/jugador 1 y `false` izquierda/jugador 2. Las excepciones explícitas de la aplicación son `GameException`. | Pablo |
 | 2026-11-17 | Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`. | Pablo |
 | 2026-11-17 | La vida máxima/inicial es 100; la patada causa 10 de daño base y cada nivel adicional de `kick` suma 5; alcanzar cero activa un aturdimiento de 3 segundos con `StatusEffect` y recuperación de vida al expirar. | Pablo |
+| 2026-11-17 | Se reemplaza la respuesta de contacto participante-balón: al caminar, el jugador puede empujar balones quietos en pasos pequeños sin atravesarlos; el empuje no cambia su velocidad. Un balón en movimiento rebota contra el jugador en lugar de ser empujado. El empuje se bloquea si causaría colisión con la cancha u otra entidad. | Pablo |
+| 2026-11-17 | Los balones rebotan contra participantes con restitución de `0.70`. Si el jugador cae sobre el balón, permanece encima y el balón adquiere movimiento hacia abajo, con mínimo de `0.5` unidades/s. | Pablo |

@@ -39,6 +39,7 @@ public class ByGoals extends TypeOfMatch {
         return isGoals(playerLeft, playerRight);
     }
 
+    /** Convierte a entero el parámetro indicado o lanza la excepción de dominio correspondiente. */
     private int parseInteger(List<String> parameters, int index, String message) {
         if (parameters == null || parameters.size() <= index) {
             throw new GameException(message);

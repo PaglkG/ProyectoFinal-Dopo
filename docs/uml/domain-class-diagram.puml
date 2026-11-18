@@ -68,7 +68,6 @@ package "domain" {
     - goalsLeft: int
     - goalsRight: int
     - finished: boolean
-    - activeBallContacts: IdentityHashMap<Ball, Set<SessionParticipant>>
     # participantsRight: List<SessionParticipant>
     # participantsLeft: List<SessionParticipant>
     + movePlayer(user: SessionParticipant, direction: boolean): void
@@ -107,6 +106,7 @@ package "domain" {
     - status: List<StatusEffect>
     - specialPower: Power
     + move(dir: boolean): void
+    ~ moveBy(horizontalDistance: double): void
     + getStats(): Stats
     + setStats(stats: Stats): void
     + getLife(): int
@@ -141,6 +141,14 @@ package "domain" {
     - fieldHitbox: RectangularHitbox[]
     - balls: Ball[]
     + advanceBalls(deltaSeconds: double, gravity: double): void
+    + addBall(ball: Ball): void
+    + resolveBallCollisions(restitution: double): void
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double): void
+    + keepBallInsideCourt(ball: Ball, retention: double): void
+    - resolveBallPair(first: Ball, second: Ball, restitution: double): void
+    - resolveBallParticipant(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
+    - validBallPosition(candidate: Ball, moved: SessionParticipant, participants: Iterable<SessionParticipant>): boolean
     + balls(): Ball[]
     + courtX(): double
     + courtY(): double
@@ -223,9 +231,6 @@ package "domain" {
     JUMP
     POWER
   }
-}
-
-package "domain.rules" {
   abstract class TypeOfMatch {
     + check(parameters: List<String>): boolean
   }
@@ -236,15 +241,10 @@ package "domain.rules" {
     - minutes: int
     - suddenDeath: boolean
   }
-}
-
-package "domain.exception" {
   class GameException {
     + GameException(message: String)
     + GameException(message: String, cause: Throwable)
   }
-}
-package "domain.powers" {
   abstract class Power
   class AuraAzul
   class Rayo
@@ -259,6 +259,7 @@ package "domain.powers" {
   Power <|-- Tornado
   Power <|-- Ilusion
 }
+
 package "domain.hitbox" {
   interface Hitbox {
     + intersects(hitbox: Hitbox): HitboxContact
@@ -297,16 +298,38 @@ package "presentation.testing" {
   class MechanicsTestApp {
     + main(args: String[]): void {static}
   }
+  class MechanicsTestSetupPanel {
+    - onStart: Consumer<MechanicsTestConfiguration>
+    + MechanicsTestSetupPanel(onStart: Consumer<MechanicsTestConfiguration>)
+  }
+  class MechanicsTestConfiguration <<record>> {
+    + sessionMode: SessionMode
+    + matchMode: MatchMode
+    + limit: int
+    + sessionClass: String
+    + matchClass: String
+    + ruleParameters: List<String>
+    + rightPowerClass: String
+    + leftPowerClass: String
+    + botProfile: String
+    + playerOne: boolean
+    + defaults(): MechanicsTestConfiguration {static}
+  }
   class MechanicsTestPanel {
     - controller: MechanicsTestController
     + MechanicsTestPanel()
+    + MechanicsTestPanel(configuration: MechanicsTestConfiguration)
     + stopSimulation(): void
   }
   class MechanicsTestController {
     - game: Game
     - activeSessionIndex: int
     - movement: PresentationMovement
+    - configuration: MechanicsTestConfiguration
+    + MechanicsTestController()
+    + MechanicsTestController(configuration: MechanicsTestConfiguration)
     + startNewSession(sessionMode: SessionMode, matchMode: MatchMode, limit: int): void
+    + restartConfiguredSession(): void
     + step(): void
     + setMovementControl(control: Control, pressed: boolean): void
     + kickLeft(): boolean
@@ -321,6 +344,8 @@ package "presentation.testing" {
     GROUND_BOUNCE
     SAFE_FIELD_CONTACT
     BALL_SIDE_REBOUND
+    BALL_BALL_COLLISION
+    KICK_OPPONENT
     PARTICIPANT_OUTSIDE
     PARTICIPANT_TOUCHES_SIDE
     PARTICIPANTS_OVERLAP
@@ -347,6 +372,10 @@ package "presentation.testing" {
     + reset(game: Game, sessionIndex: int): void
     + resetAfterRound(game: Game, sessionIndex: int): void
     + update(game: Game, sessionIndex: int, mode: SessionMode): void
+    - updateActor(game: Game, sessionIndex: int, actor: Game.ParticipantView, opponent: Game.ParticipantView, leftControl: Control, rightControl: Control, jumpControl: Control): void
+    - supportedByBall(balls: List<Game.BallView>, x: double, y: double, width: double, height: double): boolean
+    - resolveBallVerticalContact(balls: List<Game.BallView>, x: double, oldY: double, nextY: double, width: double, height: double, verticalSpeed: double): double
+    - overlapsHorizontally(x: double, width: double, ball: Game.BallView): boolean
   }
   enum Control {
     LEFT_LEFT
@@ -410,6 +439,9 @@ TypeOfMatch <|-- ByTime
 GameController --> Game
 GameController --> GameSession
 MechanicsTestApp ..> MechanicsTestPanel
+MechanicsTestApp ..> MechanicsTestSetupPanel
+MechanicsTestSetupPanel ..> MechanicsTestConfiguration
+MechanicsTestPanel ..> MechanicsTestConfiguration
 MechanicsTestPanel --> MechanicsTestController
 MechanicsTestController --> Game
 MechanicsTestController ..> Scenario
@@ -426,9 +458,12 @@ end note
 note bottom of GameSession
   updateGame() usa paso fijo de 1/60 s.
   Coordina goles, errores de salida/superposición
-  y contactos con participantes. SoccerField
-  avanza los balones y resuelve sus contactos
-  con límites, arcos y suelo.
+  y colisiones entre balones y participantes.
+  SoccerField avanza los balones y resuelve sus
+  colisiones entre sí, con participantes y con
+  límites, arcos y suelo. movePlayer()
+  permite empujar el balón en pasos pequeños sin
+  cambiar su velocidad ni atravesarlo.
   kickPlayer() valida participante y sesión,
   prioriza un rival en alcance para aplicar daño
   y, si no lo hay, impulsa el balón alcanzable.
@@ -436,7 +471,8 @@ end note
 note right of SoccerField
   Contiene y recorre los balones, límites
   y zonas de gol; resuelve el contacto
-  de los balones con la geometría de cancha.
+  entre balones, con participantes y con
+  la geometría de cancha.
 end note
 note bottom of Ball
   Guarda posición y velocidad, integra
@@ -444,3 +480,4 @@ note bottom of Ball
   que le delegan la cancha o la sesión.
 end note
 @enduml
+    + MechanicsTestController()

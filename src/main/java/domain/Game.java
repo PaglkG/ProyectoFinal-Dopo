@@ -19,17 +19,55 @@ import domain.exception.GameException;
 public class Game {
 
     /** Rectángulo inmutable expuesto por las consultas de estado de una sesión. */
+    /**
+     * Rectángulo inmutable usado para dibujar límites, cancha y arcos.
+     * @param x coordenada horizontal de su origen
+     * @param y coordenada vertical de su origen
+     * @param width ancho del rectángulo
+     * @param height alto del rectángulo
+     */
     public record RectangleView(double x, double y, double width, double height) { }
 
     /** Estado observable de un participante; su id tiene el formato {@code lado:índice}. */
+    /**
+     * Instantánea inmutable de la identidad, lado, posición, tamaño y velocidad de un participante.
+     * @param id identificador opaco en formato lado:índice
+     * @param side lado de la cancha, {@code left} o {@code right}
+     * @param x coordenada horizontal de la esquina superior izquierda
+     * @param y coordenada vertical de la esquina superior izquierda
+     * @param width ancho de la hitbox
+     * @param height alto de la hitbox
+     * @param speed nivel actual de velocidad
+     */
     public record ParticipantView(String id, String side, double x, double y,
             double width, double height, int speed) { }
 
     /** Estado observable de un balón. */
+    /**
+     * Instantánea inmutable de la posición y velocidad de un balón.
+     * @param index índice del balón en la cancha
+     * @param x coordenada horizontal del centro
+     * @param y coordenada vertical del centro
+     * @param radius radio del balón
+     * @param velocityX velocidad horizontal
+     * @param velocityY velocidad vertical
+     */
     public record BallView(int index, double x, double y, double radius,
             double velocityX, double velocityY) { }
 
     /** Instantánea inmutable para dibujar o consultar una sesión sin exponer sus objetos internos. */
+    /**
+     * Instantánea inmutable del estado observable de una sesión.
+     * @param court rectángulo exterior de la cancha
+     * @param boundaries límites de la cancha
+     * @param goals áreas de gol
+     * @param participants participantes registrados
+     * @param balls balones contenidos en la cancha
+     * @param goalsLeft goles del lado izquierdo
+     * @param goalsRight goles del lado derecho
+     * @param elapsedSeconds segundos transcurridos
+     * @param finished indica si la sesión terminó
+     */
     public record SessionView(RectangleView court, List<RectangleView> boundaries,
             List<RectangleView> goals, List<ParticipantView> participants, List<BallView> balls,
             int goalsLeft, int goalsRight, double elapsedSeconds, boolean finished) {
@@ -77,6 +115,7 @@ public class Game {
         return session;
     }
 
+    /** Recorre ambos lados de una sesión para restaurar las estadísticas de sus jugadores humanos. */
     private void restorePlayerStats(GameSession session) {
         for (SessionParticipant participant : session.getParticipantsLeft()) {
             restorePlayerStats(participant);
@@ -86,6 +125,7 @@ public class Game {
         }
     }
 
+    /** Reutiliza las estadísticas persistidas para el ID del jugador humano recibido. */
     private void restorePlayerStats(SessionParticipant participant) {
         if (participant instanceof Player player) {
             Stats savedStats = playerStats.computeIfAbsent(player.getUserId(), ignored -> participant.getStats());
@@ -198,6 +238,7 @@ public class Game {
         requireBall(sessionIndex, ballIndex).applyImpulse(deltaX, deltaY);
     }
 
+    /** Devuelve la sesión del índice indicado o lanza GameException si el índice no existe. */
     private GameSession requireSession(int sessionIndex) {
         if (sessionIndex < 0 || sessionIndex >= sessions.size()) {
             throw new GameException(GameException.INVALID_SESSION_INDEX);
@@ -205,6 +246,7 @@ public class Game {
         return sessions.get(sessionIndex);
     }
 
+    /** Devuelve el balón solicitado o lanza GameException si la sesión o el índice son inválidos. */
     private Ball requireBall(int sessionIndex, int ballIndex) {
         Ball[] balls = requireSession(sessionIndex).getField().getBalls();
         if (ballIndex < 0 || ballIndex >= balls.length) {
@@ -213,6 +255,7 @@ public class Game {
         return balls[ballIndex];
     }
 
+    /** Interpreta el identificador lado:índice y busca al participante correspondiente. */
     private SessionParticipant findParticipant(GameSession session, String participantId) {
         if (participantId == null) throw new GameException(GameException.INVALID_PARTICIPANT_ID);
         String[] parts = participantId.split(":", -1);
@@ -229,6 +272,7 @@ public class Game {
         }
     }
 
+    /** Copia la información de cada participante de un lado a las instantáneas de presentación. */
     private void addParticipantViews(List<ParticipantView> target, String side,
             List<SessionParticipant> participants) {
         for (int index = 0; index < participants.size(); index++) {

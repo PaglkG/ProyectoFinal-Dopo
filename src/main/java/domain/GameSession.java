@@ -3,9 +3,6 @@ package domain;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.IdentityHashMap;
-import java.util.HashSet;
-import java.util.Set;
 import domain.exception.GameException;
 import domain.hitbox.Hitbox;
 import domain.rules.TypeOfMatch;
@@ -35,7 +32,6 @@ public abstract class GameSession {
     private int goalsLeft;
     private int goalsRight;
     private boolean finished;
-    private final IdentityHashMap<Ball, Set<SessionParticipant>> activeBallContacts = new IdentityHashMap<>();
     protected List<SessionParticipant> participantsRight;
     protected List<SessionParticipant> participantsLeft;
     
@@ -71,18 +67,21 @@ public abstract class GameSession {
         if (finished || user == null || (!participantsRight.contains(user) && !participantsLeft.contains(user))) {
             return;
         }
+        double previousX = user.getHitbox().getX();
         user.move(direction);
+        List<SessionParticipant> all = new ArrayList<>(participantsLeft);
+        all.addAll(participantsRight);
+        field.resolveWalkingContact(user, previousX, all, BOUNCE_RETENTION);
     }
 
     /**
      * Reinicia cada balón en el centro de la cancha, recoloca los participantes
-     * y limpia el registro de contactos continuos entre balones y participantes.
+     * y limpia el estado de la ronda.
      */
     public void restartRound() {
         field.resetBall(field.courtX() + field.courtWidth() / 2,
                 field.courtY() + field.courtHeight() / 2);
         positionParticipants();
-        activeBallContacts.clear();
     }
 
     /**
@@ -194,6 +193,7 @@ public abstract class GameSession {
         return false;
     }
 
+    /** Busca el rival más cercano cuya hitbox esté dentro del alcance de patada. */
     private SessionParticipant closestOpponentInReach(
             domain.hitbox.RectangularHitbox attacker, List<SessionParticipant> opponents) {
         SessionParticipant closest = null;
@@ -286,6 +286,7 @@ public abstract class GameSession {
         selectedSide.get(0).ImproveStatistics(stats);
     }
 
+    /** Otorga los puntos de victoria a los jugadores humanos del lado ganador. */
     private void awardWinningPlayers() {
         if (goalsLeft == goalsRight) return;
         List<SessionParticipant> winningSide = goalsRight > goalsLeft ? participantsRight : participantsLeft;
@@ -314,10 +315,9 @@ public abstract class GameSession {
     /**
      * Comprueba primero participantes fuera de cancha y superpuestos; después
      * procesa goles antes de salidas del balón, rebotes con límites/arcos y suelo,
-     * y contactos balón-participante. Los contactos continuos se registran para
-     * aplicar el impulso solo al inicio de cada contacto. Lanza {@link GameException}
-     * si un participante excede el campo o se superpone con otro, o si un balón
-     * termina fuera de la cancha.
+     * y contactos físicos entre balones y participantes. La cancha corrige los
+     * balones contra los límites para mantenerlos dentro; lanza {@link GameException}
+     * si un participante excede el campo o se superpone con otro.
      */
     private void collision() {
         List<SessionParticipant> allParticipants = new ArrayList<>(participantsLeft);
@@ -340,69 +340,13 @@ public abstract class GameSession {
         goal();
         if (leftBefore != goalsLeft || rightBefore != goalsRight) return;
 
+        field.resolveBallCollisions(BOUNCE_RETENTION);
+        field.resolveBallParticipantCollisions(allParticipants, BOUNCE_RETENTION, MIN_BOUNCE_SPEED);
         for (Ball ball : field.balls()) {
             field.bounceBallAtWallsAndGoalFrames(ball, BOUNCE_RETENTION);
-            if (field.isOutside(ball)) throw new GameException(GameException.OBJECT_OUT_OF_MATCH);
             field.bounceBallAtGround(ball, BOUNCE_RETENTION, MIN_BOUNCE_SPEED);
-            Set<SessionParticipant> currentContacts = new HashSet<>();
-            Set<SessionParticipant> previousContacts = activeBallContacts.computeIfAbsent(ball,
-                    ignored -> java.util.Collections.newSetFromMap(new IdentityHashMap<>()));
-            for (SessionParticipant participant : allParticipants) {
-                if (ball.intersects(participant).isContact()) {
-                    currentContacts.add(participant);
-                    int awayDirection = separateBallFromParticipant(ball, participant);
-                    if (!previousContacts.contains(participant)) {
-                        applyParticipantImpulse(ball, awayDirection);
-                    }
-                }
-            }
-            previousContacts.clear();
-            previousContacts.addAll(currentContacts);
+            field.keepBallInsideCourt(ball, BOUNCE_RETENTION);
         }
-    }
-
-    /**
-     * Suma al balón un impulso horizontal de magnitud 4 alejándolo del
-     * participante y un impulso vertical de -1; luego garantiza que la velocidad
-     * horizontal apunte hacia fuera.
-     *
-     * @param ball balón que recibe el impulso
-     * @param awayDirection dirección horizontal hacia fuera, -1 o 1
-     */
-    private void applyParticipantImpulse(Ball ball, int awayDirection) {
-        double deltaX = awayDirection * 4.0;
-        ball.applyImpulse(deltaX, -1.0);
-        ball.ensureHorizontalDirection(awayDirection, Math.abs(deltaX));
-    }
-
-    /**
-     * Determina el lado más cercano para separar el balón del participante,
-     * invierte la dirección si esa separación excede los límites laterales y
-     * mueve el balón justo fuera de la hitbox del participante.
-     *
-     * @param ball balón que debe separarse
-     * @param participant participante con el que está en contacto
-     * @return dirección horizontal final hacia fuera, como -1 o 1
-     */
-    private int separateBallFromParticipant(Ball ball, SessionParticipant participant) {
-        var box = participant.getHitbox();
-        double participantCenter = box.getX() + box.getWidth() / 2;
-        int direction = Double.compare(ball.getX(), participantCenter);
-        if (direction == 0) {
-            direction = participantsLeft.contains(participant) ? 1 : -1;
-        }
-        double separation = 1e-6;
-        double leftX = box.getX() - ball.getRadius() - separation;
-        double rightX = box.getX() + box.getWidth() + ball.getRadius() + separation;
-        double minCenterX = field.getHitboxField()[2].getX() + ball.getRadius() + separation;
-        double maxCenterX = field.getHitboxField()[3].getX() - ball.getRadius() - separation;
-        double separatedX = direction > 0 ? rightX : leftX;
-        if (separatedX < minCenterX || separatedX > maxCenterX) {
-            direction *= -1;
-            separatedX = direction > 0 ? rightX : leftX;
-        }
-        ball.reposition(separatedX, ball.getY());
-        return direction;
     }
 
     /**
