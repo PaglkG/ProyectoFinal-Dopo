@@ -35,7 +35,7 @@ public record MechanicsTestConfiguration(
     /** Crea la configuración inicial con las clases estándar del proyecto. */
     public static MechanicsTestConfiguration defaults() {
         return new MechanicsTestConfiguration(MechanicsTestController.SessionMode.PLAYER_VS_PLAYER,
-                MechanicsTestController.MatchMode.GOALS, 5, "domain.PlayerVsPlayer", "domain.rules.ByGoals",
-                List.of("5"), "domain.powers.BlueAura", "domain.powers.Lightning", "Clumsy", true);
+                MechanicsTestController.MatchMode.GOALS, 5, "domain.PlayerVsPlayer", "domain.ByGoals",
+                List.of("5"), "domain.BlueAura", "domain.Lightning", "Clumsy", true);
     }
 }

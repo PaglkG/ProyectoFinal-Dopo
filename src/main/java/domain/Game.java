@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import domain.exception.GameException;
+import domain.GameException;
 
 /**
  * Coordina la creación y administración de sesiones, participantes,

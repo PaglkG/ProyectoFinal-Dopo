@@ -2,7 +2,7 @@ package domain;
 
 import java.util.Map;
 import java.util.HashMap;
-import domain.exception.GameException;
+import domain.GameException;
 
 /**
  * Representa las estadísticas del jugador y los puntos disponibles.

@@ -29,7 +29,6 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `movePlayer(sessionIndex, participantId, direction)` / `kickPlayer(sessionIndex, participantId)` | Ejecutan movimiento o patada para un participante identificado por lado e índice. |
 | `updateGame(sessionIndex)` | Avanza la sesión indicada por su índice. |
 | `setParticipantPosition(...)`, `setBallPosition(...)`, `applyBallImpulse(...)` | Preparan coordenadas e impulsos para escenarios visuales mediante la fachada. |
-| `jumpPlayer(session, player)` | Está vacío; no delega el salto. |
 | `powerPlayer(session, player)` | Está vacío; no activa poderes. |
 | `whatSession(name, player, parametersRules, typeMatche, parametersPowers)` | Método privado que valida y crea la subclase de sesión solicitada; traduce errores de reflexión a `GameException`. |
 | `improveStatistics(session, player, stats)` | Delega en la sesión para mejorar la habilidad seleccionada; `true` selecciona derecha/jugador 1. |
@@ -55,9 +54,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `KICK_HORIZONTAL_IMPULSE` | Impulso horizontal de la patada: `150`. |
 | `KICK_VERTICAL_IMPULSE` | Impulso vertical de la patada: `-50`. |
 | `timeLeft: double` | En la implementación, tiempo transcurrido en segundos, aunque el nombre diga `timeLeft`. |
-| `yBase`, `xBase: int` | Coordenadas base declaradas; actualmente no se leen ni se asignan en la clase. |
 | `TypeOfMatch: TypeOfMatch` | Modalidad que evalúa el fin del partido. |
-| `allHitbox: Hitbox[]` | Campo reservado para hitboxes; actualmente no se inicializa ni se usa. |
 | `field: SoccerField` | Cancha de la sesión y acceso a sus balones y geometría. |
 | `goalsLeft`, `goalsRight: int` | Marcadores de ambos lados. |
 | `finished: boolean` | Indica si la sesión terminó según su modalidad. |
@@ -70,11 +67,8 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `GameSession(player, typeMatche, parametersRules)` | Crea las listas, instancia reflectivamente la modalidad, crea la cancha y fija el tiempo inicial en cero. |
 | `movePlayer(user, direction)` | Valida participante y sesión, guarda la coordenada anterior, delega el paso de movimiento en el participante y delega a `SoccerField` la resolución del contacto con balones. |
 | `restartRound()` | Centra y detiene todos los balones y posiciona los participantes. |
-| `assignRules(typeMatche)` | Está vacío; no cambia la modalidad. |
-| `minParticipants()` | Está sin implementar; devuelve `null`. |
 | `goal(side)` | Si `side` es `left` o `right`, incrementa ese marcador, reinicia la ronda y consulta la modalidad. Otros textos no producen cambios. |
 | `goal()` | Privado: busca un balón cuyo centro esté en un arco y registra el punto para el lado opuesto al arco. |
-| `jumpPlayer(player)` | Está vacío; no delega el salto. |
 | `powerPlayer(player)` | Está vacío; no activa poderes. |
 | `kickPlayer(player)` | Rechaza sesiones terminadas, nulos, no registrados o aturdidos; si el rival está a 8 unidades o menos, le aplica daño según `kick` y prioriza ese golpe. Si no, patea el balón al alcance. |
 | `createMatchRule(typeGame, parametersRules)` | Privado: carga una modalidad por nombre, valida su tipo y constructor, y la instancia. |
@@ -168,7 +162,6 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 |---|---|
 | `physical: boolean` | Indicador declarado, actualmente sin lectura ni escritura en la clase. |
 | `velocityX`, `velocityY: double` | Componentes horizontal y vertical de velocidad. |
-| `BallHitbox: CircularHitbox` | Forma que almacena centro y radio del balón. |
 
 **Métodos:**
 
@@ -210,7 +203,6 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 |---|---|
 | `SessionParticipant()` | Crea una hitbox provisional en el origen, con dimensiones iniciales basadas en `450 × 150`. |
 | `move(dir)` | Desplaza el participante 150 × `speed` / 60 unidades en la dirección indicada. |
-| `moveBy(horizontalDistance)` | De paquete: desplaza al participante la distancia horizontal indicada; lo usa la sesión para moverlo en pasos pequeños y permitir empujar balones. |
 | `getStats()` / `setStats(stats)` | Consultan o asocian las estadísticas; `Game` comparte por ID humano la instancia guardada entre sesiones. `setStats(null)` produce `GameException`. |
 | `takeDamage(damage)` | Reduce vida sin bajar de cero; al llegar a cero aplica `StatusEffect.STUNNED` por 3 segundos. |
 | `blocksMovement()` / `updateStatusEffects()` | Bloquea movimiento durante el aturdimiento, avanza su temporizador y restaura vida máxima al expirar. |
@@ -364,137 +356,24 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Métodos:** `RectangularHitbox(x, y, width, height)` inicializa la forma; `intersects(hitbox)` delega el cálculo; `reposition(x, y)` cambia la esquina sin cambiar dimensiones; `getX()`, `getY()`, `getWidth()`, `getHeight()` consultan valores; `resize(width, height)` cambia dimensiones sin mover la esquina.
 
-### `Action` (enumeración)
+### Action (enumeración de domain)
 
 **Responsabilidad:** enumerar las acciones previstas para un participante controlado por el programa.
 
 **Valores:** `LEFT`, `RIGHT`, `JUMP`, `POWER`. No declara atributos ni métodos propios.
 
-## Presentación (`presentation`)
+## Presentación (presentation)
 
-### `App`
+La aplicación principal usa Swing y todavía no está conectada a una sesión del dominio.
 
-**Responsabilidad:** iniciar la interfaz principal en el hilo de eventos de Swing.
+- DOPOSoccerGUI crea la ventana, registra las pantallas en un CardLayout y configura el cierre.
+- NavigationController cambia la pantalla visible y cierra la ventana.
+- BasePanel es la clase abstracta con los contratos prepareView() y prepareController().
+- MainMenuPanel, ConfigurationPanel, PersonalizationPanel y StoreImprovementPanel implementan interfaces locales. La configuración de teclado y sonido no se persiste; la tienda mantiene niveles y precios provisionales en memoria.
+- PreparationPanel, MatchPanel y PausePanel son pantallas sin lógica de partida conectada.
+- RoundedButton, RoundedPanel y Theme aportan componentes y estilos compartidos.
 
-**Atributos:** ninguno.
-
-**Métodos:** `main(args)` programa la creación y muestra de `GameGUI` mediante `SwingUtilities.invokeLater`.
-
-### `GameGUI`
-
-**Responsabilidad:** ser el marco principal de la aplicación y alojar un administrador de pantallas.
-
-**Atributos:** `screenManager: ScreenManager`, referencia prevista para navegación; no se inicializa actualmente.
-
-**Métodos:** `GameGUI()` está vacío; no configura todavía la ventana.
-
-### `GameController`
-
-**Responsabilidad:** servir de puente previsto entre las acciones de interfaz y el dominio.
-
-**Atributos:** `game: Game` coordinador; `session: GameSession` partida activa. Actualmente no se inicializan.
-
-**Métodos:** `startGame()`, `movePlayer(participant, direction)`, `jumpPlayer(participant)` y `activatePower(participant)` están vacíos; aún no delegan al modelo.
-
-### `Screen` (interfaz)
-
-**Responsabilidad:** definir el ciclo de vida de una pantalla navegable.
-
-**Atributos:** ninguno.
-
-**Métodos:** `onShow()` para prepararse al mostrarse; `onHide()` al ocultarse; `dispose()` para liberar recursos. Son contratos, no implementaciones.
-
-### `ScreenManager`
-
-**Responsabilidad:** concentrar el registro y la navegación entre pantallas.
-
-**Atributos:** `screens: Map<String, Screen>` registro previsto; `currentScreen: String` identificador previsto de la pantalla visible. No se inicializan actualmente.
-
-**Métodos:** `registerScreen(screenId, screen)`, `showScreen(screenId)`, `hideCurrentScreen()` y `disposeScreens()` están vacíos.
-
-### Componentes y pantallas
-
-#### `ScoreboardView`
-
-**Responsabilidad:** panel reutilizable previsto para el marcador y barras de poder.
-
-**Atributos:** ninguno declarado.
-
-**Métodos:** `ScoreboardView()` crea actualmente un `JPanel` sin componentes adicionales.
-
-#### `PlayerStatusView`
-
-**Responsabilidad:** panel reutilizable previsto para mostrar el estado de un participante.
-
-**Atributos:** `participant: SessionParticipant`, referencia reservada que actualmente no se inicializa ni consulta.
-
-**Métodos:** `PlayerStatusView()` crea un panel sin componentes adicionales.
-
-#### `GamePanel`
-
-**Responsabilidad:** pantalla de juego prevista para representar la cancha y el estado de partida.
-
-**Atributos:** ninguno declarado.
-
-**Métodos:** `GamePanel()` crea un panel vacío; `onShow()`, `onHide()` y `dispose()` son implementaciones vacías del ciclo de vida `Screen`.
-
-#### `LoadingPanel`
-
-**Responsabilidad:** pantalla temporal prevista para indicar una carga o preparación.
-
-**Atributos:** ninguno declarado.
-
-**Métodos:** `LoadingPanel()` crea un panel vacío; `onShow()`, `onHide()` y `dispose()` están vacíos.
-
-#### `MenuPanel`
-
-**Responsabilidad:** pantalla del menú principal prevista para navegación inicial.
-
-**Atributos:** ninguno declarado.
-
-**Métodos:** `MenuPanel()` crea un panel vacío; `onShow()`, `onHide()` y `dispose()` están vacíos.
-
-## Presentación de prototipo (`presentation.samuel`)
-
-Estas pantallas son esqueletos Swing separados de las pantallas de `presentation.screens`. Sus atributos nombran componentes planeados, pero los métodos de construcción y control están vacíos.
-
-### `BasePanel` (abstracta)
-
-**Responsabilidad:** definir una base para paneles que separan armado de vista y conexión de controladores.
-
-**Atributos:** ninguno declarado.
-
-**Métodos:** `BasePanel()` constructor vacío; `prepareView()` y `prepareController()` métodos abstractos para configurar la vista y sus eventos.
-
-### `DOPOSoccerGUI`
-
-**Responsabilidad:** ventana JFrame prevista para alojar las pantallas del prototipo.
-
-**Atributos:** `navigationController: NavigationController` coordina navegación; `mainMenuPanel: MainMenuPanel`, `configurationPanel: ConfigurationPanel`, `personalizationPanel: PersonalizationPanel`, `storeImprovementPanel: StoreImprovementPanel`, `preparationPanel: PreparationPanel`, `matchPanel: MatchPanel` y `pausePanel: PausePanel` son las pantallas previstas para la ventana.
-
-**Métodos:** `DOPOSoccerGUI()` está vacío; `prepareView()` y `prepareController()` son privados y están vacíos.
-
-### `NavigationController`
-
-**Responsabilidad:** controlar la navegación prevista del prototipo.
-
-**Atributos:** `doposoccerGUI: DOPOSoccerGUI`, ventana asociada prevista.
-
-**Métodos:** `NavigationController()` está vacío; no hay operaciones de navegación implementadas.
-
-### Paneles del prototipo
-
-Todos extienden `BasePanel` y declaran `prepareView()` y `prepareController()` vacíos.
-
-| Clase | Atributos declarados | Responsabilidad prevista; constructor |
-|---|---|---|
-| `MainMenuPanel` | `titleLabel: JLabel` muestra el título; `playButton`, `openMatchButton`, `configurationButton`, `exitButton: JButton` representan las acciones principales del menú. | Menú principal; constructor vacío. |
-| `ConfigurationPanel` | `musicCheckBox`, `effectsCheckBox: JCheckBox` habilitan opciones de sonido; `volumeSlider: JSlider` selecciona volumen; `actionLabels: JLabel[]` identifican controles; `player1KeyButtons`, `player2KeyButtons: JButton[]` representan asignaciones por jugador; `saveButton`, `backButton: JButton` representan guardar y volver. | Ajustes de sonido y controles; constructor vacío. |
-| `PersonalizationPanel` | `modeComboBox`, `botProfileComboBox`, `matchTypeComboBox`, `fieldSizeComboBox`, `player1CountryComboBox`, `player2CountryComboBox: JComboBox<String>` seleccionan modo, perfil, modalidad, cancha y países; `minutesTextField`, `goalsTextField: JTextField` recogen límites; `player1PreviewLabel`, `player2PreviewLabel: JLabel` muestran vistas previas; `player1DescriptionTextArea`, `player2DescriptionTextArea: JTextArea` muestran descripciones; `storeButton`, `startButton`, `backToMenuButton: JButton` representan tienda, inicio y regreso. | Configurar los parámetros visuales de una partida; constructor vacío. |
-| `StoreImprovementPanel` | `player1PointsLabel`, `player2PointsLabel: JLabel` muestran puntos; `player1LevelLabels`, `player1PriceLabels`, `player2LevelLabels`, `player2PriceLabels: JLabel[]` muestran niveles y precios; `player1UpgradeButtons`, `player2UpgradeButtons: JButton[]` representan mejoras; `backButton: JButton` permite volver. | Tienda prevista para gastar puntos en estadísticas; constructor vacío. |
-| `PreparationPanel` | `titleLabel: JLabel` identifica la pantalla; `progressBar: JProgressBar` representa el progreso; `cancelButton: JButton` representa cancelar. | Pantalla de preparación; constructor vacío. |
-| `MatchPanel` | `scoreLabel`, `timeLabel: JLabel` muestran marcador y tiempo; `pauseButton: JButton` representa pausa; `player1LifeBar`, `player1PowerBar`, `player2LifeBar`, `player2PowerBar: JProgressBar` representan vida y poder de cada jugador. | Representación del partido; constructor vacío. |
-| `PausePanel` | `scoreLabel`, `titleLabel: JLabel` muestran marcador y título; `resumeButton`, `restartButton`, `mainMenuButton: JButton` representan continuar, reiniciar y volver al menú. | Menú superpuesto de pausa; constructor vacío. |
+No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el código actual. La presentación principal no importa tipos de domain; el banco visual independiente consume la fachada Game.
 
 ## Banco de pruebas visual (`presentation.testing`)
 

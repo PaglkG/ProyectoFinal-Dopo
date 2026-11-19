@@ -1,6 +1,6 @@
 package domain;
-import domain.exception.GameException;
-import domain.powers.PowerFactory;
+import domain.GameException;
+import domain.PowerFactory;
 import java.util.List;
 
 /**

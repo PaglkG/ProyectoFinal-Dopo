@@ -1,4 +1,4 @@
-package domain.exception;
+package domain;
 
 /**
  * @author Pablo Andres Gualdron Lindo

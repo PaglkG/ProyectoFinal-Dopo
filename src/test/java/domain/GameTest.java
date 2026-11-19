@@ -13,9 +13,9 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import domain.exception.GameException;
-import domain.rules.ByGoals;
-import domain.rules.ByTime;
+import domain.GameException;
+import domain.ByGoals;
+import domain.ByTime;
 class GameTest {
 
     private Game game;
@@ -29,7 +29,7 @@ class GameTest {
     void startSessionReportsAnUnknownSessionClassAndDoesNotStoreASession() throws ReflectiveOperationException {
         GameException exception = assertThrows(
                 GameException.class,
-                () -> game.startSession(List.of(), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                () -> game.startSession(List.of(), List.of("domain.BlueAura", "domain.Lightning"),
                         "missing.session.Class", ByGoals.class.getName(), false));
 
         assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
@@ -41,7 +41,7 @@ class GameTest {
             throws ReflectiveOperationException {
         GameException exception = assertThrows(
                 GameException.class,
-                () -> game.startSession(List.of(), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                () -> game.startSession(List.of(), List.of("domain.BlueAura", "domain.Lightning"),
                         SessionClassWithoutExpectedConstructor.class.getName(), ByGoals.class.getName(), false));
 
         assertEquals(GameException.NO_CONSTRUCTOR_FOUND, exception.getMessage());
@@ -53,7 +53,7 @@ class GameTest {
             throws ReflectiveOperationException {
         GameException exception = assertThrows(
                 GameException.class,
-                () -> game.startSession(List.of(), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                () -> game.startSession(List.of(), List.of("domain.BlueAura", "domain.Lightning"),
                         SessionClassWithThreeArgumentConstructor.class.getName(), "rules", false));
 
         assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
@@ -64,7 +64,7 @@ class GameTest {
     void startSessionMapsAnInaccessibleConstructorToTheCustomConstructorException() {
         GameException exception = assertThrows(
                 GameException.class,
-                () -> game.startSession(List.of(), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                () -> game.startSession(List.of(), List.of("domain.BlueAura", "domain.Lightning"),
                         SessionClassWithPrivateConstructor.class.getName(), "rules", false));
 
         assertEquals(GameException.NO_CONSTRUCTOR_FOUND, exception.getMessage());
@@ -73,7 +73,7 @@ class GameTest {
     @Test
     void startSessionWrapsAnInvalidPowerClassLikeOtherReflectiveConstructorFailures() throws ReflectiveOperationException {
         GameException exception = assertThrows(GameException.class,
-                () -> game.startSession(List.of("5"), List.of("domain.Clumsy", "domain.powers.Lightning"),
+                () -> game.startSession(List.of("5"), List.of("domain.Clumsy", "domain.Lightning"),
                         PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true));
 
         assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
@@ -86,7 +86,7 @@ class GameTest {
     @Test
     void startSessionRejectsAnIncompletePowerSelection() throws ReflectiveOperationException {
         GameException exception = assertThrows(GameException.class,
-                () -> game.startSession(List.of("5"), List.of("domain.powers.BlueAura"),
+                () -> game.startSession(List.of("5"), List.of("domain.BlueAura"),
                         PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true));
 
         assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
@@ -121,7 +121,7 @@ class GameTest {
 
     @Test
     void startSessionCreatesAndStoresAPlayerVsBotSession() throws GameException, ReflectiveOperationException {
-        game.startSession(List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning", "Clumsy"),
+        game.startSession(List.of("5"), List.of("domain.BlueAura", "domain.Lightning", "Clumsy"),
                 PlayerVsBot.class.getName(), ByGoals.class.getName(), true);
 
         assertEquals(1, sessions(game).size());
@@ -130,7 +130,7 @@ class GameTest {
 
     @Test
     void startSessionCreatesAndStoresAPlayerVsPlayerSession() throws GameException, ReflectiveOperationException {
-        game.startSession(List.of("10"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+        game.startSession(List.of("10"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByTime.class.getName(), false);
 
         assertEquals(1, sessions(game).size());
@@ -140,10 +140,10 @@ class GameTest {
     @Test
     void closeSessionRemovesTheSpecifiedSessionAndKeepsTheOthers() throws GameException, ReflectiveOperationException {
         GameSession first = game.startSession(
-                List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         GameSession second = game.startSession(
-                List.of("10"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("10"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), false);
 
         game.closeSession(second);
@@ -155,14 +155,14 @@ class GameTest {
     @Test
     void startSessionRestoresEachUsersPointsAndSkillLevelsAcrossSessions() throws GameException {
         GameSession first = game.startSession(
-                List.of("1"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("1"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         first.goal("right");
         Stats playerOne = first.getParticipantsRight().get(0).getStats();
         playerOne.improveStatistics("speed");
 
         GameSession second = game.startSession(
-                List.of("1"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("1"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
 
         assertSame(playerOne, second.getParticipantsRight().get(0).getStats());
@@ -172,7 +172,7 @@ class GameTest {
 
         second.goal("right");
         GameSession third = game.startSession(
-                List.of("1"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("1"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
 
         assertEquals(2, third.getParticipantsRight().get(0).getStats().getStatistic("speed"));
@@ -182,7 +182,7 @@ class GameTest {
     @Test
     void movePlayerDelegatesToTheSpecifiedSessionAndParticipant() throws Exception {
         GameSession session = game.startSession(
-                List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         SessionParticipant participant = session.getParticipantsRight().get(0);
         participant.resetPosition(100, 20);
@@ -196,7 +196,7 @@ class GameTest {
     @Test
     void improveStatisticsDelegatesToTheSelectedParticipant() throws Exception {
         GameSession session = game.startSession(
-                List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         Stats rightStats = session.getParticipantsRight().get(0).getStats();
         rightStats.awardWin();
@@ -211,7 +211,7 @@ class GameTest {
     @Test
     void sessionViewExposesImmutableRenderingStateWithoutSessionObjects() throws Exception {
         int sessionIndex = game.startSessionForView(
-                List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
 
         Game.SessionView view = game.inspectSession(sessionIndex);
@@ -227,7 +227,7 @@ class GameTest {
     @Test
     void facadeMovementUsesSessionAndParticipantIdentifiers() throws Exception {
         int sessionIndex = game.startSessionForView(
-                List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         game.setParticipantPosition(sessionIndex, "right:0", 100, 20);
 
@@ -241,7 +241,7 @@ class GameTest {
     @Test
     void facadeKickReturnsWhetherTheBallWasReachedAndUpdatesItsSnapshot() throws Exception {
         int sessionIndex = game.startSessionForView(
-                List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         Game.ParticipantView right = game.inspectSession(sessionIndex).participants().get(1);
         game.setBallPosition(sessionIndex, 0, right.x() + right.width() / 2, right.y() + right.height() / 2);
@@ -256,7 +256,7 @@ class GameTest {
     @Test
     void facadeBallSetupUpdatesPositionAndVelocityInTheSnapshot() throws Exception {
         int sessionIndex = game.startSessionForView(
-                List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         game.setBallPosition(sessionIndex, 0, 80, 50);
 
@@ -272,7 +272,7 @@ class GameTest {
     @Test
     void facadeUpdateAdvancesTheIndexedSession() throws Exception {
         int sessionIndex = game.startSessionForView(
-                List.of("5"), List.of("domain.powers.BlueAura", "domain.powers.Lightning"),
+                List.of("5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
 
         game.updateGame(sessionIndex);

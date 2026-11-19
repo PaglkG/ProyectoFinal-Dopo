@@ -5,7 +5,7 @@ import domain.hitbox.Hitbox;
 import domain.hitbox.HitboxContact;
 import domain.hitbox.CircularHitbox;
 import domain.hitbox.RectangularHitbox;
-import domain.exception.GameException;
+import domain.GameException;
 
 /**
  * Representa la cancha, sus hitboxes y los balones que contiene.

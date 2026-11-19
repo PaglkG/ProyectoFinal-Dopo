@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import domain.hitbox.CircularHitbox;
 import domain.hitbox.RectangularHitbox;
-import domain.exception.GameException;
+import domain.GameException;
 
 /** Pruebas de las hitboxes y del reinicio de los balones de la cancha. */
 class SoccerFieldTest {

@@ -3,13 +3,13 @@ package domain;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import domain.effects.StatusEffect;
+import domain.StatusEffect;
 import domain.hitbox.Hitbox;
 import domain.hitbox.HitboxContact;
 import domain.hitbox.HitboxIntersections;
 import domain.hitbox.RectangularHitbox;
-import domain.powers.Power;
-import domain.exception.GameException;
+import domain.Power;
+import domain.GameException;
 
 /**
  * Define el estado compartido por jugadores y bots durante una sesión.
@@ -94,7 +94,7 @@ public abstract class SessionParticipant implements Hitbox {
     /** Asocia estadísticas, por ejemplo las recuperadas por {@link Game} para un usuario. */
     public void setStats(Stats stats) {
         if (stats == null) {
-            throw new domain.exception.GameException(domain.exception.GameException.INVALID_STATISTICS);
+            throw new domain.GameException(domain.GameException.INVALID_STATISTICS);
         }
         this.stats = stats;
     }

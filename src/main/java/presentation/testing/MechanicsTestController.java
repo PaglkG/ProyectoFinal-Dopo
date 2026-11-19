@@ -61,9 +61,9 @@ public final class MechanicsTestController {
         selectedLimit = Math.max(0, limit);
         configuration = new MechanicsTestConfiguration(sessionMode, matchMode, selectedLimit,
                 sessionMode == SessionMode.PLAYER_VS_BOT ? "domain.PlayerVsBot" : "domain.PlayerVsPlayer",
-                matchMode == MatchMode.TIME ? "domain.rules.ByTime" : "domain.rules.ByGoals",
-                List.of(Integer.toString(selectedLimit)), "domain.powers.BlueAura",
-                "domain.powers.Lightning", "Clumsy", true);
+                matchMode == MatchMode.TIME ? "domain.ByTime" : "domain.ByGoals",
+                List.of(Integer.toString(selectedLimit)), "domain.BlueAura",
+                "domain.Lightning", "Clumsy", true);
         createConfiguredSession();
     }
 
@@ -189,7 +189,7 @@ public final class MechanicsTestController {
             }
             case SUDDEN_DEATH_WIN -> {
                 configuration = new MechanicsTestConfiguration(selectedSessionMode, MatchMode.TIME, 0,
-                        configuration.sessionClass(), "domain.rules.ByTime", List.of("0"),
+                        configuration.sessionClass(), "domain.ByTime", List.of("0"),
                         configuration.rightPowerClass(), configuration.leftPowerClass(),
                         configuration.botProfile(), configuration.playerOne());
                 createConfiguredSession();

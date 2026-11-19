@@ -1,8 +1,8 @@
-package domain.powers;
+package domain;
 
 import java.lang.reflect.InvocationTargetException;
 
-import domain.exception.GameException;
+import domain.GameException;
 
 /** Crea poderes y perfiles de bot por nombre de clase con errores de dominio. */
 public final class PowerFactory {
@@ -24,7 +24,7 @@ public final class PowerFactory {
      *
      * @param <T>          El tipo genérico del objeto que se espera retornar.
      * @param className    El nombre completamente calificado de la clase a instanciar
-     *                     (incluyendo el paquete, por ejemplo: "domain.powers.Lightning").
+     *                     (incluyendo el paquete, por ejemplo: "domain.Lightning").
      * @param expectedType La referencia {@code Class} del tipo base o interfaz que la
      *                     clase instanciada debe extender o implementar.
      * @return Una nueva instancia de {@code className} casteada de forma segura al tipo {@code T}.

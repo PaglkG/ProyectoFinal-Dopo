@@ -12,10 +12,10 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import domain.exception.GameException;
-import domain.rules.ByGoals;
-import domain.rules.ByTime;
-import domain.rules.TypeOfMatch;
+import domain.GameException;
+import domain.ByGoals;
+import domain.ByTime;
+import domain.TypeOfMatch;
 
 /** Pruebas para las rutas de error implementadas en el constructor de sesión. */
 class GameSessionTest {

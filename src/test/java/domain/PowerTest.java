@@ -1,4 +1,4 @@
-package domain.powers;
+package domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
 
-import domain.exception.GameException;
+import domain.GameException;
 
 /** Pruebas de carga de los tipos concretos de poder seleccionables. */
 class PowerTest {
@@ -51,7 +51,7 @@ class PowerTest {
     @Test
     void factoryReportsWhenTheNamedPowerClassDoesNotExist() {
         GameException exception = assertThrows(GameException.class,
-                () -> PowerFactory.create("domain.powers.DoesNotExist"));
+                () -> PowerFactory.create("domain.DoesNotExist"));
 
         assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
     }

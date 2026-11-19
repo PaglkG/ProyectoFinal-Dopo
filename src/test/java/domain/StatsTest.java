@@ -9,7 +9,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import domain.exception.GameException;
+import domain.GameException;
 
 /** Pruebas de niveles de habilidad y puntos de mejora. */
 class StatsTest {

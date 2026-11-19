@@ -21,8 +21,8 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 | `Game` | `startSession` crea una sesión por reflexión con modalidad, reglas, poderes y perfil; la añade a `sessions`; `new Game()` inicializa la lista. | El flujo implementado pasa la lista de poderes al constructor de la sesión y conserva la traducción reflectiva de errores a `GameException`. |
 | `Game.closeSession` | Ejecuta `sessions.remove(closeSession)`. | Retira de la lista la sesión recibida; si no está presente, no altera la lista. |
 | `Game.movePlayer` | Delega en la sesión para participantes registrados en una partida activa; el participante se desplaza 150 × `speed` / 60 unidades, en la dirección confirmada. | Implementado en esta revisión conforme a dirección y fórmula confirmadas. |
-| `Game.jumpPlayer`, `powerPlayer`, `resetSession`, `save`, `open` | Cuerpos vacíos. | Pendiente. Las secuencias de salto, poder y reinicio describen llamadas objetivo que todavía no ocurren. Las páginas de `open` y `save` están vacías. `improveStatistics` ya delega en la sesión. |
-| `GameSession` | Constructor crea listas, modalidad reflectiva y `SoccerField`; fija tiempo transcurrido a cero y usa gravedad 40. Actualiza en pasos de 1/60 s, empuja balones quietos al caminar y delega a la cancha el contacto con balones en movimiento. | La secuencia de actualización incluye rebotes entre balones y participantes; al aterrizar sobre un balón, el banco mantiene al jugador encima y mueve el balón hacia abajo. Siguen pendientes `minParticipants`, `assignRules` y poder. |
+| Game.powerPlayer, resetSession, save, open | Cuerpos vacíos. | Pendiente. El salto, el poder y el reinicio siguen sin implementarse. Las páginas de open y save están vacías. improveStatistics ya delega en la sesión. |
+powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el código actual.
 | `PlayerVsBot` | Crea el jugador humano a la derecha y el perfil bot solicitado a la izquierda; asocia los dos poderes elegidos. | Coincide con el orden confirmado de participantes, poderes y dificultad. Los tipos de bot se crean reflectivamente y sus decisiones siguen pendientes. |
 | `PlayerVsPlayer` | Crea jugador 1 a la derecha y jugador 2 a la izquierda; asocia el poder de cada lado según la lista recibida. | Coincide con posiciones fijas y orden confirmado de parámetros. |
 | `SoccerField` | Crea cancha provisional de 450×150, cuatro límites, dos arcos y balones; proporciona consultas para gol, salida, suelo y ubicación simétrica de participantes; resuelve colisiones entre balones y contra participantes, y mantiene los balones dentro de los límites. | La intersección devuelve la entidad contactada y su hitbox. `reposition` traslada también los balones; `resetBall(x,y)` centra y detiene. Al contacto desde arriba el balón adquiere movimiento descendente mínimo. |
@@ -41,7 +41,7 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 2. El PDF coloca `isTime` e `isSuddenDeath` en `ByGoals`; el código y la regla documentada los ubican en `ByTime`.
 3. `Stats.action` aparece como `HashSet` en el PDF; el código/regla acordada definen `Map<String,Integer>`.
 4. La secuencia `closeSession` y la implementación eliminan la sesión solicitada.
-5. La secuencia `resetSession` usa cuatro coordenadas y bases distintas por lado; Java expone `SoccerField.resetBall(x,y)` y `GameSession` solo declara `xBase`/`yBase` comunes.
+5. La secuencia resetSession supone cuatro coordenadas y bases por lado; esos campos no existen en GameSession actual. Java expone SoccerField.resetBall(x,y), mientras Game.resetSession está vacío.
 6. Las secuencias `startSessionPlayerVsBot`/`VsPlayer` tienen inconsistencias de nombres/tipos: llamadas a modalidad con nombres de parámetros intercambiados, creación o retorno rotulado como la modalidad equivocada, y creación de `Scoreboard` aunque esa clase fue retirada del dominio actual. En la secuencia PVP, la sesión aparece rotulada `PlayerVsBot`.
 7. La interfaz y formas del diagrama de Hitbox omiten `reposition(x,y)`, que sí existe en Java.
 8. La secuencia `movePlayer` fija `true = derecha`, `false = izquierda`; la dirección y fórmula de desplazamiento se confirmaron e implementaron.
@@ -55,7 +55,7 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 4. Implementar salto y poder a través de `Game`, `GameSession`, participante y `Power` una vez definidos sus efectos y límites.
 5. Completar estadísticas, estados temporales y ejecución de disparos/efectos de poderes, además de las decisiones de perfiles de bot.
 6. Implementar `save`/`open`; sus páginas de secuencia no muestran interacciones que permitan derivar el formato o el contrato.
-7. Implementar `minParticipants`, `assignRules`, `addParticipant(s)` y otras operaciones declaradas si se mantienen dentro del alcance del producto.
+7. Definir si se agregará un flujo de registro de participantes; actualmente las modalidades construyen automáticamente sus participantes.
 
 ## Páginas sin flujo utilizable
 

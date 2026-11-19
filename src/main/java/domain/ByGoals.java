@@ -1,7 +1,7 @@
-package domain.rules;
+package domain;
 import java.util.ArrayList;
 import java.util.List;
-import domain.exception.GameException;
+import domain.GameException;
 /**
  * Tipo de partido que termina al alcanzar un límite de goles.
  * @author Pablo Andres Gualdron Lindo

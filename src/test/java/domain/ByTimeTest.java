@@ -1,4 +1,4 @@
-package domain.rules;
+package domain;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,7 +11,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import domain.exception.GameException;
+import domain.GameException;
 
 /** Pruebas de las validaciones implementadas actualmente en {@link ByTime}. */
 class ByTimeTest {

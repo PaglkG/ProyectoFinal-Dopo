@@ -1,4 +1,4 @@
-package domain.powers;
+package domain;
 
 /**
  * Poder que puede reaparecer en una posición de la cancha.

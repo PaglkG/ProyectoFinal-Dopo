@@ -1,4 +1,4 @@
-package domain.enums;
+package domain;
 
 /**
  * Acciones que puede realizar un participante.

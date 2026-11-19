@@ -3,8 +3,8 @@ package domain;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
-import domain.exception.GameException;
-import domain.powers.PowerFactory;
+import domain.GameException;
+import domain.PowerFactory;
 import domain.Clumsy;
 import domain.Offensive;
 import domain.Defensive;

@@ -25,7 +25,7 @@
 
 ### Personajes y poderes
 
-- Se ofrecen al menos cuatro personajes con poderes únicos: Corea del Sur usa `domain.powers.BlueAura`, Camerún usa `domain.powers.Lightning`, Nigeria usa `domain.powers.Tornado` y Estados Unidos usa `domain.powers.Illusion`.
+- Se ofrecen al menos cuatro personajes con poderes únicos: Corea del Sur usa `domain.BlueAura`, Camerún usa `domain.Lightning`, Nigeria usa `domain.Tornado` y Estados Unidos usa `domain.Illusion`.
 - `BlueAura` viaja recto y horizontal a alta velocidad; al impactar empuja al rival hacia su propio arco. Su efecto dura 1,5 segundos y causa 8 puntos de daño base.
 - `Lightning` viaja recto cubierto de electricidad; al impactar impide saltar y reduce a la mitad la velocidad del rival durante 3 segundos. Causa 12 puntos de daño base.
 - `Tornado` viaja a ras del suelo y rebota rápidamente; al impactar lanza al rival al aire y le impide moverse, saltar o patear durante 3 segundos. Causa 8 puntos de daño base.
@@ -85,7 +85,7 @@
 
 ### Configuración del jugador
 
-- El subsistema de configuración fue retirado por decisión de Pablo. El modelo ya no gestiona preferencias de sonido o música ni asignaciones de teclas por jugador.
+- El dominio no almacena preferencias de sonido, música ni asignaciones de teclas. La presentación conserva una pantalla de configuración local; sus controles no se persisten y el botón Guardar solo vuelve al menú.
 
 ### Estadísticas actuales
 
@@ -105,18 +105,23 @@
 
 ## Estado actual del código (no equivale a una regla confirmada)
 
-- `presentation.testing` usa únicamente la fachada `Game`, que entrega instantáneas inmutables y operaciones para acciones y preparación de escenarios. El controlador de la presentación principal aún conserva referencias a `GameSession` y `SessionParticipant`; esa parte sigue pendiente de adaptación a la regla de arquitectura.
+- Los tipos del dominio están en domain, salvo la geometría, que permanece en domain.hitbox. Action, las modalidades, los poderes, StatusEffect y GameException también están directamente en domain desde el aplanado de paquetes.
+- La presentación principal no importa clases del dominio y todavía no conecta una partida jugable. presentation.testing sí usa únicamente la fachada Game, que entrega instantáneas inmutables y operaciones para mover, patear y preparar escenarios.
 - La fachada de prueba `Game.startSessionForView`, `inspectSession`, `movePlayer`, `kickPlayer`, `updateGame`, `setParticipantPosition`, `setBallPosition` y `applyBallImpulse` permite crear, consultar y preparar escenarios sin exponer referencias mutables de sesión, participante, cancha o balón a la presentación de pruebas. El salto de `PresentationMovement` es visual, pero la posición resultante participa en las colisiones y permite aterrizar encima de un balón.
 - `Game.movePlayer` delega en `GameSession`; la sesión solo delega el movimiento si el participante pertenece a ella y no está terminada. `SessionParticipant` actualiza su posición y su hitbox con `150 × speed / 60`; `speed` inicia en 1.
 - `Game.startSession` crea reflectivamente una subclase de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, y agrega la instancia a la lista de sesiones.
 - `PlayerVsBot` construye un jugador humano y un bot; `PlayerVsPlayer` construye dos jugadores humanos.
-- `PlayerVsPlayer` y `PlayerVsBot` asocian al crearse los poderes seleccionados mediante nombres completos de clase. En `PlayerVsBot`, se crea el perfil indicado. Las clases concretas de poderes aún no ejecutan disparos; activar el aura, lanzar el tiro y aplicar daño/efectos siguen sin implementarse.
+- PlayerVsPlayer y PlayerVsBot asocian los poderes elegidos mediante nombres completos de clase (domain.BlueAura, etc.); PlayerVsBot también crea el perfil indicado. Power.usePower, SessionParticipant.power y las clases concretas no activan ni disparan poderes; la carga, el aura, el daño y los efectos de poder siguen sin implementarse.
+- BotPlayer.decideAction devuelve null; Clumsy, Offensive, Defensive y Expert no redefinen el método, por lo que las prioridades confirmadas de esos perfiles todavía no se ejecutan.
+- SessionParticipant.jump está vacío. El banco simula el salto en PresentationMovement; ese movimiento visual no usa el nivel jump ni el estado de aturdimiento del dominio.
+- Stats inicia las cuatro claves en 1. speed se usa para el movimiento horizontal y kick para calcular daño; goal y jump pueden mejorarse, pero no tienen efecto conectado al flujo de juego actual.
+- SessionParticipant.applyStatusEffect reemplaza efectos anteriores del mismo tipo, pero conserva simultáneamente efectos de tipos distintos. Esto no cumple la regla confirmada de que un efecto nuevo reemplaza al anterior sin acumulación.
 - En la implementación actual, `PlayerVsPlayer` coloca al jugador 1 a la derecha y al jugador 2 a la izquierda. `PlayerVsBot` coloca al jugador humano a la derecha y al bot a la izquierda, tanto cuando el humano es el jugador 1 como cuando es el jugador 2; esto coincide con la regla confirmada.
 - `GameSession` instancia una subclase de `TypeOfMatch` mediante reflexión.
 - `ByGoals` recibe el límite de goles como primer parámetro de su lista. Su método `check` recibe dos marcadores.
 - `ByTime` recibe los minutos del partido como primer parámetro de su lista. Su método `check` lee los marcadores desde las posiciones 0 y 1 y el tiempo transcurrido desde la posición 2.
 - `ByTime.suddenDeath` se activa cuando se agota el tiempo con empate; en ese caso `check` devuelve `true` y, si un marcador queda desigual, se apaga al terminar.
-- Para ajustarse al diagrama, se retiraron de `domain` `Scoreboard`, `Outfit`, `Head`, `Shoe`, `Rule` y `Side`. `Action` se conserva porque aparece en el tipo de retorno de `BotPlayer.decideAction`.
+- En el código actual no existen Scoreboard, Outfit, Head, Shoe, Rule ni Side en el dominio. Action está en domain y aparece en el tipo de retorno de BotPlayer.decideAction.
 - Se conservan los parámetros de jugador y reglas en los constructores de `GameSession`, `PlayerVsBot` y `PlayerVsPlayer`, y la lista de parámetros en las fábricas reflectivas. `TypeOfMatch.check` conserva su contrato `boolean` con parámetros, de acuerdo con la regla de continuidad confirmada.
 - `GameSession` coordina el paso de juego, el movimiento y los goles. `SoccerField` contiene y avanza los balones, resuelve colisiones entre balones y participantes, y rebotes contra límites, arcos y suelo; `Ball` conserva el estado físico y ejecuta las operaciones delegadas.
 - `GameSession.kickPlayer` permite la patada a participantes registrados en sesiones activas, si no están aturdidos. Prioriza dañar al rival si está dentro de 8 unidades entre hitboxes; sin rival al alcance, permite patear el balón cuando su superficie está a 8 unidades o menos del borde de la hitbox. El dominio aplica al balón un impulso horizontal de 150 unidades/s hacia el arco contrario y uno vertical de -50 unidades/s.
@@ -125,21 +130,20 @@
 
 ### Inicio y participantes
 
-- Confirmar el mapeo exacto de `player`: ¿`true` identifica al jugador 1 y `false` al jugador 2?
+
 - ¿Una sesión inicia inmediatamente con los participantes predeterminados o debe esperar a que se registren los usuarios?
 - ¿Qué debe ocurrir si se intenta crear una sesión con listas nulas, vacías o parámetros incompletos?
 
-### Victoria, goles y tiempo
 
-- ¿Qué evento termina la muerte súbita cuando el partido está empatado al agotarse el tiempo?
 
 ### Movimiento y física
 
-- ¿Qué velocidades, aceleraciones, límites y condiciones de salto/movimiento tienen los participantes?
+- Definir velocidad vertical, límites y condiciones del salto en el dominio. El movimiento horizontal ya está confirmado; el salto actual del banco es una simulación visual.
 
 ### Marcador, estadísticas y poderes
 
-- ¿Qué efecto exacto aplica cada estadística, incluida `kick`?
+- Confirmar si goal debe iniciar en 0 o en 1. El código y el registro anterior lo mantienen en 1; Pablo cuestionó ese valor posteriormente.
+- Definir el efecto de las mejoras goal y jump; hoy solo se incrementan sus niveles. speed multiplica el movimiento y kick aumenta el daño.
 
 ### Bots, reglas y persistencia
 

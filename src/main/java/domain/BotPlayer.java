@@ -1,7 +1,7 @@
 package domain;
 
 import java.util.Set;
-import domain.enums.Action;
+import domain.Action;
 
 /**
  * Define el comportamiento común de los perfiles controlados por la máquina.

@@ -3,9 +3,9 @@ package domain;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
-import domain.exception.GameException;
+import domain.GameException;
 import domain.hitbox.Hitbox;
-import domain.rules.TypeOfMatch;
+import domain.TypeOfMatch;
 
 /**
  * Mantiene el estado de una sesión, sus participantes, la cancha, el marcador
@@ -221,7 +221,7 @@ public abstract class GameSession {
     }
 
     /**
-     * Evalúa la regla activa con los marcadores y, para {@link domain.rules.ByTime},
+     * Evalúa la regla activa con los marcadores y, para {@link domain.ByTime},
      * los minutos completos transcurridos. Actualiza {@code finished}; la regla
      * temporal devuelve si continúa, por lo que su resultado se invierte. Al
      * terminar con marcador desigual, otorga puntos a participantes humanos
@@ -229,9 +229,9 @@ public abstract class GameSession {
      */
     public void checkTypeOfMatch() {
         boolean wasFinished = finished;
-        if (TypeOfMatch instanceof domain.rules.ByGoals) {
+        if (TypeOfMatch instanceof domain.ByGoals) {
             finished = TypeOfMatch.check(List.of(Integer.toString(goalsLeft), Integer.toString(goalsRight)));
-        } else if (TypeOfMatch instanceof domain.rules.ByTime) {
+        } else if (TypeOfMatch instanceof domain.ByTime) {
             finished = !TypeOfMatch.check(List.of(Integer.toString(goalsLeft), Integer.toString(goalsRight),
                     Integer.toString((int) Math.floor((timeLeft + 1e-9) / 60))));
         }

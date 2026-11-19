@@ -1,6 +1,6 @@
-package domain.effects;
+package domain;
 
-import domain.exception.GameException;
+import domain.GameException;
 
 /**
  * Efecto temporal que modifica el estado de un participante.

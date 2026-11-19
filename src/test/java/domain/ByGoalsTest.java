@@ -1,4 +1,4 @@
-package domain.rules;
+package domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -9,7 +9,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import domain.exception.GameException;
+import domain.GameException;
 
 /** Pruebas del límite de goles y la validación implementada en {@link ByGoals}. */
 class ByGoalsTest {

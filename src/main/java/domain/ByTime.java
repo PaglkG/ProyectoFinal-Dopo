@@ -1,6 +1,6 @@
-package domain.rules;
+package domain;
 import java.util.List;
-import domain.exception.GameException;
+import domain.GameException;
 /**
  * Tipo de partido con duración limitada y opción de muerte súbita.
  * @author Pablo Andres Gualdron Lindo
