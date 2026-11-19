@@ -1,5 +1,40 @@
 #!/bin/sh
 
+CURRENT_BRANCH=$(git symbolic-ref --quiet --short HEAD 2>/dev/null)
+
+if [ -z "$CURRENT_BRANCH" ]; then
+    echo "ERROR: No se pudo determinar la rama actual. Push cancelado."
+    exit 1
+fi
+
+if [ "$CURRENT_BRANCH" != "develop" ]; then
+    HEAD_BEFORE=$(git rev-parse HEAD) || exit 1
+
+    echo "---------------------------------------------------------"
+    echo "Actualizando la rama actual con origin/develop..."
+    echo "---------------------------------------------------------"
+
+    git pull --no-rebase origin develop
+    STATUS=$?
+
+    if [ $STATUS -ne 0 ]; then
+        echo "---------------------------------------------------------"
+        echo "ERROR: No se pudo integrar develop. Push cancelado."
+        echo "---------------------------------------------------------"
+        exit $STATUS
+    fi
+
+    HEAD_AFTER=$(git rev-parse HEAD) || exit 1
+
+    if [ "$HEAD_AFTER" != "$HEAD_BEFORE" ]; then
+        echo "---------------------------------------------------------"
+        echo "develop se integró en la rama actual."
+        echo "Vuelve a ejecutar git push para enviar el nuevo commit."
+        echo "---------------------------------------------------------"
+        exit 1
+    fi
+fi
+
 echo "---------------------------------------------------------"
 echo "Ejecutando pruebas con Maven antes del push..."
 echo "---------------------------------------------------------"
