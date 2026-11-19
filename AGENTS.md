@@ -1,3 +1,34 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Reglas de trabajo del proyecto
 
 Estas reglas aplican a cualquier trabajo realizado en este repositorio, en cualquier chat o sesión de Codex.
