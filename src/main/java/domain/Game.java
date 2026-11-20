@@ -1,7 +1,6 @@
 package domain;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -88,9 +87,9 @@ public class Game {
     }
 
     /**
-     * Crea una sesión de la clase indicada, le pasa la modalidad del partido
-     * y sus parámetros, restaura estadísticas humanas por ID y la agrega a la
-     * lista de sesiones administradas.
+     * Obtiene la sesión singleton. La primera llamada elige su clase concreta;
+     * las siguientes reutilizan esa instancia. La agrega a esta lista solo si
+     * aún no está registrada.
      *
      * @param player selecciona el jugador humano cuando la modalidad lo requiere
      *        ({@code true}: jugador 1; {@code false}: jugador 2); no selecciona el lado
@@ -111,7 +110,7 @@ public class Game {
             boolean player) throws GameException {
         GameSession session = whatSession(typeGame, player, parametersRules, typeMatche, parametersPowers);
         restorePlayerStats(session);
-        sessions.add(session);
+        if (!sessions.contains(session)) sessions.add(session);
         return session;
     }
 
@@ -136,12 +135,14 @@ public class Game {
     /** Crea una sesión y devuelve su índice opaco para consultar por esta fachada. */
     public int startSessionForView(List<String> parametersRules, List<String> parametersPowers,
             String typeGame, String typeMatche, boolean player) throws GameException {
-        startSession(parametersRules, parametersPowers, typeGame, typeMatche, player);
-        return sessions.size() - 1;
+        GameSession session = startSession(parametersRules, parametersPowers, typeGame,
+                typeMatche, player);
+        return sessions.indexOf(session);
     }
 
     /**
-     * Cierra la sesión indicada.
+     * Retira la sesión de esta lista administrada. La instancia singleton
+     * continúa existiendo y puede volver a registrarse con startSession.
      *
      * @param closeSession sesión que se cerrará
      */
@@ -150,11 +151,17 @@ public class Game {
     }
 
     /**
-     * Punto de extensión para reiniciar la sesión; actualmente el cuerpo está
-     * vacío y no modifica su estado.
+     * Reinicia la ronda de una sesión administrada sin reemplazar la instancia
+     * ni modificar marcador o modalidad.
      * @param session sesión que se reiniciaría
      */
     public void resetSession(GameSession session) {
+        if (session != null && sessions.contains(session)) session.restartRound();
+    }
+
+    /** Reinicia la ronda de la única sesión administrada por el índice indicado. */
+    public void resetSession(int sessionIndex) {
+        resetSession(requireSession(sessionIndex));
     }
 
 
@@ -220,6 +227,11 @@ public class Game {
                 bottom.y() + bottom.height() - top.y());
         return new SessionView(court, boundaries, goals, participants, balls,
                 session.getGoalsLeft(), session.getGoalsRight(), session.getElapsedSeconds(), session.isFinished());
+    }
+
+    /** Devuelve el nombre de clase concreto de la sesión administrada. */
+    public String getSessionType(int sessionIndex) {
+        return requireSession(sessionIndex).getClass().getName();
     }
 
     /** Coloca a un participante para una prueba manual o visual. */
@@ -312,28 +324,9 @@ public class Game {
     private GameSession whatSession(String name, boolean player, List<String> parametersRules,
             String typeMatche, List<String> parametersPowers) throws GameException {
         try {
-            Class<?> targetClass = Class.forName(name);
-            if (!GameSession.class.isAssignableFrom(targetClass)) {
-                throw new GameException(GameException.NO_FOUND_SESSION);
-            }
-            return GameSession.class.cast(
-                    targetClass.getDeclaredConstructor(boolean.class, String.class, List.class, List.class)
-                            .newInstance(player, typeMatche, parametersRules, parametersPowers));
-        }
-        catch (ClassNotFoundException e) {
-            throw new GameException(GameException.NO_FOUND_SESSION);
-        }
-        catch (NoSuchMethodException  e) {
-            throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
-        }
-        catch (InstantiationException  e) {
-            throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
-        }
-        catch (IllegalAccessException  e) {
-            throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
-        }
-        catch (InvocationTargetException  e) {
-            throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
+            return GameSession.getInstance(name, player, typeMatche, parametersRules, parametersPowers);
+        } catch (GameException e) {
+            throw e;
         }
     }
 

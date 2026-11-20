@@ -27,7 +27,7 @@ public class PlayerVsBot extends GameSession {
      * @param parametersPowers poderes del humano y del bot seguidos por el perfil bot
      * @throws GameException si la modalidad no existe o no se puede instanciar
      */
-    public PlayerVsBot(boolean player, String typeMatche, List<String> parametersRules,
+    private PlayerVsBot(boolean player, String typeMatche, List<String> parametersRules,
             List<String> parametersPowers) throws GameException {
         super(player, typeMatche, parametersRules);
         if (parametersPowers == null || parametersPowers.size() != 3) {

@@ -54,7 +54,7 @@ public final class MechanicsTestController {
         createConfiguredSession();
     }
 
-    /** Guarda las opciones y crea una sesión nueva con esos valores. */
+    /** Guarda las opciones solicitadas y se asocia a la sesión singleton existente o inicial. */
     public void startNewSession(SessionMode sessionMode, MatchMode matchMode, int limit) {
         selectedSessionMode = sessionMode;
         selectedMatchMode = matchMode;
@@ -67,12 +67,13 @@ public final class MechanicsTestController {
         createConfiguredSession();
     }
 
-    /** Reinicia la sesión con las clases y parámetros definidos en la configuración inicial. */
+    /** Reinicia el balón y las posiciones en la sesión única ya creada. */
     public void restartConfiguredSession() {
-        createConfiguredSession();
+        game.resetSession(activeSessionIndex);
+        movement.reset(game, activeSessionIndex);
     }
 
-    /** Crea la sesión configurada a través de la fachada pública de Game. */
+    /** Obtiene la sesión singleton a través de Game y alinea los controles con su modalidad real. */
     private void createConfiguredSession() {
         game = new Game();
         List<String> powers = configuration.sessionMode() == SessionMode.PLAYER_VS_BOT
@@ -80,6 +81,15 @@ public final class MechanicsTestController {
                 : List.of(configuration.rightPowerClass(), configuration.leftPowerClass());
         activeSessionIndex = game.startSessionForView(configuration.ruleParameters(), powers,
                 configuration.sessionClass(), configuration.matchClass(), configuration.playerOne());
+        String actualSessionClass = game.getSessionType(activeSessionIndex);
+        selectedSessionMode = actualSessionClass.equals("domain.PlayerVsBot")
+                ? SessionMode.PLAYER_VS_BOT : SessionMode.PLAYER_VS_PLAYER;
+        if (!actualSessionClass.equals(configuration.sessionClass())) {
+            configuration = new MechanicsTestConfiguration(selectedSessionMode, selectedMatchMode,
+                    selectedLimit, actualSessionClass, configuration.matchClass(),
+                    configuration.ruleParameters(), configuration.rightPowerClass(),
+                    configuration.leftPowerClass(), configuration.botProfile(), configuration.playerOne());
+        }
         movement.reset(game, activeSessionIndex);
     }
 

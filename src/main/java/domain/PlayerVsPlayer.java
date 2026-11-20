@@ -20,7 +20,7 @@ public class PlayerVsPlayer extends GameSession {
      * @param parametersRules parámetros entregados a la modalidad del partido
      * @throws GameException si la modalidad no existe o no se puede instanciar
      */
-    public PlayerVsPlayer(boolean player, String typeMatche, List<String> parametersRules,
+    private PlayerVsPlayer(boolean player, String typeMatche, List<String> parametersRules,
             List<String> parametersPowers) throws GameException {
         super(player,typeMatche,parametersRules);
         Player player1 = new Player(1);

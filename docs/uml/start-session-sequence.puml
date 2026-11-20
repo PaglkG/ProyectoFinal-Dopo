@@ -10,8 +10,12 @@ participant "playerStats: Map<Integer, Stats>" as M
 
 Cliente -> G: startSession(parametersRules, parametersPowers, typeGame, typeMatche, player)
 activate G
-G -> G: whatSession(typeGame, player, parametersRules, typeMatche, parametersPowers)
-G -> S ++: constructor reflectivo
+G -> S: getInstance(typeGame, player, typeMatche, parametersRules, parametersPowers)
+alt no existe sesión
+  S -> S: construir primera subclase concreta por reflexión
+else ya existe sesión
+  S -> S: reutilizar instancia guardada
+end
 note right of S
   PlayerVsPlayer recibe dos clases Power:
   jugador derecho, luego jugador izquierdo.
@@ -24,7 +28,7 @@ S -> S: createMatchRule(typeMatche, parametersRules)
 S -> T ++: constructor(List<String>) reflectivo
 T --> S --: instancia concreta
 S -> S: crear SoccerField y fijar timeLeft = 0
-S --> G --: instancia concreta de sesión
+S --> G: instancia única de sesión
 G -> S: getParticipantsLeft() / getParticipantsRight()
 loop cada participante Player
   G -> P: getUserId()
@@ -32,7 +36,9 @@ loop cada participante Player
   M --> G: estadísticas del usuario
   G -> P: setStats(estadísticas guardadas)
 end
-G -> L: add(session)
+opt la sesión aún no está registrada
+  G -> L: add(session)
+end
 G --> Cliente: session
 deactivate G
 @enduml

@@ -58,6 +58,7 @@ package "domain" {
     + height: double
   }
   abstract class GameSession {
+    {static} - instance: GameSession
     - timeLeft: double
     - xBase: int
     - yBase: int
@@ -70,6 +71,7 @@ package "domain" {
     - finished: boolean
     # participantsRight: List<SessionParticipant>
     # participantsLeft: List<SessionParticipant>
+    {static} + getInstance(typeGame: String, player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>): GameSession
     + movePlayer(user: SessionParticipant, direction: boolean): void
     + kickPlayer(player: SessionParticipant): boolean
     + restartRound(): void
@@ -90,11 +92,11 @@ package "domain" {
     - awardWinningPlayers(): void
   }
   class PlayerVsBot {
-    + PlayerVsBot(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
+    - PlayerVsBot(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
     - createBot(difficulty: String): BotPlayer
   }
   class PlayerVsPlayer {
-    + PlayerVsPlayer(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
+    - PlayerVsPlayer(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
   }
   abstract class SessionParticipant {
     - x: double
@@ -140,15 +142,13 @@ package "domain" {
     - RightGoalHitbox: RectangularHitbox
     - fieldHitbox: RectangularHitbox[]
     - balls: Ball[]
+    - collisions: CollisionFacade
     + advanceBalls(deltaSeconds: double, gravity: double): void
     + addBall(ball: Ball): void
     + resolveBallCollisions(restitution: double): void
     + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
     + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double): void
     + keepBallInsideCourt(ball: Ball, retention: double): void
-    - resolveBallPair(first: Ball, second: Ball, restitution: double): void
-    - resolveBallParticipant(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
-    - validBallPosition(candidate: Ball, moved: SessionParticipant, participants: Iterable<SessionParticipant>): boolean
     + balls(): Ball[]
     + courtX(): double
     + courtY(): double
@@ -173,6 +173,39 @@ package "domain" {
     + touchesGround(ball: Ball): boolean
     + groundCenterY(ball: Ball): double
     + positionParticipants(left: SessionParticipant, right: SessionParticipant): void
+  }
+  class CollisionFacade {
+    - field: SoccerField
+    - geometry: CourtGeometry
+    - ballResolver: BallCollisionResolver
+    - participantResolver: BallParticipantCollisionResolver
+    + resolveBallCollisions(restitution: double): void
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double): void
+    + keepBallInsideCourt(ball: Ball, retention: double): void
+    + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
+    + goalSideFor(ball: Ball): String
+  }
+  class CourtGeometry {
+    - field: SoccerField
+    + isValidBallPosition(candidate: Ball, moved: SessionParticipant, participants: Iterable<SessionParticipant>): boolean
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    + touchesGround(ball: Ball): boolean
+    + goalSideFor(ball: Ball): String
+    + keepBallInsideCourt(ball: Ball, retention: double): void
+    + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
+  }
+  class BallCollisionResolver {
+    + resolveAll(balls: Ball[], restitution: double): void
+    + resolveWalkingContact(balls: Ball[], moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double, geometry: CourtGeometry): void
+  }
+  class BallParticipantCollisionResolver {
+    + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolve(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void {static}
   }
   class Ball {
     - physical: boolean
@@ -396,6 +429,11 @@ Game "1" *-- "0..*" GameSession : sessions
 GameSession <|-- PlayerVsBot
 GameSession <|-- PlayerVsPlayer
 GameSession "1" *-- "1" SoccerField : field
+SoccerField *-- CollisionFacade : collision coordinator
+CollisionFacade *-- CourtGeometry
+CollisionFacade *-- BallCollisionResolver
+CollisionFacade *-- BallParticipantCollisionResolver
+CollisionFacade --> SoccerField
 GameSession "1" o-- "0..*" SessionParticipant : participants
 GameSession --> TypeOfMatch
 GameSession ..> GameException : errors
@@ -458,10 +496,9 @@ end note
 note bottom of GameSession
   updateGame() usa paso fijo de 1/60 s.
   Coordina goles, errores de salida/superposición
-  y colisiones entre balones y participantes.
-  SoccerField avanza los balones y resuelve sus
-  colisiones entre sí, con participantes y con
-  límites, arcos y suelo. movePlayer()
+  y el orden del procesamiento físico.
+  SoccerField avanza los balones y delega las
+  colisiones a CollisionFacade. movePlayer()
   permite empujar el balón en pasos pequeños sin
   cambiar su velocidad ni atravesarlo.
   kickPlayer() valida participante y sesión,
@@ -470,9 +507,12 @@ note bottom of GameSession
 end note
 note right of SoccerField
   Contiene y recorre los balones, límites
-  y zonas de gol; resuelve el contacto
-  entre balones, con participantes y con
-  la geometría de cancha.
+  y zonas de gol. Delega la resolución física
+  a CollisionFacade.
+end note
+note right of CollisionFacade
+  Coordina los colaboradores de colisión
+  y consulta la geometría de SoccerField.
 end note
 note bottom of Ball
   Guarda posición y velocidad, integra

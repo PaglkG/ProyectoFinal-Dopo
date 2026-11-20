@@ -6,3 +6,7 @@ saves/
 .vscode/
 .asta.lock
 *.asta.lock
+
+tmp/
+output/
+repository/

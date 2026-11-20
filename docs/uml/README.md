@@ -12,7 +12,7 @@ Las fuentes PlantUML y las capturas se conservan para contrastar el diseño reci
 
 - Presentación: DOPOSoccerGUI y NavigationController organizan la interfaz Swing; la presentación principal aún no se comunica con el dominio.
 - Banco de pruebas: MechanicsTestApp abre MechanicsTestSetupPanel. MechanicsTestController, MechanicsTestPanel y PresentationMovement usan Game y sus instantáneas; el salto se simula en la presentación.
-- Partida: Game crea y administra sesiones. GameSession mantiene cancha, participantes, marcador y modalidad; SoccerField resuelve la física, los contactos y los goles.
+- Partida: Game crea y administra sesiones. GameSession mantiene cancha, participantes, marcador y modalidad; SoccerField contiene los balones y delega la física a CollisionFacade, que coordina CourtGeometry y los resolvers de colisión.
 - Paquetes: las clases de dominio están en domain, salvo las hitboxes en domain.hitbox.
 - Modalidad: TypeOfMatch define la comprobación; ByGoals compara el límite de goles y ByTime controla el límite de tiempo y la muerte súbita.
 

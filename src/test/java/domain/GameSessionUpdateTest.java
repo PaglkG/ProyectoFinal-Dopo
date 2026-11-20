@@ -8,11 +8,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.Field;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import domain.GameException;
 import domain.ByGoals;
 import domain.ByTime;
 
 class GameSessionUpdateTest {
+
+    @BeforeEach
+    void resetSingleton() throws ReflectiveOperationException {
+        GameSessionTestSupport.resetSingleton();
+    }
 
     @Test
     void scoresForSideOppositeTheGoalAndResetsRound() throws Exception {
@@ -443,7 +449,7 @@ class GameSessionUpdateTest {
 
     @Test
     void timeModeReceivesCompletedMinutesAndEndsAfterWinnerAppears() throws Exception {
-        PlayerVsPlayer session = new PlayerVsPlayer(true, ByTime.class.getName(), List.of("0"), powers());
+        PlayerVsPlayer session = session(PlayerVsPlayer.class, ByTime.class.getName(), List.of("0"));
         session.participantsLeft.get(0).resetPosition(50, 50);
         session.participantsRight.get(0).resetPosition(350, 50);
         session.updateGame();
@@ -456,7 +462,7 @@ class GameSessionUpdateTest {
 
     @Test
     void completedMinuteWithTieContinuesInSuddenDeath() throws Exception {
-        PlayerVsPlayer session = new PlayerVsPlayer(true, ByTime.class.getName(), List.of("1"), powers());
+        PlayerVsPlayer session = session(PlayerVsPlayer.class, ByTime.class.getName(), List.of("1"));
         for (int tick = 0; tick < 3600; tick++) session.updateGame();
 
         assertEquals(60.0, session.getElapsedSeconds(), 1e-8);
@@ -464,7 +470,12 @@ class GameSessionUpdateTest {
     }
 
     private static PlayerVsPlayer session(int limit) throws GameException {
-        return new PlayerVsPlayer(true, ByGoals.class.getName(), List.of(Integer.toString(limit)), powers());
+        return session(PlayerVsPlayer.class, ByGoals.class.getName(), List.of(Integer.toString(limit)));
+    }
+
+    private static PlayerVsPlayer session(Class<PlayerVsPlayer> type, String matchType,
+            List<String> parameters) throws GameException {
+        return GameSessionTestSupport.create(type, true, matchType, parameters, powers());
     }
 
     private static List<String> powers() {

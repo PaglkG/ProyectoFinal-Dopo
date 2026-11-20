@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 
 import domain.ByGoals;
 import domain.BlueAura;
@@ -20,10 +21,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /** Pruebas de la composición de participantes de una sesión jugador contra bot. */
 class PlayerVsBotTest {
 
+    @BeforeEach
+    void resetSingleton() throws ReflectiveOperationException {
+        GameSessionTestSupport.resetSingleton();
+    }
+
     @Test
     void constructorCreatesOneHumanAndOneBot() throws Exception {
-        PlayerVsBot session = new PlayerVsBot(true, ByGoals.class.getName(), List.of("5"),
-                List.of("domain.BlueAura", "domain.Lightning", "Clumsy"));
+        PlayerVsBot session = createSession(true, "Clumsy", "1");
+
 
         assertEquals(1, session.participantsRight.size());
         assertEquals(1, session.participantsLeft.size());
@@ -36,8 +42,7 @@ class PlayerVsBotTest {
 
     @Test
     void constructorCreatesSameParticipantKindsForEitherPlayerOption() throws Exception {
-        PlayerVsBot session = new PlayerVsBot(false, ByGoals.class.getName(), List.of("5"),
-                List.of("domain.BlueAura", "domain.Lightning", "Expert"));
+        PlayerVsBot session = createSession(false, "Expert");
 
         assertInstanceOf(Player.class, session.participantsRight.get(0));
         assertInstanceOf(BotPlayer.class, session.participantsLeft.get(0));
@@ -53,8 +58,7 @@ class PlayerVsBotTest {
 
     @Test
     void humanReceivesFivePointsWhenWinningAgainstBotAndBotReceivesNone() throws Exception {
-        PlayerVsBot session = new PlayerVsBot(true, ByGoals.class.getName(), List.of("1"),
-                List.of("domain.BlueAura", "domain.Lightning", "Clumsy"));
+        PlayerVsBot session = createSession(true, "Clumsy", "1");
 
         session.goal("right");
 
@@ -64,8 +68,7 @@ class PlayerVsBotTest {
 
     @Test
     void botWinDoesNotAwardPointsToEitherBotOrLosingHuman() throws Exception {
-        PlayerVsBot session = new PlayerVsBot(true, ByGoals.class.getName(), List.of("1"),
-                List.of("domain.BlueAura", "domain.Lightning", "Clumsy"));
+        PlayerVsBot session = createSession(true, "Clumsy");
 
         session.goal("left");
 
@@ -84,11 +87,19 @@ class PlayerVsBotTest {
     void constructorRejectsAnUnknownBotDifficulty() {
         GameException exception = assertThrows(GameException.class, () -> createSession("Unknown"));
 
-        assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
+        assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
     }
 
     private static PlayerVsBot createSession(String difficulty) throws GameException {
-        return new PlayerVsBot(true, ByGoals.class.getName(), List.of("5"),
-                List.of("domain.BlueAura", "domain.Lightning", difficulty));
+        return createSession(true, difficulty);
+    }
+
+    private static PlayerVsBot createSession(boolean player, String difficulty) throws GameException {
+        return createSession(player, difficulty, "5");
+    }
+
+    private static PlayerVsBot createSession(boolean player, String difficulty, String limit) throws GameException {
+        return GameSessionTestSupport.create(PlayerVsBot.class, player, ByGoals.class.getName(),
+                List.of(limit), List.of("domain.BlueAura", "domain.Lightning", difficulty));
     }
 }

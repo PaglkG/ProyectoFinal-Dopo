@@ -6,7 +6,7 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 
 ## Resumen
 
-- Implementado de forma coherente: construcción básica de `Game`; creación reflectiva de modalidades y sesiones; construcción de `PlayerVsBot` y `PlayerVsPlayer`; colocación fija de participantes; construcción y reinicio del balón; construcción y reposicionamiento de hitboxes; comprobaciones `ByGoals` y `ByTime`; valores iniciales y mejoras de `Stats`.
+- Implementado de forma coherente: instancia compartida de `GameSession` para `PlayerVsBot` y `PlayerVsPlayer`; creación reflectiva de la modalidad; colocación fija de participantes; construcción y reinicio del balón; construcción y reposicionamiento de hitboxes; comprobaciones `ByGoals` y `ByTime`; valores iniciales y mejoras de `Stats`.
 - Implementado: `Game.closeSession` elimina de `sessions` el objeto de sesión recibido.
 - Implementado en esta revisión: actualización fija del balón, rebotes contra límites, otros balones y participantes, aterrizaje visual encima del balón, excepciones por salida/superposición, goles y marcador, reinicio de ronda y cierre por modalidad.
 - Implementado en esta revisión: movimiento horizontal delegado por `Game`, escalado por `Stats.speed` y aplicado al participante y su hitbox.
@@ -18,14 +18,15 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 
 | Clase / grupo | Código observado | Evaluación frente al UML y reglas |
 |---|---|---|
-| `Game` | `startSession` crea una sesión por reflexión con modalidad, reglas, poderes y perfil; la añade a `sessions`; `new Game()` inicializa la lista. | El flujo implementado pasa la lista de poderes al constructor de la sesión y conserva la traducción reflectiva de errores a `GameException`. |
-| `Game.closeSession` | Ejecuta `sessions.remove(closeSession)`. | Retira de la lista la sesión recibida; si no está presente, no altera la lista. |
+| `Game` | `startSession` solicita `GameSession.getInstance`; registra la referencia solo una vez. | Las llamadas posteriores reutilizan la primera sesión, aun si solicitan otra subclase; la primera modalidad concreta permanece activa. |
+| `Game.closeSession` | Ejecuta `sessions.remove(closeSession)`. | Retira la referencia de esta lista; no destruye la instancia singleton, que puede volver a registrarse. |
 | `Game.movePlayer` | Delega en la sesión para participantes registrados en una partida activa; el participante se desplaza 150 × `speed` / 60 unidades, en la dirección confirmada. | Implementado en esta revisión conforme a dirección y fórmula confirmadas. |
-| Game.powerPlayer, resetSession, save, open | Cuerpos vacíos. | Pendiente. El salto, el poder y el reinicio siguen sin implementarse. Las páginas de open y save están vacías. improveStatistics ya delega en la sesión. |
+| `Game.resetSession` | Delega `restartRound` en la sesión única administrada; también permite resolverla por índice. | Reinicia balones y posiciones sin reemplazar la instancia ni cambiar el marcador, tiempo o estado final. `powerPlayer`, `save` y `open` siguen vacíos. |
 powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el código actual.
 | `PlayerVsBot` | Crea el jugador humano a la derecha y el perfil bot solicitado a la izquierda; asocia los dos poderes elegidos. | Coincide con el orden confirmado de participantes, poderes y dificultad. Los tipos de bot se crean reflectivamente y sus decisiones siguen pendientes. |
 | `PlayerVsPlayer` | Crea jugador 1 a la derecha y jugador 2 a la izquierda; asocia el poder de cada lado según la lista recibida. | Coincide con posiciones fijas y orden confirmado de parámetros. |
-| `SoccerField` | Crea cancha provisional de 450×150, cuatro límites, dos arcos y balones; proporciona consultas para gol, salida, suelo y ubicación simétrica de participantes; resuelve colisiones entre balones y contra participantes, y mantiene los balones dentro de los límites. | La intersección devuelve la entidad contactada y su hitbox. `reposition` traslada también los balones; `resetBall(x,y)` centra y detiene. Al contacto desde arriba el balón adquiere movimiento descendente mínimo. |
+| `SoccerField` | Crea cancha provisional de 450×150, cuatro límites, dos arcos y balones; proporciona consultas de geometría y ubicación simétrica de participantes; delega las colisiones a `CollisionFacade`. | La intersección devuelve la entidad contactada y su hitbox. `reposition` traslada también los balones; `resetBall(x,y)` centra y detiene. Al contacto desde arriba el balón adquiere movimiento descendente mínimo. |
+| `CollisionFacade`, `CourtGeometry`, `BallCollisionResolver`, `BallParticipantCollisionResolver` | La fachada coordina respuestas físicas; la geometría resuelve contactos contra cancha y arcos; los resolvers se ocupan de balón-balón, empuje al caminar y balón-participante. | La cancha es propietaria de la fachada. `GameSession` conserva el orden de la ronda y no depende directamente de los colaboradores de colisión. |
 | `Ball` | Construye hitbox circular, reinicia al centro, expone posición/velocidad, suma impulsos, avanza por paso temporal y rebota con retención configurada por la sesión. | Física usada por `GameSession`; `physical` todavía no se utiliza. |
 | `Hitbox`, `CircularHitbox`, `RectangularHitbox` | Interfaz y formas implementan `intersects` y `reposition`; las formas reposicionan sus referencias. | `intersects` devuelve `HitboxContact` con entidad/hitbox, o nombre vacío y hitbox nula sin contacto. `reposition` funciona según el punto de referencia documentado. El PDF de Hitbox no muestra `reposition`, aunque está en la interfaz y ambas formas. |
 | `SessionParticipant` | Tiene posición, hitbox rectangular, estadísticas, estados, vida y poder; `move` modifica la coordenada horizontal según `speed`, y `resetPosition`/`reposition` actualizan posición e hitbox. | Movimiento y mejoras implementados; el daño reduce vida hasta cero, aplica `StatusEffect` por 3 segundos y restaura vida máxima al expirar. `jump` y `power` siguen pendientes. |
@@ -41,7 +42,7 @@ powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el cód
 2. El PDF coloca `isTime` e `isSuddenDeath` en `ByGoals`; el código y la regla documentada los ubican en `ByTime`.
 3. `Stats.action` aparece como `HashSet` en el PDF; el código/regla acordada definen `Map<String,Integer>`.
 4. La secuencia `closeSession` y la implementación eliminan la sesión solicitada.
-5. La secuencia resetSession supone cuatro coordenadas y bases por lado; esos campos no existen en GameSession actual. Java expone SoccerField.resetBall(x,y), mientras Game.resetSession está vacío.
+5. La secuencia resetSession del PDF supone cuatro coordenadas y bases por lado; esos campos no existen en GameSession actual. El reinicio confirmado centra el balón y reposiciona participantes mediante `restartRound`.
 6. Las secuencias `startSessionPlayerVsBot`/`VsPlayer` tienen inconsistencias de nombres/tipos: llamadas a modalidad con nombres de parámetros intercambiados, creación o retorno rotulado como la modalidad equivocada, y creación de `Scoreboard` aunque esa clase fue retirada del dominio actual. En la secuencia PVP, la sesión aparece rotulada `PlayerVsBot`.
 7. La interfaz y formas del diagrama de Hitbox omiten `reposition(x,y)`, que sí existe en Java.
 8. La secuencia `movePlayer` fija `true = derecha`, `false = izquierda`; la dirección y fórmula de desplazamiento se confirmaron e implementaron.
@@ -50,7 +51,7 @@ powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el cód
 ## Pendientes de codificación derivados de los diagramas
 
 1. Mantener `Game.closeSession` alineado con el flujo que elimina el objeto de sesión recibido.
-2. Implementar `Game.resetSession`; aclarar y uniformar las coordenadas de reinicio por lado antes de codificar el contrato divergente del PDF.
+2. La secuencia resetSession del PDF continúa pendiente de actualización para coincidir con el reinicio confirmado de la ronda.
 3. Extender el movimiento si se confirman límites de cancha, colisiones u otras restricciones adicionales.
 4. Implementar salto y poder a través de `Game`, `GameSession`, participante y `Power` una vez definidos sus efectos y límites.
 5. Completar estadísticas, estados temporales y ejecución de disparos/efectos de poderes, además de las decisiones de perfiles de bot.

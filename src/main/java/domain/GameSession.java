@@ -15,6 +15,40 @@ import domain.TypeOfMatch;
  */
 public abstract class GameSession {
 
+    private static GameSession instance;
+
+    /**
+     * Devuelve la única sesión compartida por todas las clases concretas.
+     * La primera llamada crea la subclase indicada; llamadas posteriores
+     * devuelven esa sesión sin aplicar nuevos parámetros ni cambiar modalidad.
+     */
+    public static synchronized GameSession getInstance(String typeGame, boolean player,
+            String typeMatche, List<String> parametersRules, List<String> parametersPowers) throws GameException {
+        if (instance != null) return instance;
+        try {
+            Class<?> targetClass = Class.forName(typeGame);
+            if (!GameSession.class.isAssignableFrom(targetClass)) {
+                throw new GameException(GameException.NO_FOUND_SESSION);
+            }
+            var constructor = targetClass.getDeclaredConstructor(
+                    boolean.class, String.class, List.class, List.class);
+            if (java.lang.reflect.Modifier.isPrivate(constructor.getModifiers())
+                    && targetClass != PlayerVsPlayer.class && targetClass != PlayerVsBot.class) {
+                throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
+            }
+            constructor.setAccessible(true);
+            instance = GameSession.class.cast(constructor.newInstance(
+                    player, typeMatche, parametersRules, parametersPowers));
+            return instance;
+        } catch (ClassNotFoundException e) {
+            throw new GameException(GameException.NO_FOUND_SESSION);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
+        } catch (InstantiationException | java.lang.reflect.InvocationTargetException e) {
+            throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
+        }
+    }
+
     private static final double STEP_SECONDS = 1.0 / 60.0;
     private static final double BOUNCE_RETENTION = 0.70;
     private static final double MIN_BOUNCE_SPEED = 0.5;

@@ -14,6 +14,8 @@
 ### Arquitectura
 
 - La capa de presentación solo puede comunicarse con la clase `Game`; no debe comunicarse directamente con otras clases del dominio.
+- `GameSession` y todas sus clases hijas comparten una sola instancia. La primera creación determina la clase concreta y configura modalidad, reglas, participantes y poderes; las solicitudes posteriores reutilizan esa sesión e ignoran nuevos parámetros. `Game` no agrega duplicados; `closeSession` solo la retira de la lista administrada y una llamada posterior puede volver a registrarla.
+- `Game.resetSession` reinicia la ronda de la instancia administrada: centra y detiene los balones y recoloca los participantes. Conserva marcador, modalidad, tiempo transcurrido y estado de finalización.
 
 ### Identidad y lado de juego
 
@@ -123,7 +125,7 @@
 - `ByTime.suddenDeath` se activa cuando se agota el tiempo con empate; en ese caso `check` devuelve `true` y, si un marcador queda desigual, se apaga al terminar.
 - En el código actual no existen Scoreboard, Outfit, Head, Shoe, Rule ni Side en el dominio. Action está en domain y aparece en el tipo de retorno de BotPlayer.decideAction.
 - Se conservan los parámetros de jugador y reglas en los constructores de `GameSession`, `PlayerVsBot` y `PlayerVsPlayer`, y la lista de parámetros en las fábricas reflectivas. `TypeOfMatch.check` conserva su contrato `boolean` con parámetros, de acuerdo con la regla de continuidad confirmada.
-- `GameSession` coordina el paso de juego, el movimiento y los goles. `SoccerField` contiene y avanza los balones, resuelve colisiones entre balones y participantes, y rebotes contra límites, arcos y suelo; `Ball` conserva el estado físico y ejecuta las operaciones delegadas.
+- `GameSession` coordina el paso de juego, el movimiento, las validaciones de participantes y los goles. `SoccerField` contiene y avanza los balones y delega las colisiones en `CollisionFacade`; esta coordina `CourtGeometry`, `BallCollisionResolver` y `BallParticipantCollisionResolver`. `Ball` conserva el estado físico y ejecuta las operaciones delegadas. `GameSession` no depende directamente de la fachada.
 - `GameSession.kickPlayer` permite la patada a participantes registrados en sesiones activas, si no están aturdidos. Prioriza dañar al rival si está dentro de 8 unidades entre hitboxes; sin rival al alcance, permite patear el balón cuando su superficie está a 8 unidades o menos del borde de la hitbox. El dominio aplica al balón un impulso horizontal de 150 unidades/s hacia el arco contrario y uno vertical de -50 unidades/s.
 
 ## Decisiones pendientes
@@ -166,6 +168,8 @@
 | 2026-11-16 | El balón creado por `SoccerField` tiene radio 10 unidades. | Pablo |
 | 2026-11-17 | Se definen los poderes BlueAura, Lightning, Tornado e Illusion con sus trayectorias, efectos, duración y daño base del anexo del PDF; el orden y formato de la lista de poderes/perfil al iniciar sesión; y las prioridades de los cuatro perfiles de bot. | Pablo |
 | 2026-11-17 | Se confirma que `Game.movePlayer` usa `true` para derecha y `false` para izquierda, y aplica por llamada un paso de 1/60 s a 150 unidades/s multiplicadas por `speed`. | Pablo |
+| 2026-11-19 | `GameSession` comparte una única instancia entre todas sus clases hijas; la primera clase concreta creada permanece y las solicitudes posteriores la reutilizan. | Pablo |
+| 2026-11-19 | Reiniciar la sesión reinicia solo la ronda: balón al centro y participantes a sus posiciones; marcador, modalidad, tiempo y estado de finalización se conservan. | Pablo |
 | 2026-11-17 | Cada victoria humana otorga 5 puntos; mejorar `speed`, `goal`, `kick` o `jump` cuesta 5 y aumenta un nivel; `GameSession.improveStatistics(true, ...)` selecciona derecha/jugador 1 y `false` izquierda/jugador 2. Las excepciones explícitas de la aplicación son `GameException`. | Pablo |
 | 2026-11-17 | Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`. | Pablo |
 | 2026-11-17 | La vida máxima/inicial es 100; la patada causa 10 de daño base y cada nivel adicional de `kick` suma 5; alcanzar cero activa un aturdimiento de 3 segundos con `StatusEffect` y recuperación de vida al expirar. | Pablo |

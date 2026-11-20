@@ -28,22 +28,30 @@ participant "game: Game" as G
 participant "session: GameSession" as S
 participant "player: SessionParticipant" as P
 participant "field: SoccerField" as F
+participant "collisions: CollisionFacade" as C
+participant "geometry: CourtGeometry" as CG
+participant "resolver: BallCollisionResolver" as BR
 participant "ball: Ball" as B
 Usuario -> G: movePlayer(session, player, direction)
 G -> S: movePlayer(player, direction)
 S -> P: guardar posición horizontal anterior
 S -> P: move(direction)
 S -> F: resolveWalkingContact(player, previousX, participants, 0.70)
+F -> C: resolveWalkingContact(player, previousX, participants, 0.70)
 loop balones que intersectan al participante
   alt balón quieto y empuje permitido
-    F -> B: reposicionar en pasos pequeños
+    C -> BR: recorrer contacto de caminata
+    BR -> CG: isValidBallPosition(...)
+    CG --> BR: posición permitida
+    BR -> B: reposicionar en pasos pequeños
     note over S,B: El empuje no cambia la velocidad
   else balón en movimiento
-    F -> B: separar y reflejar velocidad normal
-    F -> P: restaurar posición horizontal anterior
+    C -> BR: delegar contacto con balón en movimiento
+    BR -> B: separar y reflejar velocidad normal
+    BR -> P: restaurar posición horizontal anterior
   else el empuje choca con límite, balón o participante
-    F -> B: conservar la última posición válida
-    F -> P: restaurar posición horizontal anterior
+    BR -> B: conservar la última posición válida
+    BR -> P: restaurar posición horizontal anterior
   end
 end
 alt direction == true
@@ -156,7 +164,7 @@ end
 @enduml
 
 @startuml
-title resetSession (PDF: intención; código sin implementar)
+title resetSession (reinicio de ronda confirmado)
 actor Usuario
 participant "game: Game" as G
 participant "session: GameSession" as S
@@ -165,17 +173,16 @@ participant "ball: Ball" as B
 participant "participantes" as P
 Usuario -> G: resetSession(session)
 G -> S: restartRound()
-S -> F: resetBall(xLeft, yLeft, yRight, xRight)
+S -> F: resetBall(centroX, centroY)
 loop cada balón
-  F -> B: resetBall(width, height)
+  F -> B: ubicar centro y detener
 end
 loop cada participante de ambos lados
-  S -> P: resetPosition(xBase, yBase)
+  S -> P: recolocar en posición simétrica
 end
 note over G,P
-  Game.resetSession y GameSession.restartRound están vacíos.
-  El PDF usa cuatro coordenadas para la cancha y bases por lado;
-  el código actual solo expone resetBall(x,y) y xBase/yBase únicos.
+  Conserva marcador, modalidad, tiempo y estado de finalización.
+  Reutiliza la instancia singleton, sin crear otra sesión.
 end note
 @enduml
 
@@ -186,6 +193,10 @@ participant "game: Game" as G
 participant "session: GameSession" as S
 participant "participantes / hitboxes" as P
 participant "field: SoccerField" as F
+participant "collisions: CollisionFacade" as C
+participant "court geometry: CourtGeometry" as CG
+participant "ball resolver: BallCollisionResolver" as BR
+participant "participant resolver: BallParticipantCollisionResolver" as PR
 participant "ball: Ball" as B
 Reloj -> G: updateGame(session)
 G -> S: updateGame()
@@ -226,30 +237,38 @@ else sesión activa
     S --> G: terminar procesamiento de colisiones
   else no hubo gol
     S -> F: resolveBallCollisions(70%)
+    F -> C: resolveBallCollisions(70%)
+    C -> BR: resolveAll(balls, 70%)
     loop pares de balones en contacto
-      F -> B: corregir penetración entre hitboxes circulares
+      BR -> B: corregir penetración entre hitboxes circulares
       opt se aproximan sobre la normal
-        F -> B: intercambiar velocidades normales (masas iguales, e=0.70)
+        BR -> B: intercambiar velocidades normales (masas iguales, e=0.70)
       end
     end
     S -> F: resolveBallParticipantCollisions(participants, 70%, 0.5)
+    F -> C: resolveBallParticipantCollisions(...)
+    C -> PR: resolveAll(balls, participants, 70%, 0.5)
     loop cada balón y participante en contacto
-      F -> B: corregir penetración contra hitbox rectangular
+      PR -> B: corregir penetración contra hitbox rectangular
       opt el balón se aproxima al participante
-        F -> B: reflejar velocidad normal (superficie fija, e=0.70)
+        PR -> B: reflejar velocidad normal (superficie fija, e=0.70)
       end
       opt contacto desde arriba y velocidad descendente menor a 0.5
-        F -> B: establecer velocidad vertical descendente mínima (0.5)
+        PR -> B: establecer velocidad vertical descendente mínima (0.5)
       end
     end
     loop cada balón
       S -> F: bounceBallAtWallsAndGoalFrames(ball, 70%)
-      F -> B: bounceHorizontallyAt / bounceVerticallyAt
+      F -> C: bounceBallAtWallsAndGoalFrames(...)
+      C -> CG: bounceBallAtWallsAndGoalFrames(...)
+      CG -> B: bounceHorizontallyAt / bounceVerticallyAt
       S -> F: keepBallInsideCourt(ball, 70%)
+      F -> C: keepBallInsideCourt(...)
+      C -> CG: keepBallInsideCourt(...)
       opt una colisión desplazó el balón más allá de un límite
-        F -> B: corregir al borde y reflejar velocidad si iba hacia fuera
+        CG -> B: corregir al borde y reflejar velocidad si iba hacia fuera
       end
-      note over S,F: La cancha corrige la posición contra los límites y mantiene el balón dentro.
+      note over S,CG: La geometría mantiene el balón dentro de la cancha.
     end
     S -> S: checkTypeOfMatch()
     opt transición a partida terminada con marcador desigual
