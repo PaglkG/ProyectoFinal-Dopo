@@ -36,7 +36,6 @@ public final class MechanicsTestController {
     private SessionMode selectedSessionMode = SessionMode.PLAYER_VS_PLAYER;
     private MatchMode selectedMatchMode = MatchMode.GOALS;
     private int selectedLimit = 5;
-    private int activeSessionIndex;
     private MechanicsTestConfiguration configuration;
     private final PresentationMovement movement = new PresentationMovement();
 
@@ -69,8 +68,8 @@ public final class MechanicsTestController {
 
     /** Reinicia el balón y las posiciones en la sesión única ya creada. */
     public void restartConfiguredSession() {
-        game.resetSession(activeSessionIndex);
-        movement.reset(game, activeSessionIndex);
+        game.resetSession();
+        movement.reset(game);
     }
 
     /** Obtiene la sesión singleton a través de Game y alinea los controles con su modalidad real. */
@@ -79,9 +78,9 @@ public final class MechanicsTestController {
         List<String> powers = configuration.sessionMode() == SessionMode.PLAYER_VS_BOT
                 ? List.of(configuration.rightPowerClass(), configuration.leftPowerClass(), configuration.botProfile())
                 : List.of(configuration.rightPowerClass(), configuration.leftPowerClass());
-        activeSessionIndex = game.startSessionForView(configuration.ruleParameters(), powers,
+        game.startSession(configuration.ruleParameters(), powers,
                 configuration.sessionClass(), configuration.matchClass(), configuration.playerOne());
-        String actualSessionClass = game.getSessionType(activeSessionIndex);
+        String actualSessionClass = game.getSessionType();
         selectedSessionMode = actualSessionClass.equals("domain.PlayerVsBot")
                 ? SessionMode.PLAYER_VS_BOT : SessionMode.PLAYER_VS_PLAYER;
         if (!actualSessionClass.equals(configuration.sessionClass())) {
@@ -90,23 +89,23 @@ public final class MechanicsTestController {
                     configuration.ruleParameters(), configuration.rightPowerClass(),
                     configuration.leftPowerClass(), configuration.botProfile(), configuration.playerOne());
         }
-        movement.reset(game, activeSessionIndex);
+        movement.reset(game);
     }
 
     /** Ejecuta un paso del movimiento visual y uno de la lógica del dominio. */
     public void step() {
-        Game.SessionView before = game.inspectSession(activeSessionIndex);
+        Game.SessionView before = game.inspectSession();
         if (before.finished()) return;
-        movement.update(game, activeSessionIndex, selectedSessionMode);
+        movement.update(game, selectedSessionMode);
         advanceDomainOnly(before);
     }
 
     /** Avanza la lógica del dominio y reinicia el movimiento visual cuando cambió el marcador. */
     private void advanceDomainOnly(Game.SessionView before) {
-        game.updateGame(activeSessionIndex);
-        Game.SessionView after = game.inspectSession(activeSessionIndex);
+        game.updateGame();
+        Game.SessionView after = game.inspectSession();
         if (after.goalsLeft() != before.goalsLeft() || after.goalsRight() != before.goalsRight()) {
-            movement.resetAfterRound(game, activeSessionIndex);
+            movement.resetAfterRound(game);
         }
     }
 
@@ -118,19 +117,19 @@ public final class MechanicsTestController {
     /** @return {@code true} si la patada del jugador izquierdo alcanzó el balón */
     public boolean kickLeft() {
         return configuration.sessionMode() == SessionMode.PLAYER_VS_PLAYER
-                && game.kickPlayer(activeSessionIndex, "left:0");
+                && game.kickPlayer("left:0");
     }
 
     /** @return {@code true} si la patada del jugador derecho alcanzó el balón */
     public boolean kickRight() {
-        return game.kickPlayer(activeSessionIndex, "right:0");
+        return game.kickPlayer("right:0");
     }
 
     /** Prepara el escenario solicitado a través de las operaciones de {@link Game}. */
     public void runScenario(Scenario scenario) {
         createConfiguredSession();
         neutralizeBall();
-        Game.SessionView state = game.inspectSession(activeSessionIndex);
+        Game.SessionView state = game.inspectSession();
         Game.BallView ball = state.balls().get(0);
         List<Game.RectangleView> walls = state.boundaries();
 
@@ -140,21 +139,21 @@ public final class MechanicsTestController {
             case PLAYER_BALL_CONTACT -> {
                 Game.ParticipantView player = participant(state, "left");
                 if (player == null) return;
-                game.setBallPosition(activeSessionIndex, ball.index(),
+                game.setBallPosition(ball.index(),
                         player.x() + player.width() / 2, player.y() + player.height() / 2);
             }
             case GROUND_BOUNCE -> {
-                game.setBallPosition(activeSessionIndex, ball.index(),
+                game.setBallPosition(ball.index(),
                         walls.get(0).x() + walls.get(0).width() / 2,
                         walls.get(1).y() - ball.radius());
-                game.applyBallImpulse(activeSessionIndex, ball.index(), 0, 8);
+                game.applyBallImpulse(ball.index(), 0, 8);
             }
-            case SAFE_FIELD_CONTACT -> game.setBallPosition(activeSessionIndex, ball.index(),
+            case SAFE_FIELD_CONTACT -> game.setBallPosition(ball.index(),
                     walls.get(2).x() + ball.radius(), walls.get(0).y() + 15);
             case BALL_SIDE_REBOUND -> {
-                game.setBallPosition(activeSessionIndex, ball.index(),
+                game.setBallPosition(ball.index(),
                         walls.get(2).x() - 3, walls.get(0).y() + walls.get(0).height() + 30);
-                game.applyBallImpulse(activeSessionIndex, ball.index(), -10, 0);
+                game.applyBallImpulse(ball.index(), -10, 0);
             }
             case BALL_BALL_COLLISION -> {
                 if (state.balls().size() < 2) {
@@ -163,28 +162,28 @@ public final class MechanicsTestController {
                 Game.BallView first = state.balls().get(0);
                 Game.BallView second = state.balls().get(1);
                 double contactDistance = first.radius() + second.radius();
-                game.setBallPosition(activeSessionIndex, first.index(), 225 - contactDistance / 2, 70);
-                game.setBallPosition(activeSessionIndex, second.index(), 225 + contactDistance / 2, 70);
-                game.applyBallImpulse(activeSessionIndex, first.index(), 15, 0);
-                game.applyBallImpulse(activeSessionIndex, second.index(), -15, 0);
+                game.setBallPosition(first.index(), 225 - contactDistance / 2, 70);
+                game.setBallPosition(second.index(), 225 + contactDistance / 2, 70);
+                game.applyBallImpulse(first.index(), 15, 0);
+                game.applyBallImpulse(second.index(), -15, 0);
             }
             case PARTICIPANT_OUTSIDE -> {
                 Game.ParticipantView player = participant(state, "left");
                 if (player == null) return;
-                game.setParticipantPosition(activeSessionIndex, player.id(),
+                game.setParticipantPosition(player.id(),
                         walls.get(2).x() - player.width() - 1, player.y());
             }
             case PARTICIPANT_TOUCHES_SIDE -> {
                 Game.ParticipantView player = participant(state, "left");
                 if (player == null) return;
-                game.setParticipantPosition(activeSessionIndex, player.id(),
+                game.setParticipantPosition(player.id(),
                         walls.get(2).x() + walls.get(2).width(), player.y());
             }
             case PARTICIPANTS_OVERLAP -> {
                 Game.ParticipantView left = participant(state, "left");
                 Game.ParticipantView right = participant(state, "right");
                 if (left == null || right == null) return;
-                game.setParticipantPosition(activeSessionIndex, right.id(), left.x(), left.y());
+                game.setParticipantPosition(right.id(), left.x(), left.y());
             }
             case KICK_OPPONENT -> {
                 Game.ParticipantView left = participant(state, "left");
@@ -194,8 +193,8 @@ public final class MechanicsTestController {
                 double gap = 8;
                 double leftX = center - left.width() - gap / 2;
                 double rightX = center + gap / 2;
-                game.setParticipantPosition(activeSessionIndex, left.id(), leftX, left.y());
-                game.setParticipantPosition(activeSessionIndex, right.id(), rightX, right.y());
+                game.setParticipantPosition(left.id(), leftX, left.y());
+                game.setParticipantPosition(right.id(), rightX, right.y());
             }
             case SUDDEN_DEATH_WIN -> {
                 configuration = new MechanicsTestConfiguration(selectedSessionMode, MatchMode.TIME, 0,
@@ -207,21 +206,21 @@ public final class MechanicsTestController {
                 placeInGoal(0);
             }
         }
-        advanceDomainOnly(game.inspectSession(activeSessionIndex));
+        advanceDomainOnly(game.inspectSession());
     }
 
     /** Coloca el balón en el centro del arco indicado para preparar un gol. */
     private void placeInGoal(int goalIndex) {
-        Game.SessionView state = game.inspectSession(activeSessionIndex);
+        Game.SessionView state = game.inspectSession();
         Game.RectangleView goal = state.goals().get(goalIndex);
-        game.setBallPosition(activeSessionIndex, 0,
+        game.setBallPosition(0,
                 goal.x() + goal.width() / 2, goal.y() + goal.height() / 2);
     }
 
     /** Cancela la velocidad actual del balón antes de ubicar un escenario. */
     private void neutralizeBall() {
-        Game.BallView ball = game.inspectSession(activeSessionIndex).balls().get(0);
-        game.applyBallImpulse(activeSessionIndex, ball.index(), -ball.velocityX(), -ball.velocityY());
+        Game.BallView ball = game.inspectSession().balls().get(0);
+        game.applyBallImpulse(ball.index(), -ball.velocityX(), -ball.velocityY());
     }
 
     /** Busca la instantánea del primer participante del lado indicado. */
@@ -234,6 +233,6 @@ public final class MechanicsTestController {
 
     /** Devuelve la instantánea actual de la sesión para presentación. */
     public Game.SessionView getSessionView() {
-        return game.inspectSession(activeSessionIndex);
+        return game.inspectSession();
     }
 }

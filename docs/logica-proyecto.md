@@ -14,12 +14,13 @@
 ### Arquitectura
 
 - La capa de presentación solo puede comunicarse con la clase `Game`; no debe comunicarse directamente con otras clases del dominio.
-- `GameSession` y todas sus clases hijas comparten una sola instancia. La primera creación determina la clase concreta y configura modalidad, reglas, participantes y poderes; las solicitudes posteriores reutilizan esa sesión e ignoran nuevos parámetros. `Game` no agrega duplicados; `closeSession` solo la retira de la lista administrada y una llamada posterior puede volver a registrarla.
+- `GameSession` y todas sus clases hijas comparten una sola instancia. La primera creación determina la clase concreta y configura modalidad, reglas, participantes y poderes; las solicitudes posteriores reutilizan esa sesión e ignoran nuevos parámetros. `Game` mantiene una única referencia nullable; `closeSession` la limpia sin destruir el singleton y una llamada posterior a `startSession` puede volver a registrarlo.
+- Las operaciones de `Game` sobre la partida única no reciben un objeto `GameSession` ni un índice de sesión: la fachada usa internamente la instancia administrada.
 - `Game.resetSession` reinicia la ronda de la instancia administrada: centra y detiene los balones y recoloca los participantes. Conserva marcador, modalidad, tiempo transcurrido y estado de finalización.
 
 ### Identidad y lado de juego
 
-- `Game.movePlayer(session, player, direction)` mueve al participante de la sesión indicada. `true` significa derecha y `false` izquierda. Cada llamada aplica un paso de 1/60 segundo a 150 unidades/segundo multiplicadas por la estadística `speed` del participante.
+- `Game.movePlayer(player, direction)` mueve al participante de la sesión única administrada. `true` significa derecha y `false` izquierda. Cada llamada aplica un paso de 1/60 segundo a 150 unidades/segundo multiplicadas por la estadística `speed` del participante.
 - En `PlayerVsPlayer`, el jugador 1 y el jugador 2 ocupan posiciones fijas; esas posiciones no se intercambian entre partidas.
 - En `PlayerVsBot`, las posiciones también son fijas. El parámetro `player` selecciona cuál jugador humano participa; no selecciona el lado.
 - En `PlayerVsBot`, el jugador humano ocupa siempre la derecha y el bot la izquierda, incluso si se selecciona al jugador 2.
@@ -107,11 +108,11 @@
 
 ## Estado actual del código (no equivale a una regla confirmada)
 
-- Los tipos del dominio están en domain, salvo la geometría, que permanece en domain.hitbox. Action, las modalidades, los poderes, StatusEffect y GameException también están directamente en domain desde el aplanado de paquetes.
+- Los tipos del dominio están en domain, salvo las formas de hitbox en domain.hitbox. Action, las modalidades, los poderes, StatusEffect y GameException también están directamente en domain desde el aplanado de paquetes.
 - La presentación principal no importa clases del dominio y todavía no conecta una partida jugable. presentation.testing sí usa únicamente la fachada Game, que entrega instantáneas inmutables y operaciones para mover, patear y preparar escenarios.
-- La fachada de prueba `Game.startSessionForView`, `inspectSession`, `movePlayer`, `kickPlayer`, `updateGame`, `setParticipantPosition`, `setBallPosition` y `applyBallImpulse` permite crear, consultar y preparar escenarios sin exponer referencias mutables de sesión, participante, cancha o balón a la presentación de pruebas. El salto de `PresentationMovement` es visual, pero la posición resultante participa en las colisiones y permite aterrizar encima de un balón.
+- La fachada de prueba usa `Game.startSession`, `inspectSession`, `movePlayer`, `kickPlayer`, `updateGame`, `setParticipantPosition`, `setBallPosition` y `applyBallImpulse` para crear, consultar y preparar escenarios. La presentación usa `Game` y no conserva referencias mutables a sesión, participante, cancha o balón. El salto de `PresentationMovement` es visual, pero la posición resultante participa en las colisiones y permite aterrizar encima de un balón.
 - `Game.movePlayer` delega en `GameSession`; la sesión solo delega el movimiento si el participante pertenece a ella y no está terminada. `SessionParticipant` actualiza su posición y su hitbox con `150 × speed / 60`; `speed` inicia en 1.
-- `Game.startSession` crea reflectivamente una subclase de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, y agrega la instancia a la lista de sesiones.
+- `Game.startSession` obtiene reflectivamente la subclase singleton de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, y guarda la única referencia administrada.
 - `PlayerVsBot` construye un jugador humano y un bot; `PlayerVsPlayer` construye dos jugadores humanos.
 - PlayerVsPlayer y PlayerVsBot asocian los poderes elegidos mediante nombres completos de clase (domain.BlueAura, etc.); PlayerVsBot también crea el perfil indicado. Power.usePower, SessionParticipant.power y las clases concretas no activan ni disparan poderes; la carga, el aura, el daño y los efectos de poder siguen sin implementarse.
 - BotPlayer.decideAction devuelve null; Clumsy, Offensive, Defensive y Expert no redefinen el método, por lo que las prioridades confirmadas de esos perfiles todavía no se ejecutan.
@@ -120,6 +121,7 @@
 - SessionParticipant.applyStatusEffect reemplaza efectos anteriores del mismo tipo, pero conserva simultáneamente efectos de tipos distintos. Esto no cumple la regla confirmada de que un efecto nuevo reemplaza al anterior sin acumulación.
 - En la implementación actual, `PlayerVsPlayer` coloca al jugador 1 a la derecha y al jugador 2 a la izquierda. `PlayerVsBot` coloca al jugador humano a la derecha y al bot a la izquierda, tanto cuando el humano es el jugador 1 como cuando es el jugador 2; esto coincide con la regla confirmada.
 - `GameSession` instancia una subclase de `TypeOfMatch` mediante reflexión.
+- `Game` registra cero o una referencia a la sesión singleton. Los niveles y puntos siguen asociados a los `SessionParticipant` de esa instancia, que persisten cuando `closeSession` retira y `startSession` vuelve a registrar la misma sesión; `Game` no mantiene un mapa duplicado de estadísticas.
 - `ByGoals` recibe el límite de goles como primer parámetro de su lista. Su método `check` recibe dos marcadores.
 - `ByTime` recibe los minutos del partido como primer parámetro de su lista. Su método `check` lee los marcadores desde las posiciones 0 y 1 y el tiempo transcurrido desde la posición 2.
 - `ByTime.suddenDeath` se activa cuando se agota el tiempo con empate; en ese caso `check` devuelve `true` y, si un marcador queda desigual, se apaga al terminar.

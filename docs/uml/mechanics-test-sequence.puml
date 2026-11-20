@@ -13,51 +13,49 @@ Usuario -> Setup: indicar parámetros y perfil del bot
 Usuario -> Setup: Iniciar banco de pruebas
 Setup -> P: abrir MechanicsTestPanel(configuration)
 P -> C: crear controlador(configuration)
-C -> G: startSessionForView(ruleParameters, powerClasses, sessionClass, matchClass, player)
-G --> C: sessionIndex
-C -> G: inspectSession(sessionIndex)
+C -> G: startSession(ruleParameters, powerClasses, sessionClass, matchClass, player)
+C -> G: inspectSession()
 G --> C: SessionView inmutable
 P -> P: dibujar estado recibido del controlador
 
 Usuario -> P: Nueva sesión
 P -> C: restartConfiguredSession()
-C -> G: startSessionForView(configuration)
-G --> C: sessionIndex
+C -> G: startSession(configuration)
 
 Usuario -> P: mantener dirección o pulsar salto
 P -> C: setMovementControl(control, pressed)
 C -> M: setControl(control, pressed)
 Usuario -> P: pulsar botón o F/Enter
 P -> C: kickLeft() o kickRight()
-C -> G: kickPlayer(sessionIndex, participantId)
+C -> G: kickPlayer(participantId)
 G -> S: kickPlayer(participant)
 S --> G: patada aplicada o no aplicada
 G --> C: resultado
 
 loop cada paso de simulación
   P -> C: step()
-  C -> M: update(game, sessionIndex, mode)
-  M -> G: inspectSession(sessionIndex)
+  C -> M: update(game, mode)
+  M -> G: inspectSession()
   G --> M: SessionView
   opt dirección horizontal activa
-    M -> G: movePlayer(sessionIndex, participantId, direction)
+    M -> G: movePlayer(participantId, direction)
   end
   opt ajustar salto visual o límites del banco
-    M -> G: setParticipantPosition(sessionIndex, participantId, x, y)
+    M -> G: setParticipantPosition(participantId, x, y)
   end
   M -> M: comprobar colisión vertical del salto con balones
   alt ascenso desde debajo o caída sobre el balón
     M -> M: limitar posición al borde circular
-    M -> G: setParticipantPosition(sessionIndex, participantId, x, y)
+    M -> G: setParticipantPosition(participantId, x, y)
   else salta alejándose desde arriba
     M -> M: conservar movimiento y permitir despegar
   end
-  C -> G: updateGame(sessionIndex)
+  C -> G: updateGame()
   G -> S: updateGame()
   opt gol detectado
     S -> S: actualizar marcador y reiniciar ronda
   end
-  C -> G: inspectSession(sessionIndex)
+  C -> G: inspectSession()
   G --> C: SessionView actualizado
   P -> P: mostrar marcador y estado
 end
@@ -74,10 +72,10 @@ alt escenario de gol, rebote o contacto entre entidades
 else escenario de salida o superposición
   C -> G: setParticipantPosition
 end
-C -> G: updateGame(sessionIndex)
+C -> G: updateGame()
 G -> S: updateGame()
 S --> G: resultado o GameException
-C -> G: inspectSession(sessionIndex)
+C -> G: inspectSession()
 G --> C: SessionView actualizado
 P -> P: mostrar resultado visual
 

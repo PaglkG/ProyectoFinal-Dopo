@@ -35,7 +35,7 @@ package "domain" {
   class ByGoals
   class ByTime
   class SoccerField
-  package "collision" {
+  package "domain" {
     class CollisionFacade
     class CourtGeometry
     class BallCollisionResolver
@@ -81,7 +81,7 @@ note bottom of GameSession
   participantes, marcador y modalidad.
   Coordina movimiento, goles, validaciones
   de participantes y final de partida.
-  SoccerField delega la física en el paquete collision.
+  SoccerField delega la física en CollisionFacade dentro de domain.
 end note
 note bottom of Hitbox
   Representa una entidad que puede

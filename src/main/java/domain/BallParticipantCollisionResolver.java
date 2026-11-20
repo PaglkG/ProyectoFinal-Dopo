@@ -1,4 +1,4 @@
-package domain.collision;
+package domain;
 
 import domain.Ball;
 import domain.SessionParticipant;
@@ -6,6 +6,7 @@ import domain.hitbox.RectangularHitbox;
 
 /** Resuelve la penetración y el rebote de balones contra hitboxes de participantes. */
 public final class BallParticipantCollisionResolver {
+    /** Resuelve los contactos de cada balón con cada participante. */
     public void resolveAll(Ball[] balls, Iterable<SessionParticipant> participants,
             double restitution, double minimumLandingSpeed) {
         for (Ball ball : balls) {
@@ -15,7 +16,8 @@ public final class BallParticipantCollisionResolver {
         }
     }
 
-    public static void resolve(Ball ball, SessionParticipant participant,
+    /** Separa el balón de la hitbox y refleja su velocidad normal cuando hay aproximación. */
+    public void resolve(Ball ball, SessionParticipant participant,
             double restitution, double minimumLandingSpeed) {
         RectangularHitbox box = participant.getHitbox();
         double closestX = Math.max(box.getX(), Math.min(ball.getX(), box.getX() + box.getWidth()));

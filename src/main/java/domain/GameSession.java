@@ -17,19 +17,24 @@ public abstract class GameSession {
 
     private static GameSession instance;
 
+    /** Devuelve la sesión singleton existente sin crear una nueva. */
+    public static GameSession getInstance() throws GameException {
+        if (instance == null) {
+            throw new GameException(GameException.NO_FOUND_SESSION);
+        }
+        return instance;
+    }
+
     /**
      * Devuelve la única sesión compartida por todas las clases concretas.
      * La primera llamada crea la subclase indicada; llamadas posteriores
      * devuelven esa sesión sin aplicar nuevos parámetros ni cambiar modalidad.
      */
-    public static synchronized GameSession getInstance(String typeGame, boolean player,
+    public static GameSession getInstance(String typeGame, boolean player,
             String typeMatche, List<String> parametersRules, List<String> parametersPowers) throws GameException {
         if (instance != null) return instance;
         try {
-            Class<?> targetClass = Class.forName(typeGame);
-            if (!GameSession.class.isAssignableFrom(targetClass)) {
-                throw new GameException(GameException.NO_FOUND_SESSION);
-            }
+            Class<? extends GameSession> targetClass = findSessionSubclass(typeGame);
             var constructor = targetClass.getDeclaredConstructor(
                     boolean.class, String.class, List.class, List.class);
             if (java.lang.reflect.Modifier.isPrivate(constructor.getModifiers())
@@ -40,12 +45,24 @@ public abstract class GameSession {
             instance = GameSession.class.cast(constructor.newInstance(
                     player, typeMatche, parametersRules, parametersPowers));
             return instance;
-        } catch (ClassNotFoundException e) {
-            throw new GameException(GameException.NO_FOUND_SESSION);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
         } catch (InstantiationException | java.lang.reflect.InvocationTargetException e) {
             throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
+        }
+    }
+
+    /** Busca y valida una clase concreta que herede de {@code GameSession}. */
+    private static Class<? extends GameSession> findSessionSubclass(String typeGame)
+            throws GameException {
+        try {
+            Class<?> candidate = Class.forName(typeGame);
+            if (!GameSession.class.isAssignableFrom(candidate)) {
+                throw new GameException(GameException.NO_FOUND_SESSION);
+            }
+            return candidate.asSubclass(GameSession.class);
+        } catch (ClassNotFoundException e) {
+            throw new GameException(GameException.NO_FOUND_SESSION);
         }
     }
 

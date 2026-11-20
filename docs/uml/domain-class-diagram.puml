@@ -5,21 +5,17 @@ hide empty members
 
 package "domain" {
   class Game {
-    - sessions: List<GameSession>
-    - playerStats: Map<Integer, Stats>
+    - session: GameSession
     + startSession(parametersRules: List<String>, parametersPowers: List<String>, typeGame: String, typeMatche: String, player: boolean): GameSession
-    + startSessionForView(parametersRules: List<String>, parametersPowers: List<String>, typeGame: String, typeMatche: String, player: boolean): int
-    + closeSession(closeSession: GameSession): void
-    + movePlayer(session: GameSession, player: SessionParticipant, direction: boolean): void
-    + movePlayer(sessionIndex: int, participantId: String, direction: boolean): void
-    + kickPlayer(sessionIndex: int, participantId: String): boolean
-    + inspectSession(sessionIndex: int): SessionView
-    + setParticipantPosition(sessionIndex: int, participantId: String, x: double, y: double): void
-    + setBallPosition(sessionIndex: int, ballIndex: int, x: double, y: double): void
-    + applyBallImpulse(sessionIndex: int, ballIndex: int, deltaX: double, deltaY: double): void
-    + updateGame(sessionIndex: int): void
-    + updateGame(game: GameSession): void
-    + improveStatistics(session: GameSession, player: boolean, stats: String): void
+    + closeSession(): void
+    + movePlayer(participantId: String, direction: boolean): void
+    + kickPlayer(participantId: String): boolean
+    + inspectSession(): SessionView
+    + setParticipantPosition(participantId: String, x: double, y: double): void
+    + setBallPosition(ballIndex: int, x: double, y: double): void
+    + applyBallImpulse(ballIndex: int, deltaX: double, deltaY: double): void
+    + updateGame(): void
+    + improveStatistics(player: boolean, stats: String): void
     + save(): void
     + open(file: File): void
   }
@@ -186,6 +182,11 @@ package "domain" {
     + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
     + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
     + goalSideFor(ball: Ball): String
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    + touchesGround(ball: Ball): boolean
+    + groundCenterY(ball: Ball): double
   }
   class CourtGeometry {
     - field: SoccerField
@@ -201,11 +202,11 @@ package "domain" {
   }
   class BallCollisionResolver {
     + resolveAll(balls: Ball[], restitution: double): void
-    + resolveWalkingContact(balls: Ball[], moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double, geometry: CourtGeometry): void
+    + resolveWalkingContact(balls: Ball[], moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double, geometry: CourtGeometry, participantResolver: BallParticipantCollisionResolver): void
   }
   class BallParticipantCollisionResolver {
     + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
-    + resolve(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void {static}
+    + resolve(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
   }
   class Ball {
     - physical: boolean
@@ -356,7 +357,6 @@ package "presentation.testing" {
   }
   class MechanicsTestController {
     - game: Game
-    - activeSessionIndex: int
     - movement: PresentationMovement
     - configuration: MechanicsTestConfiguration
     + MechanicsTestController()
@@ -397,15 +397,14 @@ package "presentation.testing" {
     - jumpRequested: EnumSet<Control>
     - verticalSpeeds: Map<String, Double>
     - activeGame: Game
-    - activeSessionIndex: int
     - JUMP_SPEED: double = 110
     - GRAVITY: double = 180
     + setControl(control: Control, pressed: boolean): void
     + clearInputs(): void
-    + reset(game: Game, sessionIndex: int): void
-    + resetAfterRound(game: Game, sessionIndex: int): void
-    + update(game: Game, sessionIndex: int, mode: SessionMode): void
-    - updateActor(game: Game, sessionIndex: int, actor: Game.ParticipantView, opponent: Game.ParticipantView, leftControl: Control, rightControl: Control, jumpControl: Control): void
+    + reset(game: Game): void
+    + resetAfterRound(game: Game): void
+    + update(game: Game, mode: SessionMode): void
+    - updateActor(game: Game, actor: Game.ParticipantView, opponent: Game.ParticipantView, leftControl: Control, rightControl: Control, jumpControl: Control): void
     - supportedByBall(balls: List<Game.BallView>, x: double, y: double, width: double, height: double): boolean
     - resolveBallVerticalContact(balls: List<Game.BallView>, x: double, oldY: double, nextY: double, width: double, height: double, verticalSpeed: double): double
     - overlapsHorizontally(x: double, width: double, ball: Game.BallView): boolean
@@ -425,7 +424,7 @@ SessionView *-- RectangleView
 SessionView *-- ParticipantView
 SessionView *-- BallView
 
-Game "1" *-- "0..*" GameSession : sessions
+Game "1" --> "0..1" GameSession : active session reference
 GameSession <|-- PlayerVsBot
 GameSession <|-- PlayerVsPlayer
 GameSession "1" *-- "1" SoccerField : field

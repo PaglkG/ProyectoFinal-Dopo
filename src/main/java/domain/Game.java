@@ -1,16 +1,13 @@
 package domain;
 
 import java.io.File;
-import java.util.List;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
-import domain.GameException;
 
 /**
- * Coordina la creación y administración de sesiones, participantes,
- * estadísticas y persistencia de las partidas.
+ * Administra el acceso a la sesión singleton y ofrece operaciones de partida
+ * y vistas inmutables a las capas cliente.
  *
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
@@ -78,18 +75,11 @@ public class Game {
         }
     }
 
-    private List<GameSession> sessions = new ArrayList<>();
-    private final Map<Integer, Stats> playerStats = new HashMap<>();
-
-    /** Crea el coordinador con una lista vacía de sesiones. */
-    public Game() {
-        sessions = new ArrayList<>();
-    }
-
+    private GameSession session;
     /**
      * Obtiene la sesión singleton. La primera llamada elige su clase concreta;
-     * las siguientes reutilizan esa instancia. La agrega a esta lista solo si
-     * aún no está registrada.
+     * las siguientes reutilizan esa instancia. Game conserva una única
+     * referencia a la instancia recibida.
      *
      * @param player selecciona el jugador humano cuando la modalidad lo requiere
      *        ({@code true}: jugador 1; {@code false}: jugador 2); no selecciona el lado
@@ -108,99 +98,42 @@ public class Game {
             String typeGame,
             String typeMatche,
             boolean player) throws GameException {
-        GameSession session = whatSession(typeGame, player, parametersRules, typeMatche, parametersPowers);
-        restorePlayerStats(session);
-        if (!sessions.contains(session)) sessions.add(session);
+        session = GameSession.getInstance(
+                typeGame, player, typeMatche, parametersRules, parametersPowers);
         return session;
     }
 
-    /** Recorre ambos lados de una sesión para restaurar las estadísticas de sus jugadores humanos. */
-    private void restorePlayerStats(GameSession session) {
-        for (SessionParticipant participant : session.getParticipantsLeft()) {
-            restorePlayerStats(participant);
-        }
-        for (SessionParticipant participant : session.getParticipantsRight()) {
-            restorePlayerStats(participant);
-        }
-    }
-
-    /** Reutiliza las estadísticas persistidas para el ID del jugador humano recibido. */
-    private void restorePlayerStats(SessionParticipant participant) {
-        if (participant instanceof Player player) {
-            Stats savedStats = playerStats.computeIfAbsent(player.getUserId(), ignored -> participant.getStats());
-            participant.setStats(savedStats);
-        }
-    }
-
-    /** Crea una sesión y devuelve su índice opaco para consultar por esta fachada. */
-    public int startSessionForView(List<String> parametersRules, List<String> parametersPowers,
-            String typeGame, String typeMatche, boolean player) throws GameException {
-        GameSession session = startSession(parametersRules, parametersPowers, typeGame,
-                typeMatche, player);
-        return sessions.indexOf(session);
-    }
-
     /**
-     * Retira la sesión de esta lista administrada. La instancia singleton
+     * Limpia la referencia administrada a la sesión única. El singleton
      * continúa existiendo y puede volver a registrarse con startSession.
-     *
-     * @param closeSession sesión que se cerrará
      */
-    public void closeSession(GameSession closeSession) {
-        sessions.remove(closeSession);
+    public void closeSession() {
+        session = null;
     }
 
     /**
-     * Reinicia la ronda de una sesión administrada sin reemplazar la instancia
+     * Reinicia la ronda de la sesión administrada sin reemplazar la instancia
      * ni modificar marcador o modalidad.
-     * @param session sesión que se reiniciaría
      */
-    public void resetSession(GameSession session) {
-        if (session != null && sessions.contains(session)) session.restartRound();
+    public void resetSession() {
+        if (session != null) session.restartRound();
     }
 
-    /** Reinicia la ronda de la única sesión administrada por el índice indicado. */
-    public void resetSession(int sessionIndex) {
-        resetSession(requireSession(sessionIndex));
-    }
-
-
-    /**
-     * Solicita a la sesión que mueva al participante indicado.
-     *
-     * @param session sesión activa
-     * @param player participante que se moverá
-     * @param direction dirección del movimiento
-     */
-    public void movePlayer(
-            GameSession session,
-            SessionParticipant player,
-            boolean direction) {
-        if (session != null) {
-            session.movePlayer(player, direction);
-        }
-    }
-
-    /** Mueve por identificador al participante de una sesión administrada. */
-    public void movePlayer(int sessionIndex, String participantId, boolean direction) {
-        GameSession session = requireSession(sessionIndex);
-        movePlayer(session, findParticipant(session, participantId), direction);
+    /** Mueve por identificador al participante de la sesión única. */
+    public void movePlayer(String participantId, boolean direction) {
+        GameSession session = requireSession();
+        session.movePlayer(findParticipant(participantId), direction);
     }
 
     /** Ejecuta una patada por identificador y devuelve si el balón estaba al alcance. */
-    public boolean kickPlayer(int sessionIndex, String participantId) {
-        GameSession session = requireSession(sessionIndex);
-        return session.kickPlayer(findParticipant(session, participantId));
-    }
-
-    /** Avanza una sesión administrada un paso fijo. */
-    public void updateGame(int sessionIndex) {
-        updateGame(requireSession(sessionIndex));
+    public boolean kickPlayer(String participantId) {
+        GameSession session = requireSession();
+        return session.kickPlayer(findParticipant(participantId));
     }
 
     /** Devuelve una instantánea sin referencias mutables a clases internas del dominio. */
-    public SessionView inspectSession(int sessionIndex) {
-        GameSession session = requireSession(sessionIndex);
+    public SessionView inspectSession() {
+        GameSession session = requireSession();
         SoccerField field = session.getField();
         var boundaries = java.util.Arrays.stream(field.getHitboxField())
                 .map(box -> new RectangleView(box.getX(), box.getY(), box.getWidth(), box.getHeight()))
@@ -230,37 +163,34 @@ public class Game {
     }
 
     /** Devuelve el nombre de clase concreto de la sesión administrada. */
-    public String getSessionType(int sessionIndex) {
-        return requireSession(sessionIndex).getClass().getName();
+    public String getSessionType() {
+        return requireSession().getClass().getName();
     }
 
     /** Coloca a un participante para una prueba manual o visual. */
-    public void setParticipantPosition(int sessionIndex, String participantId, double x, double y) {
-        GameSession session = requireSession(sessionIndex);
-        findParticipant(session, participantId).resetPosition(x, y);
+    public void setParticipantPosition(String participantId, double x, double y) {
+        findParticipant(participantId).resetPosition(x, y);
     }
 
     /** Coloca un balón para preparar un escenario reproducible. */
-    public void setBallPosition(int sessionIndex, int ballIndex, double x, double y) {
-        requireBall(sessionIndex, ballIndex).reposition(x, y);
+    public void setBallPosition(int ballIndex, double x, double y) {
+        requireBall(ballIndex).reposition(x, y);
     }
 
     /** Aplica un cambio de velocidad al balón indicado. */
-    public void applyBallImpulse(int sessionIndex, int ballIndex, double deltaX, double deltaY) {
-        requireBall(sessionIndex, ballIndex).applyImpulse(deltaX, deltaY);
+    public void applyBallImpulse(int ballIndex, double deltaX, double deltaY) {
+        requireBall(ballIndex).applyImpulse(deltaX, deltaY);
     }
 
-    /** Devuelve la sesión del índice indicado o lanza GameException si el índice no existe. */
-    private GameSession requireSession(int sessionIndex) {
-        if (sessionIndex < 0 || sessionIndex >= sessions.size()) {
-            throw new GameException(GameException.INVALID_SESSION_INDEX);
-        }
-        return sessions.get(sessionIndex);
+    /** Devuelve la sesión única administrada o falla si todavía no se ha iniciado. */
+    private GameSession requireSession() {
+        if (session == null) throw new GameException(GameException.NO_FOUND_SESSION);
+        return session;
     }
 
-    /** Devuelve el balón solicitado o lanza GameException si la sesión o el índice son inválidos. */
-    private Ball requireBall(int sessionIndex, int ballIndex) {
-        Ball[] balls = requireSession(sessionIndex).getField().getBalls();
+    /** Devuelve el balón solicitado o lanza GameException si la sesión no está iniciada o el índice es inválido. */
+    private Ball requireBall(int ballIndex) {
+        Ball[] balls = requireSession().getField().getBalls();
         if (ballIndex < 0 || ballIndex >= balls.length) {
             throw new GameException(GameException.INVALID_BALL_INDEX);
         }
@@ -268,13 +198,14 @@ public class Game {
     }
 
     /** Interpreta el identificador lado:índice y busca al participante correspondiente. */
-    private SessionParticipant findParticipant(GameSession session, String participantId) {
+    private SessionParticipant findParticipant(String participantId) {
         if (participantId == null) throw new GameException(GameException.INVALID_PARTICIPANT_ID);
         String[] parts = participantId.split(":", -1);
         if (parts.length != 2) throw new GameException(GameException.INVALID_PARTICIPANT_ID);
+        GameSession activeSession = requireSession();
         List<SessionParticipant> participants = switch (parts[0]) {
-            case "left" -> session.getParticipantsLeft();
-            case "right" -> session.getParticipantsRight();
+            case "left" -> activeSession.getParticipantsLeft();
+            case "right" -> activeSession.getParticipantsRight();
             default -> throw new GameException(GameException.INVALID_PARTICIPANT_ID);
         };
         try {
@@ -298,52 +229,21 @@ public class Game {
 
     /**
      * Punto de extensión para activar el poder. El cuerpo está vacío y no aplica
-     * efectos; la regla de daño todavía no está confirmada en la fuente de
-     * verdad del proyecto.
+     * efectos; el comportamiento del poder aún no está implementado.
      *
-     * @param session sesión activa
      * @param player participante que usará el poder
      */
-    public void powerPlayer(GameSession session, SessionParticipant player) {
-    }
-
-    /**
-     * Busca la clase por nombre, confirma que herede de {@link GameSession} y
-     * llama al constructor que recibe {@code (boolean, String, List)} en ese
-     * orden. Traduce los errores de carga, firma, acceso e invocación a
-     * {@link GameException} con el código correspondiente.
-     *
-     * @param name nombre completo de la clase concreta de sesión
-     * @param player indicador que se pasa al constructor de la sesión
-     * @param parametersRules parámetros de la modalidad del partido
-     * @param typeMatche nombre completo de la clase de modalidad del partido
-     * @return instancia creada
-     * @throws GameException si la clase no existe, no es una sesión, no ofrece
-     *         el constructor esperado o no puede construirse
-     */
-    private GameSession whatSession(String name, boolean player, List<String> parametersRules,
-            String typeMatche, List<String> parametersPowers) throws GameException {
-        try {
-            return GameSession.getInstance(name, player, typeMatche, parametersRules, parametersPowers);
-        } catch (GameException e) {
-            throw e;
-        }
+    public void powerPlayer(SessionParticipant player) {
     }
 
     /**
      * Mejora una habilidad del participante seleccionado dentro de la sesión.
      *
-     * @param session sesión del jugador
      * @param player indicador del jugador al que se mejorará
      * @param stats estadística que se mejorará
      */
-    public void improveStatistics(
-            GameSession session,
-            boolean player,
-            String stats) {
-        if (session != null) {
-            session.improveStatistics(player, stats);
-        }
+    public void improveStatistics(boolean player, String stats) {
+        if (session != null) session.improveStatistics(player, stats);
     }
 
     /** Punto de extensión para guardar sesiones; actualmente no escribe datos. */
@@ -359,8 +259,8 @@ public class Game {
     public void open(File file) {
     }
 
-    /** Delega a la sesión indicada la actualización de un paso del juego. */
-    public void updateGame(GameSession game) {
-        game.updateGame();
+    /** Avanza un paso fijo de la sesión singleton administrada, si está iniciada. */
+    public void updateGame() {
+        if (session != null) session.updateGame();
     }
 }

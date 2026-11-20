@@ -19,7 +19,7 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 | Clase / grupo | Código observado | Evaluación frente al UML y reglas |
 |---|---|---|
 | `Game` | `startSession` solicita `GameSession.getInstance`; registra la referencia solo una vez. | Las llamadas posteriores reutilizan la primera sesión, aun si solicitan otra subclase; la primera modalidad concreta permanece activa. |
-| `Game.closeSession` | Ejecuta `sessions.remove(closeSession)`. | Retira la referencia de esta lista; no destruye la instancia singleton, que puede volver a registrarse. |
+| `Game.closeSession` | Limpia la referencia `session` de `Game`. | No destruye la instancia singleton; una llamada posterior a `startSession` vuelve a guardar esa misma instancia. |
 | `Game.movePlayer` | Delega en la sesión para participantes registrados en una partida activa; el participante se desplaza 150 × `speed` / 60 unidades, en la dirección confirmada. | Implementado en esta revisión conforme a dirección y fórmula confirmadas. |
 | `Game.resetSession` | Delega `restartRound` en la sesión única administrada; también permite resolverla por índice. | Reinicia balones y posiciones sin reemplazar la instancia ni cambiar el marcador, tiempo o estado final. `powerPlayer`, `save` y `open` siguen vacíos. |
 powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el código actual.

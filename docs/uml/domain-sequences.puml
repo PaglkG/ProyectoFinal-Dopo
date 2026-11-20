@@ -3,7 +3,7 @@ title Game constructor (flujo implementado)
 actor Usuario
 participant "game: Game" as G
 Usuario -> G ++: new Game()
-G -> G: inicializar sessions
+  G -> G: session = null
 G --> Usuario --: instancia Game
 @enduml
 
@@ -11,13 +11,12 @@ G --> Usuario --: instancia Game
 title closeSession (flujo implementado)
 actor Usuario
 participant "game: Game" as G
-participant "sessions: List<GameSession>" as L
-Usuario -> G ++: closeSession(session)
-G -> L: remove(session)
-L --> G: sesión retirada
+Usuario -> G ++: closeSession()
+G -> G: session = null
 G --> Usuario --: void
-note over G,L
-  Game elimina de la lista la sesión recibida.
+note over G
+  Game limpia su referencia; GameSession conserva
+  la instancia singleton para una llamada posterior.
 end note
 @enduml
 
@@ -32,7 +31,7 @@ participant "collisions: CollisionFacade" as C
 participant "geometry: CourtGeometry" as CG
 participant "resolver: BallCollisionResolver" as BR
 participant "ball: Ball" as B
-Usuario -> G: movePlayer(session, player, direction)
+Usuario -> G: movePlayer(player, direction)
 G -> S: movePlayer(player, direction)
 S -> P: guardar posición horizontal anterior
 S -> P: move(direction)
@@ -73,7 +72,7 @@ actor Usuario
 participant "game: Game" as G
 participant "session: GameSession" as S
 participant "player: SessionParticipant" as P
-Usuario -> G: jumpPlayer(session, player)
+Usuario -> G: jumpPlayer(player)
 G -> S: jumpPlayer(player)
 S -> P: jump()
 note over G,P
@@ -89,7 +88,7 @@ participant "game: Game" as G
 participant "session: GameSession" as S
 participant "player: SessionParticipant" as P
 participant "power: Power" as W
-Usuario -> G: powerPlayer(session, player)
+Usuario -> G: powerPlayer(player)
 G -> S: powerPlayer(player)
 S -> P: power()
 P -> W: usePower()
@@ -109,7 +108,7 @@ participant "game: Game" as G
 participant "session: GameSession" as S
 participant "participante seleccionado" as P
 participant "stats: Stats" as T
-Usuario -> G: improveStatistics(session, player, stat)
+Usuario -> G: improveStatistics(player, stat)
 G -> S: improveStatistics(player, stat)
 alt player == true
   S -> P: improveStatistics(stat) [lado derecho / jugador 1]
@@ -134,7 +133,7 @@ participant "attacker: SessionParticipant" as A
 participant "target: SessionParticipant" as T
 participant "attacker stats: Stats" as ST
 participant "target status: StatusEffect" as E
-Usuario -> G: kickPlayer(sessionIndex, participantId)
+Usuario -> G: kickPlayer(participantId)
 G -> S: kickPlayer(attacker)
 S -> A: blocksMovement()
 alt sesión terminada, atacante inválido o aturdido
@@ -198,7 +197,7 @@ participant "court geometry: CourtGeometry" as CG
 participant "ball resolver: BallCollisionResolver" as BR
 participant "participant resolver: BallParticipantCollisionResolver" as PR
 participant "ball: Ball" as B
-Reloj -> G: updateGame(session)
+Reloj -> G: updateGame()
 G -> S: updateGame()
 alt sesión ya terminada
   S --> G: no avanza

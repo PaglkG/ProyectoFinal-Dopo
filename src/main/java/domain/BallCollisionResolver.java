@@ -1,10 +1,11 @@
-package domain.collision;
+package domain;
 
 import domain.Ball;
 import domain.SessionParticipant;
 
 /** Resuelve contactos e impulsos entre balones y el empuje al caminar. */
 public final class BallCollisionResolver {
+    /** Resuelve los contactos entre cada par de balones recibidos. */
     public void resolveAll(Ball[] balls, double restitution) {
         for (int first = 0; first < balls.length; first++) {
             for (int second = first + 1; second < balls.length; second++) {
@@ -13,8 +14,10 @@ public final class BallCollisionResolver {
         }
     }
 
+    /** Resuelve empujes o rebotes de balones en contacto con el participante que caminó. */
     public void resolveWalkingContact(Ball[] balls, SessionParticipant moved, double previousX,
-            Iterable<SessionParticipant> participants, double restitution, CourtGeometry geometry) {
+            Iterable<SessionParticipant> participants, double restitution, CourtGeometry geometry,
+            BallParticipantCollisionResolver participantResolver) {
         double movement = moved.getHitbox().getX() - previousX;
         if (movement == 0) return;
         int direction = movement > 0 ? 1 : -1;
@@ -22,7 +25,7 @@ public final class BallCollisionResolver {
             if (!ball.intersects(moved).isContact()) continue;
             double speed = Math.hypot(ball.getVelocityX(), ball.getVelocityY());
             if (speed > 1e-6) {
-                BallParticipantCollisionResolver.resolve(ball, moved, restitution, 0.5);
+                participantResolver.resolve(ball, moved, restitution, 0.5);
                 moved.reposition(previousX, moved.getHitbox().getY());
                 continue;
             }
@@ -45,6 +48,7 @@ public final class BallCollisionResolver {
         }
     }
 
+    /** Corrige la penetración del par y aplica impulso normal si se aproximan. */
     private void resolvePair(Ball first, Ball second, double restitution) {
         double dx = second.getX() - first.getX();
         double dy = second.getY() - first.getY();

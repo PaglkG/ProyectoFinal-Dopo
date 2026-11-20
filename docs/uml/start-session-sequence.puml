@@ -3,10 +3,7 @@ title Crear sesión (flujo implementado)
 actor Cliente
 participant "game: Game" as G
 participant "session: GameSession" as S
-participant "participant: Player" as P
 participant "type: TypeOfMatch" as T
-participant "sessions: List<GameSession>" as L
-participant "playerStats: Map<Integer, Stats>" as M
 
 Cliente -> G: startSession(parametersRules, parametersPowers, typeGame, typeMatche, player)
 activate G
@@ -29,16 +26,7 @@ S -> T ++: constructor(List<String>) reflectivo
 T --> S --: instancia concreta
 S -> S: crear SoccerField y fijar timeLeft = 0
 S --> G: instancia única de sesión
-G -> S: getParticipantsLeft() / getParticipantsRight()
-loop cada participante Player
-  G -> P: getUserId()
-  G -> M: computeIfAbsent(userId, estadísticas iniciales)
-  M --> G: estadísticas del usuario
-  G -> P: setStats(estadísticas guardadas)
-end
-opt la sesión aún no está registrada
-  G -> L: add(session)
-end
+G -> G: session = instancia
 G --> Cliente: session
 deactivate G
 @enduml

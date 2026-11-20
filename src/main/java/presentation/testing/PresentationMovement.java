@@ -24,7 +24,6 @@ final class PresentationMovement {
     private final EnumSet<Control> jumpRequested = EnumSet.noneOf(Control.class);
     private final Map<String, Double> verticalSpeeds = Collections.synchronizedMap(new HashMap<>());
     private Game activeGame;
-    private int activeSessionIndex = -1;
 
     /** Registra la presión o liberación de una tecla de movimiento o salto. */
     public void setControl(Control control, boolean pressed) {
@@ -43,49 +42,46 @@ final class PresentationMovement {
     }
 
     /** Asocia una sesión y borra los estados visuales de movimiento anteriores. */
-    public void reset(Game game, int sessionIndex) {
+    public void reset(Game game) {
         clearInputs();
         verticalSpeeds.clear();
         activeGame = game;
-        activeSessionIndex = sessionIndex;
     }
 
     /** Reinicia el salto y la velocidad vertical después de comenzar una ronda. */
-    public void resetAfterRound(Game game, int sessionIndex) {
+    public void resetAfterRound(Game game) {
         jumpRequested.clear();
         verticalSpeeds.clear();
         activeGame = game;
-        activeSessionIndex = sessionIndex;
     }
 
     /** Actualiza participantes controlados y delega el desplazamiento horizontal a Game. */
-    public void update(Game game, int sessionIndex, MechanicsTestController.SessionMode mode) {
-        if (game != activeGame || sessionIndex != activeSessionIndex) {
+    public void update(Game game, MechanicsTestController.SessionMode mode) {
+        if (game != activeGame) {
             verticalSpeeds.clear();
             activeGame = game;
-            activeSessionIndex = sessionIndex;
-        }
-        Game.SessionView state = game.inspectSession(sessionIndex);
+            }
+        Game.SessionView state = game.inspectSession();
         if (state.finished()) return;
 
         Game.ParticipantView left = findBySide(state, "left");
         Game.ParticipantView right = findBySide(state, "right");
         if (mode == MechanicsTestController.SessionMode.PLAYER_VS_PLAYER && left != null) {
-            updateActor(game, sessionIndex, left, right,
+            updateActor(game, left, right,
                     Control.LEFT_LEFT, Control.LEFT_RIGHT, Control.LEFT_JUMP);
         }
         if (right != null) {
-            Game.SessionView current = game.inspectSession(sessionIndex);
+            Game.SessionView current = game.inspectSession();
             right = findBySide(current, "right");
             left = findBySide(current, "left");
-            updateActor(game, sessionIndex, right, left,
+            updateActor(game, right, left,
                     Control.RIGHT_LEFT, Control.RIGHT_RIGHT, Control.RIGHT_JUMP);
         }
         jumpRequested.clear();
     }
 
     /** Usa el movimiento real del dominio y limita solo la simulación visual del salto. */
-    private void updateActor(Game game, int sessionIndex, Game.ParticipantView actor,
+    private void updateActor(Game game, Game.ParticipantView actor,
             Game.ParticipantView opponent, Control leftControl, Control rightControl, Control jumpControl) {
         String id = actor.id();
         double oldX = actor.x();
@@ -93,18 +89,18 @@ final class PresentationMovement {
         int horizontal = (held.contains(rightControl) ? 1 : 0) - (held.contains(leftControl) ? 1 : 0);
         double nextX = oldX;
         if (horizontal != 0) {
-            game.movePlayer(sessionIndex, id, horizontal > 0);
-            Game.ParticipantView moved = findById(game.inspectSession(sessionIndex), id);
+            game.movePlayer(id, horizontal > 0);
+            Game.ParticipantView moved = findById(game.inspectSession(), id);
             if (moved == null) return;
-            var boundaries = game.inspectSession(sessionIndex).boundaries();
+            var boundaries = game.inspectSession().boundaries();
             double minX = boundaries.get(2).x() + boundaries.get(2).width() + EDGE_GAP;
             double maxX = boundaries.get(3).x() - moved.width() - EDGE_GAP;
             nextX = clamp(moved.x(), minX, maxX);
             if (touches(nextX, oldY, moved.width(), moved.height(), opponent)) nextX = oldX;
-            if (nextX != moved.x()) game.setParticipantPosition(sessionIndex, id, nextX, oldY);
+            if (nextX != moved.x()) game.setParticipantPosition(id, nextX, oldY);
         }
 
-        Game.SessionView currentState = game.inspectSession(sessionIndex);
+        Game.SessionView currentState = game.inspectSession();
         Game.ParticipantView positioned = findById(currentState, id);
         if (positioned == null) return;
         var boundaries = currentState.boundaries();
@@ -130,7 +126,7 @@ final class PresentationMovement {
         nextY = resolveBallVerticalContact(currentState.balls(), nextX, oldY, nextY,
                 positioned.width(), positioned.height(), verticalSpeed);
         if (nextY == oldY) verticalSpeed = 0;
-        game.setParticipantPosition(sessionIndex, id, nextX, nextY);
+        game.setParticipantPosition(id, nextX, nextY);
         verticalSpeeds.put(id, verticalSpeed);
     }
 

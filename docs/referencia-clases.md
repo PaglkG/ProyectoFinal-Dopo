@@ -6,35 +6,29 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 ### `Game`
 
-**Responsabilidad:** mantener la lista de sesiones y servir de punto de entrada para crearlas, actualizarlas o solicitar operaciones del juego.
+**Responsabilidad:** administrar la única sesión compartida y servir como punto de entrada sin exigir que las operaciones reciban una sesión.
 
 **Atributos:**
 
 | Atributo | Representa |
 |---|---|
-| `sessions: List<GameSession>` | Las sesiones actualmente registradas por el coordinador. |
-| `playerStats: Map<Integer, Stats>` | Estadísticas asociadas a IDs humanos; conserva niveles y puntos entre sesiones de esta instancia de `Game`. |
+| `session: GameSession` | Referencia a la sesión singleton administrada; queda nula tras `closeSession()`. |
 
 **Métodos:**
 
 | Método | Qué hace |
 |---|---|
-| `Game()` | Inicializa las sesiones y el registro de estadísticas en memoria. |
-| `startSession(parametersRules, parametersPowers, typeGame, typeMatche, player)` | Crea reflectivamente una sesión con sus reglas, poderes y, en modo contra bot, perfil; restaura las estadísticas guardadas por ID, la añade a `sessions` y la devuelve. |
-| `closeSession(closeSession)` | Busca y elimina de la lista la sesión recibida. |
-| `resetSession(session)` | Está vacío; no reinicia la sesión actualmente. |
-| `movePlayer(session, player, direction)` | Delega el movimiento en la sesión; `true` mueve a la derecha y `false` a la izquierda. |
-| `startSessionForView(parametersRules, parametersPowers, typeGame, typeMatche, player)` | Crea una sesión y devuelve su índice para operar por la fachada sin exponerla. |
-| `inspectSession(sessionIndex)` | Devuelve una instantánea inmutable de cancha, hitboxes, participantes, balón, marcador, tiempo y estado de término. |
-| `movePlayer(sessionIndex, participantId, direction)` / `kickPlayer(sessionIndex, participantId)` | Ejecutan movimiento o patada para un participante identificado por lado e índice. |
-| `updateGame(sessionIndex)` | Avanza la sesión indicada por su índice. |
+| `startSession(parametersRules, parametersPowers, typeGame, typeMatche, player)` | Obtiene o crea la sesión singleton con sus reglas, poderes y, en modo contra bot, perfil; guarda su referencia única y la devuelve. |
+| `closeSession()` | Limpia la referencia administrada; no destruye el singleton. |
+| `resetSession()` | Reinicia la ronda de la sesión administrada sin cambiar el marcador, tiempo, modalidad ni estado final. |
+| `inspectSession()` | Devuelve una instantánea inmutable de cancha, hitboxes, participantes, balón, marcador, tiempo y estado de término. |
+| `movePlayer(participantId, direction)` / `kickPlayer(participantId)` | Ejecutan movimiento o patada para un participante identificado por lado e índice. |
+| `updateGame()` | Avanza la única sesión administrada un paso fijo. |
 | `setParticipantPosition(...)`, `setBallPosition(...)`, `applyBallImpulse(...)` | Preparan coordenadas e impulsos para escenarios visuales mediante la fachada. |
-| `powerPlayer(session, player)` | Está vacío; no activa poderes. |
-| `whatSession(name, player, parametersRules, typeMatche, parametersPowers)` | Método privado que valida y crea la subclase de sesión solicitada; traduce errores de reflexión a `GameException`. |
-| `improveStatistics(session, player, stats)` | Delega en la sesión para mejorar la habilidad seleccionada; `true` selecciona derecha/jugador 1. |
+| `powerPlayer(player)` | Está vacío; no activa poderes. |
+| `improveStatistics(player, stats)` | Delega en la sesión única para mejorar la habilidad seleccionada; `true` selecciona derecha/jugador 1. |
 | `save()` | Está vacío; no persiste datos. |
 | `open(file)` | Está vacío; no lee ni restaura datos. |
-| `updateGame(game)` | Delega un paso de actualización a `game.updateGame()`. |
 
 **Records anidados de la fachada:** `SessionView` contiene copias inmutables del rectángulo de cancha, límites, arcos, participantes, balones, marcador, tiempo y estado final. `ParticipantView`, `BallView` y `RectangleView` son datos de solo lectura para la presentación.
 
@@ -105,7 +99,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 ### `SoccerField`
 
-**Responsabilidad:** contener los balones y la geometría de cancha, contestar consultas espaciales y resolver los contactos físicos de balones con otros balones, participantes y cancha.
+**Responsabilidad:** contener y avanzar los balones y la geometría de cancha, contestar consultas espaciales y delegar las respuestas de colisión a `CollisionFacade`.
 
 **Atributos:**
 
@@ -114,6 +108,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `LeftGoalHitbox`, `RightGoalHitbox: RectangularHitbox` | Geometría de los dos arcos. |
 | `fieldHitbox: RectangularHitbox[]` | Límites superior, inferior, izquierdo y derecho, en ese orden. |
 | `balls: Ball[]` | Balones contenidos; el constructor actual crea uno de radio 10. |
+| `collisions: CollisionFacade` | Coordinador de colisiones asociado a esta cancha. |
 
 **Métodos:**
 
@@ -122,13 +117,8 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `SoccerField()` | Crea la cancha de `450 × 150`, un balón de radio 10 y posiciona la geometría en el origen. |
 | `advanceBalls(deltaSeconds, gravity)` | Avanza todos los balones delegando a `Ball.advance`. |
 | `addBall(ball)` | Agrega un balón conservando su estado inicial; rechaza nulos y la misma instancia duplicada con `GameException`. Permite a una sesión extendida componer varios balones. |
-| `resolveBallCollisions(restitution)` | Público: corrige penetraciones entre pares de balones y aplica el rebote de masas iguales sobre la normal del contacto con la restitución indicada. |
-| `resolveBallParticipantCollisions(participants, restitution, minimumLandingSpeed)` | Público: separa los balones de las hitboxes participantes y refleja su velocidad normal cuando se aproximan; al aterrizar sobre un balón, lo manda hacia abajo con la velocidad mínima configurada. |
-| `resolveWalkingContact(moved, previousX, participants, restitution)` | Público: impide atravesar balones al caminar; empuja los quietos en pasos pequeños sin cambiar velocidad y rebota/bloquea ante balones móviles. Detiene el empuje si colisionaría con cancha u otra entidad. |
-| `keepBallInsideCourt(ball, retention)` | Público: corrige la posición del balón fuera de los límites y lo rebota hacia el interior. |
-| `resolveBallPair(first, second, restitution)` | Privado: corrige la penetración de dos círculos y aplica impulso normal solo si se aproximan. |
-| `resolveBallParticipant(ball, participant, restitution, minimumLandingSpeed)` | Privado: corrige la penetración círculo-rectángulo y refleja la velocidad normal entrante; si el balón rebota al contacto desde arriba, establece una velocidad descendente mínima. |
-| `validBallPosition(candidate, moved, participants)` | Privado: valida que el balón empujado siga dentro de cancha y sin contacto con otros balones o participantes. |
+| `resolveBallCollisions(restitution)`, `resolveBallParticipantCollisions(...)`, `resolveWalkingContact(...)` | Delegan a `CollisionFacade` la resolución de colisiones entre balones, participantes y empujes al caminar. |
+| `keepBallInsideCourt(ball, retention)`, `bounceBallAtWallsAndGoalFrames(...)`, `bounceBallAtGround(...)` | Delegan en la fachada la respuesta geométrica frente a límites, arcos y suelo. |
 | `getHitboxes()` | Devuelve un arreglo nuevo con límites, arcos y balones como objetos `Hitbox`. |
 | `resetBall(x, y)` | Reinicia cada balón con centro en `(x, y)` y velocidad cero. |
 | `getHitboxField()` | Devuelve el arreglo interno de límites. |
@@ -151,6 +141,64 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `intersects(hitbox)` | Busca si el objeto recibido toca límites, arcos o alguno de los balones. |
 | `contactingPart(other)` | Devuelve qué parte de la cancha o qué balón contenido toca al objeto recibido. |
 | `reposition(x, y)` | Reposiciona límites y arcos y traslada los balones para conservar su posición relativa. |
+
+### Colisiones en `domain`
+
+#### `CollisionFacade`
+
+**Responsabilidad:** intermediar entre `SoccerField` y los colaboradores que consultan geometría y resuelven colisiones.
+
+| Método | Qué hace |
+|---|---|
+| `CollisionFacade(field)` | Asocia la fachada con la cancha y crea sus colaboradores de geometría y resolución. |
+| `resolveBallCollisions(restitution)` | Delega la resolución de contactos entre todos los pares de balones. |
+| `resolveBallParticipantCollisions(participants, restitution, minimumLandingSpeed)` | Delega la resolución de los contactos entre balones y participantes. |
+| `resolveWalkingContact(moved, previousX, participants, restitution)` | Delega la respuesta al contacto producido por el movimiento de un participante. |
+| `keepBallInsideCourt(ball, retention)` | Corrige la posición del balón dentro de los límites jugables y aplica rebote si corresponde. |
+| `bounceBallAtWallsAndGoalFrames(ball, retention)` | Resuelve rebotes del balón contra paredes y marcos de arco. |
+| `bounceBallAtGround(ball, retention, minimumSpeed)` | Resuelve el contacto del balón con el suelo. |
+| `isOutside(ball)`, `isOutside(participant)` | Indican si el balón o participante rebasa el rectángulo exterior de la cancha. |
+| `touchesForbiddenBoundary(participant)` | Indica si el participante toca un límite superior o lateral restringido. |
+| `touchesGround(ball)` | Indica si el balón toca el suelo. |
+| `groundCenterY(ball)` | Devuelve la coordenada vertical del centro del balón cuando está apoyado en el suelo. |
+| `goalSideFor(ball)` | Devuelve el lado del arco que contiene el centro del balón, o cadena vacía si no está en un arco. |
+
+#### `CourtGeometry`
+
+**Responsabilidad:** evaluar la geometría de cancha y resolver respuestas geométricas de balones y participantes.
+
+| Método | Qué hace |
+|---|---|
+| `CourtGeometry(field)` | Asocia el evaluador con la cancha cuyas dimensiones y hitboxes consulta. |
+| `isValidBallPosition(candidate, moved, participants)` | Valida que la posición candidata respete límites, otros balones y participantes. |
+| `keepBallInsideCourt(ball, retention)` | Corrige salidas de los límites interiores y rebota el balón hacia dentro. |
+| `bounceBallAtWallsAndGoalFrames(ball, retention)` | Aplica los rebotes de paredes y marcos de arco. |
+| `bounceBallAtGround(ball, retention, minimumSpeed)` | Rebota el balón cuando toca el suelo. |
+| `isOutside(ball)`, `isOutside(participant)` | Comprueban si la entidad sale del rectángulo exterior de cancha. |
+| `touchesForbiddenBoundary(participant)` | Comprueba el contacto con el techo o los límites laterales restringidos. |
+| `touchesGround(ball)` | Comprueba el contacto con la hitbox del suelo. |
+| `groundCenterY(ball)` | Calcula la coordenada del centro del balón apoyado en el suelo. |
+| `goalSideFor(ball)` | Detecta el arco que contiene el centro del balón; devuelve cadena vacía si no hay gol. |
+| `containsCenter(goal, ball)` (privado) | Comprueba si el centro del balón cae dentro del rectángulo del arco. |
+
+#### `BallCollisionResolver`
+
+**Responsabilidad:** resolver contactos entre balones y el empuje de balones causado al caminar.
+
+| Método | Qué hace |
+|---|---|
+| `resolveAll(balls, restitution)` | Recorre cada par de balones y resuelve su contacto. |
+| `resolveWalkingContact(balls, moved, previousX, participants, restitution, geometry, participantResolver)` | Resuelve el contacto del participante que camina: rebota contra un balón en movimiento o intenta empujar uno quieto sin producir superposiciones inválidas. |
+| `resolvePair(first, second, restitution)` (privado) | Corrige penetración entre dos balones y aplica el impulso normal cuando se aproximan. |
+
+#### `BallParticipantCollisionResolver`
+
+**Responsabilidad:** separar y resolver el rebote entre balones y hitboxes de participantes.
+
+| Método | Qué hace |
+|---|---|
+| `resolveAll(balls, participants, restitution, minimumLandingSpeed)` | Resuelve los contactos de cada balón con los participantes recibidos. |
+| `resolve(ball, participant, restitution, minimumLandingSpeed)` | Corrige la penetración, refleja la componente normal de velocidad si se aproximan y aplica la velocidad mínima de aterrizaje al contacto desde arriba. |
 
 ### `Ball`
 
@@ -411,7 +459,7 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 - `SessionMode`: `PLAYER_VS_PLAYER` y `PLAYER_VS_BOT`, con atributo `label`; constructor asigna etiqueta y `toString()` devuelve texto legible.
 - `Scenario`: enumera gol izquierdo/derecho, contacto, rebotes, colisión entre dos balones, participante fuera/límite, superposición, patada y victoria en muerte súbita; no declara campos ni métodos.
 
-**Atributos:** `game: Game` única puerta al dominio; `activeSessionIndex: int` índice de la sesión; `selectedSessionMode`, `selectedMatchMode` y `selectedLimit` opciones seleccionadas; `configuration: MechanicsTestConfiguration` clases y parámetros elegidos; `movement: PresentationMovement` entrada visual.
+**Atributos:** `game: Game` única puerta al dominio; la sesión se obtiene por la fachada única `Game`; `selectedSessionMode`, `selectedMatchMode` y `selectedLimit` opciones seleccionadas; `configuration: MechanicsTestConfiguration` clases y parámetros elegidos; `movement: PresentationMovement` entrada visual.
 
 **Métodos:**
 
@@ -421,7 +469,7 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 | `MechanicsTestController(configuration)` | Crea la sesión usando la configuración recibida y únicamente la fachada `Game`. |
 | `startNewSession(sessionMode, matchMode, limit)` | Guarda opciones y crea una sesión estándar nueva. |
 | `restartConfiguredSession()` | Vuelve a crear la sesión con la configuración elegida. |
-| `createConfiguredSession()` | Privado: ordena parámetros de regla y poderes, crea `Game` y solicita la sesión mediante `startSessionForView`. |
+| `createConfiguredSession()` | Privado: ordena parámetros de regla y poderes, crea `Game` e inicia o reutiliza la sesión mediante `startSession`, ignorando el objeto que devuelve. |
 | `step()` | Consulta si la sesión sigue activa, actualiza controles visuales y avanza el dominio mediante `Game`; limpia movimiento tras un gol. |
 | `setMovementControl(control, pressed)` | Paquete: reenvía el estado de tecla a `PresentationMovement`. |
 | `kickLeft()` | Paquete: intenta patear con el primer jugador izquierdo; no aplica en modo contra bot. |
@@ -468,7 +516,7 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 
 **Enumeración `Control`:** `LEFT_LEFT`, `LEFT_RIGHT`, `LEFT_JUMP`, `RIGHT_LEFT`, `RIGHT_RIGHT`, `RIGHT_JUMP`; identifican controles lógicos de cada lado.
 
-**Atributos:** `held` teclas mantenidas; `jumpRequested` solicitudes de salto del flanco inicial; `verticalSpeeds` velocidades verticales por id de participante; `activeGame` y `activeSessionIndex` identifican la sesión que consulta mediante `Game`.
+**Atributos:** `held` teclas mantenidas; `jumpRequested` solicitudes de salto del flanco inicial; `verticalSpeeds` velocidades verticales por id de participante; `activeGame` identifica la fachada `Game` que consulta.
 
 **Métodos:**
 
@@ -476,10 +524,10 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 |---|---|
 | `setControl(control, pressed)` | Registra/libera tecla y registra una solicitud de salto solo al primer key-down. |
 | `clearInputs()` | Limpia teclas mantenidas y saltos pendientes. |
-| `reset(game, sessionIndex)` | Limpia controles y velocidades y establece la sesión activa. |
-| `resetAfterRound(game, sessionIndex)` | Limpia solicitudes de salto/velocidades tras gol y conserva la sesión activa. |
-| `update(game, sessionIndex, mode)` | Consulta una instantánea, envía movimiento horizontal por `Game` y actualiza el salto visual. |
-| `updateActor(game, sessionIndex, actor, opponent, controls...)` | Privado: delega el movimiento horizontal a `Game`, calcula el salto visual y limita el cruce vertical del balón; puede saltar desde la cara superior. |
+| `reset(game)` | Limpia controles y velocidades y establece la sesión activa. |
+| `resetAfterRound(game)` | Limpia solicitudes de salto/velocidades tras gol y conserva la sesión activa. |
+| `update(game, mode)` | Consulta una instantánea, envía movimiento horizontal por `Game` y actualiza el salto visual. |
+| `updateActor(game, actor, opponent, controls...)` | Privado: delega el movimiento horizontal a `Game`, calcula el salto visual y limita el cruce vertical del balón; puede saltar desde la cara superior. |
 | `supportedByBall(balls, x, y, width, height)` | Privado: identifica si un balón sostiene al participante para permitir un nuevo salto. |
 | `resolveBallVerticalContact(balls, x, oldY, nextY, width, height, verticalSpeed)` | Privado: detiene el desplazamiento vertical en la cara superior al caer o en la inferior al ascender. |
 | `overlapsHorizontally(x, width, ball)` | Privado: comprueba que el participante esté horizontalmente sobre el círculo del balón. |
