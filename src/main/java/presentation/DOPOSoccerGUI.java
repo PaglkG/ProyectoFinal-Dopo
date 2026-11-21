@@ -6,6 +6,8 @@ import java.awt.Dimension;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
+import domain.Game;
+
 /**
  * Ventana principal de DOPOSoccer. Contiene todas las pantallas del juego.
  */
@@ -17,6 +19,8 @@ public class DOPOSoccerGUI extends JFrame
     private static final int WINDOW_HEIGHT = 600;
 
     private final NavigationController navigationController;
+    private final Game game;
+    private MatchConfiguration startedConfiguration;
     private MainMenuPanel mainMenuPanel;
     private ConfigurationPanel configurationPanel;
     private PersonalizationPanel personalizationPanel;
@@ -31,6 +35,7 @@ public class DOPOSoccerGUI extends JFrame
     public DOPOSoccerGUI() 
     {
         super(TITLE);
+        game = new Game();
         navigationController = new NavigationController(this);
         prepareView();
         prepareController();
@@ -64,8 +69,8 @@ public class DOPOSoccerGUI extends JFrame
         configurationPanel = new ConfigurationPanel(navigationController);
         personalizationPanel = new PersonalizationPanel(navigationController);
         storeImprovementPanel = new StoreImprovementPanel(navigationController);
-        preparationPanel = new PreparationPanel();
-        matchPanel = new MatchPanel();
+        preparationPanel = new PreparationPanel(navigationController);
+        matchPanel = new MatchPanel(game);
         pausePanel = new PausePanel();
     }
 
@@ -130,6 +135,26 @@ public class DOPOSoccerGUI extends JFrame
     {
         CardLayout layout = (CardLayout) getContentPane().getLayout();
         layout.show(getContentPane(), screen);
+    }
+
+    /** Crea la sesión desde la configuración de presentación y alista el partido. */
+    public void startMatch(MatchConfiguration configuration) {
+        if (startedConfiguration != null && !startedConfiguration.equals(configuration)) {
+            throw new IllegalStateException("La sesión única ya conserva otra configuración. "
+                    + "Reinicia la aplicación para crear una partida con nuevos parámetros.");
+        }
+        game.startSession(configuration.parametersRules(), configuration.parametersPowers(),
+                configuration.typeGame(), configuration.typeMatch(), configuration.playerOne());
+        startedConfiguration = configuration;
+        preparationPanel.setCountryCodes(configuration.playerTwoCountryCode(),
+                configuration.playerOneCountryCode());
+        preparationPanel.setReady();
+        matchPanel.setCharacterImages(
+                "/images/outfits/heads/" + configuration.playerTwoHeadImage(),
+                "/images/outfits/heads/" + configuration.playerOneHeadImage());
+        matchPanel.setAgainstBot(configuration.againstBot());
+        matchPanel.refreshMatchView();
+        showScreen(NavigationController.PREPARATION);
     }
 
     /**

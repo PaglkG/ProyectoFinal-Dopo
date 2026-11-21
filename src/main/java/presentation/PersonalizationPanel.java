@@ -39,19 +39,19 @@ public class PersonalizationPanel extends BasePanel
     private static final String[] MATCH_TYPES = {"Partido por tiempo", "Partido por goles"};
     private static final String[] FIELD_SIZES = {"800 x 450", "1024 x 576", "1280 x 720"};
     private static final CharacterProfile[] CHARACTER_PROFILES = {
-        new CharacterProfile("Corea del Sur", "Tigre", "tiger@4x-8.png", "Aura Azul",
+        new CharacterProfile("Corea del Sur", "KR", "Tigre", "tiger@4x-8.png", "domain.BlueAura", "Aura Azul",
                 "Un delantero explosivo con garras afiladas y un rugido capaz de estremecer el estadio. "
                 + "Desata un disparo recto y horizontal envuelto en energía azul a máxima velocidad; "
                 + "si el rival intenta bloquearlo, la onda de choque lo lanzará directo hacia su propia portería."),
-        new CharacterProfile("Camerún", "Leopardo", "leopard@4x-8.png", "Rayo",
+        new CharacterProfile("Camerún", "CM", "Leopardo", "leopard@4x-8.png", "domain.Lightning", "Rayo",
                 "Ágil, veloz y letal en el contraataque. Canaliza la energía de la tormenta en sus botas "
                 + "para lanzar un proyectil recto cargado de electricidad. Al hacer contacto, electrocuta "
                 + "al oponente, dejándolo sin salto y reduciendo su velocidad a la mitad."),
-        new CharacterProfile("Nigeria", "Lobo", "wolf@4x-8.png", "Tornado",
+        new CharacterProfile("Nigeria", "NG", "Lobo", "wolf@4x-8.png", "domain.Tornado", "Tornado",
                 "Un cazador implacable que controla el ritmo del partido con ferocidad. Invoca un remolino "
                 + "a ras de suelo que rebota de forma impredecible; si alcanza al adversario, lo lanza por "
                 + "los aires dejándolo inconsciente e incapaz de moverse, saltar o patear."),
-        new CharacterProfile("Estados Unidos", "Oso", "bear@4x-8.png", "Ilusión",
+        new CharacterProfile("Estados Unidos", "US", "Oso", "bear@4x-8.png", "domain.Illusion", "Ilusión",
                 "Un peso pesado que domina el área con fuerza bruta y astucia inesperada. Al activar su "
                 + "poder, multiplica el balón en 8 copias idénticas que confunden tanto al rival como a él "
                 + "mismo, desatando el caos en la cancha hasta que las 7 ilusiones desaparecen.")
@@ -495,10 +495,14 @@ public class PersonalizationPanel extends BasePanel
     {
         startButton.addActionListener(e -> 
         {
-            if (isMatchLimitValid()) 
-            {
-                // Pendiente: enviar la configuración al dominio antes de preparar el partido.
-                navigationController.showScreen(NavigationController.PREPARATION);
+            if (isMatchLimitValid()) {
+                try {
+                    navigationController.startMatch(createMatchConfiguration());
+                } catch (RuntimeException exception) {
+                    JOptionPane.showMessageDialog(this,
+                            "No se pudo iniciar el partido: " + exception.getMessage(),
+                            "Error al iniciar", JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
     }
@@ -578,8 +582,48 @@ public class PersonalizationPanel extends BasePanel
         preview.setIcon(new ImageIcon(scaled));
     }
 
-    private record CharacterProfile(String country, String animal, String imageFile,
-                                    String powerName, String description) { }
+    /** Convierte las selecciones actuales al orden de parámetros acordado por Game. */
+    private MatchConfiguration createMatchConfiguration() {
+        CharacterProfile playerOneProfile = selectedProfile(player1CountryComboBox);
+        CharacterProfile playerTwoProfile = selectedProfile(player2CountryComboBox);
+        int limit = Integer.parseInt((matchTypeComboBox.getSelectedIndex() == 0
+                ? minutesTextField : goalsTextField).getText().trim());
+        String[] size = ((String) fieldSizeComboBox.getSelectedItem()).split("\\s*x\\s*");
+        String height = size[1];
+        String width = size[0];
+        String typeMatch = matchTypeComboBox.getSelectedIndex() == 0
+                ? "domain.ByTime" : "domain.ByGoals";
+        boolean playerOne = true;
+        boolean againstBot = modeComboBox.getSelectedIndex() == 0;
+        String typeGame = againstBot ? "domain.PlayerVsBot" : "domain.PlayerVsPlayer";
+        java.util.List<String> powers = new java.util.ArrayList<>();
+        powers.add(playerOneProfile.powerClassName());
+        powers.add(playerTwoProfile.powerClassName());
+        if (againstBot) {
+            powers.add(selectedBotProfileClass());
+        }
+        return new MatchConfiguration(java.util.List.of(height, width, Integer.toString(limit)), powers,
+                typeGame, typeMatch, playerOne, againstBot, playerOneProfile.countryCode(),
+                playerTwoProfile.countryCode(), playerOneProfile.imageFile(), playerTwoProfile.imageFile());
+    }
+
+    /** Traduce el perfil visible al identificador que recibe la sesión de bot. */
+    private String selectedBotProfileClass() {
+        return switch (botProfileComboBox.getSelectedIndex()) {
+            case 0 -> "Clumsy";
+            case 1 -> "Offensive";
+            case 2 -> "Defensive";
+            default -> "Expert";
+        };
+    }
+
+    /** Obtiene los metadatos del personaje elegido en un desplegable. */
+    private CharacterProfile selectedProfile(JComboBox<String> countryComboBox) {
+        return CHARACTER_PROFILES[countryComboBox.getSelectedIndex()];
+    }
+
+    private record CharacterProfile(String country, String countryCode, String animal, String imageFile,
+                                    String powerClassName, String powerName, String description) { }
 
     /**
      * Verifica que el campo visible (minutos o goles) contenga un entero positivo.
