@@ -33,6 +33,11 @@ public class NavigationController
         doposoccerGUI.showScreen(screen);
     }
 
+    /** Inicia la sesión configurada mediante la fachada y prepara las pantallas del partido. */
+    public void startMatch(MatchConfiguration configuration) {
+        doposoccerGUI.startMatch(configuration);
+    }
+
     /**
      * Cierra el juego.
      */

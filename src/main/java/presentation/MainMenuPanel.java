@@ -37,8 +37,8 @@ public class MainMenuPanel extends BasePanel
     private static final int CONTENT_PADDING_BOTTOM = 30;
  
     // Medidas del logo
-    private static final String LOGO_PATH = "/images/logo.png";
-    private static final int LOGO_HEIGHT = 120;
+    private static final String LOGO_PATH = "/images/logo-menu.png";
+    private static final int LOGO_HEIGHT = 180;
     private static final int LOGO_CARD_ARC = 40;
     private static final int LOGO_PADDING_TOP = 15;
     private static final int LOGO_PADDING_BOTTOM = 15;
