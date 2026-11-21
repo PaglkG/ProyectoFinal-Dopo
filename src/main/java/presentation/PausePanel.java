@@ -22,6 +22,7 @@ public class PausePanel extends BasePanel {
     private static final int LOGO_SIZE = 64;
 
     private final NavigationController navigationController;
+    private JButton resumeButton;
     private JButton mainMenuButton;
 
     /** Crea la pantalla de pausa conectada con la navegación principal. */
@@ -42,12 +43,12 @@ public class PausePanel extends BasePanel {
         add(background, BorderLayout.CENTER);
     }
 
-    /** Crea la tarjeta con el logo y la única acción disponible por ahora. */
+    /** Crea la tarjeta con las acciones visibles del menú de pausa. */
     private JPanel prepareViewPauseCard() {
         RoundedPanel card = new RoundedPanel(Theme.BACKGROUND, 34);
         card.setLayout(new javax.swing.BoxLayout(card, javax.swing.BoxLayout.Y_AXIS));
         card.setBorder(BorderFactory.createEmptyBorder(20, 28, 24, 28));
-        card.setPreferredSize(new Dimension(360, 380));
+        card.setPreferredSize(new Dimension(360, 430));
 
         JLabel logo = new JLabel(loadLogo(), SwingConstants.CENTER);
         logo.setAlignmentX(CENTER_ALIGNMENT);
@@ -67,6 +68,13 @@ public class PausePanel extends BasePanel {
         message.setForeground(Theme.LABEL_COLOR);
         card.add(message);
         card.add(javax.swing.Box.createVerticalStrut(16));
+
+        resumeButton = new RoundedButton("Reanudar partida",
+                Theme.GREEN, Color.WHITE, Theme.SAND_BORDER, 14);
+        resumeButton.setAlignmentX(CENTER_ALIGNMENT);
+        resumeButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        card.add(resumeButton);
+        card.add(javax.swing.Box.createVerticalStrut(8));
 
         JButton restartButton = new RoundedButton("Reiniciar partida",
                 Theme.SAND, Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
@@ -90,9 +98,11 @@ public class PausePanel extends BasePanel {
         return card;
     }
 
-    /** Conecta la única acción disponible con el menú principal. */
+    /** Conecta reanudar y volver al menú; reiniciar y guardar siguen sin acción. */
     @Override
     public void prepareController() {
+        resumeButton.addActionListener(event ->
+                navigationController.showScreen(NavigationController.MATCH));
         mainMenuButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MAIN_MENU));
     }
