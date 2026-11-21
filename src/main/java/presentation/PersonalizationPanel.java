@@ -39,19 +39,23 @@ public class PersonalizationPanel extends BasePanel
     private static final String[] MATCH_TYPES = {"Partido por tiempo", "Partido por goles"};
     private static final String[] FIELD_SIZES = {"800 x 450", "1024 x 576", "1280 x 720"};
     private static final CharacterProfile[] CHARACTER_PROFILES = {
-        new CharacterProfile("Corea del Sur", "KR", "Tigre", "tiger@4x-8.png", "domain.BlueAura", "Aura Azul",
+        new CharacterProfile("Corea del Sur", "KR", "Tigre", "tiger@4x-8.png", "tiger_escalado.png",
+                "domain.BlueAura", "Aura Azul",
                 "Un delantero explosivo con garras afiladas y un rugido capaz de estremecer el estadio. "
                 + "Desata un disparo recto y horizontal envuelto en energía azul a máxima velocidad; "
                 + "si el rival intenta bloquearlo, la onda de choque lo lanzará directo hacia su propia portería."),
-        new CharacterProfile("Camerún", "CM", "Leopardo", "leopard@4x-8.png", "domain.Lightning", "Rayo",
+        new CharacterProfile("Camerún", "CM", "Leopardo", "leopard@4x-8.png", "leopard_escalado.png",
+                "domain.Lightning", "Rayo",
                 "Ágil, veloz y letal en el contraataque. Canaliza la energía de la tormenta en sus botas "
                 + "para lanzar un proyectil recto cargado de electricidad. Al hacer contacto, electrocuta "
                 + "al oponente, dejándolo sin salto y reduciendo su velocidad a la mitad."),
-        new CharacterProfile("Nigeria", "NG", "Lobo", "wolf@4x-8.png", "domain.Tornado", "Tornado",
+        new CharacterProfile("Nigeria", "NG", "Lobo", "wolf@4x-8.png", "wolf_referencia.png",
+                "domain.Tornado", "Tornado",
                 "Un cazador implacable que controla el ritmo del partido con ferocidad. Invoca un remolino "
                 + "a ras de suelo que rebota de forma impredecible; si alcanza al adversario, lo lanza por "
                 + "los aires dejándolo inconsciente e incapaz de moverse, saltar o patear."),
-        new CharacterProfile("Estados Unidos", "US", "Oso", "bear@4x-8.png", "domain.Illusion", "Ilusión",
+        new CharacterProfile("Estados Unidos", "US", "Oso", "bear@4x-8.png", "bear_escalado.png",
+                "domain.Illusion", "Ilusión",
                 "Un peso pesado que domina el área con fuerza bruta y astucia inesperada. Al activar su "
                 + "poder, multiplica el balón en 8 copias idénticas que confunden tanto al rival como a él "
                 + "mismo, desatando el caos en la cancha hasta que las 7 ilusiones desaparecen.")
@@ -82,7 +86,7 @@ public class PersonalizationPanel extends BasePanel
     private static final int GRID_HGAP = 14;
 
     // Medidas de los personajes
-    private static final String COUNTRY_IMAGE_FOLDER = "/images/outfits/heads/";
+    private static final String COUNTRY_IMAGE_FOLDER = "/images/outfits/heads/Heads Scaled/";
     private static final int PREVIEW_SIZE = 80;
     private static final int COMBO_WIDTH = 200;
     private static final int DESCRIPTION_ROWS = 6;
@@ -569,7 +573,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private void loadPreview(JLabel preview, CharacterProfile profile)
     {
-        URL url = getClass().getResource(COUNTRY_IMAGE_FOLDER + profile.imageFile());
+        URL url = getClass().getResource(COUNTRY_IMAGE_FOLDER + profile.previewImageFile());
         if (url == null) 
         {
             preview.setIcon(null);
@@ -623,7 +627,8 @@ public class PersonalizationPanel extends BasePanel
     }
 
     private record CharacterProfile(String country, String countryCode, String animal, String imageFile,
-                                    String powerClassName, String powerName, String description) { }
+                                    String previewImageFile, String powerClassName, String powerName,
+                                    String description) { }
 
     /**
      * Verifica que el campo visible (minutos o goles) contenga un entero positivo.
