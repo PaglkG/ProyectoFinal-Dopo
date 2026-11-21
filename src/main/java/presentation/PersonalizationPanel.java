@@ -9,6 +9,7 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Image;
 import java.net.URL;
+import java.util.Arrays;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -20,6 +21,8 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
@@ -35,13 +38,27 @@ public class PersonalizationPanel extends BasePanel
     private static final String[] BOT_PROFILES = {"Torpe", "Ofensiva", "Defensiva", "Experta"};
     private static final String[] MATCH_TYPES = {"Partido por tiempo", "Partido por goles"};
     private static final String[] FIELD_SIZES = {"800 x 450", "1024 x 576", "1280 x 720"};
-    private static final String[] COUNTRIES = {"Colombia", "Corea", "Nigeria", "Brasil"};
-    private static final String[] COUNTRY_DESCRIPTIONS = {
-        "Equilibrado y fiel a su estilo: buen control del balón y remate certero.",
-        "Veloz y muy disciplinado: gana los duelos con rapidez y precisión.",
-        "Potente y resistente: gran salto y fuerza para disputar cada balón.",
-        "Técnico y creativo: regates difíciles y tiros llenos de efecto."
+    private static final CharacterProfile[] CHARACTER_PROFILES = {
+        new CharacterProfile("Corea del Sur", "Tigre", "tiger@4x-8.png", "Aura Azul",
+                "Un delantero explosivo con garras afiladas y un rugido capaz de estremecer el estadio. "
+                + "Desata un disparo recto y horizontal envuelto en energía azul a máxima velocidad; "
+                + "si el rival intenta bloquearlo, la onda de choque lo lanzará directo hacia su propia portería."),
+        new CharacterProfile("Camerún", "Leopardo", "leopard@4x-8.png", "Rayo",
+                "Ágil, veloz y letal en el contraataque. Canaliza la energía de la tormenta en sus botas "
+                + "para lanzar un proyectil recto cargado de electricidad. Al hacer contacto, electrocuta "
+                + "al oponente, dejándolo sin salto y reduciendo su velocidad a la mitad."),
+        new CharacterProfile("Nigeria", "Lobo", "wolf@4x-8.png", "Tornado",
+                "Un cazador implacable que controla el ritmo del partido con ferocidad. Invoca un remolino "
+                + "a ras de suelo que rebota de forma impredecible; si alcanza al adversario, lo lanza por "
+                + "los aires dejándolo inconsciente e incapaz de moverse, saltar o patear."),
+        new CharacterProfile("Estados Unidos", "Oso", "bear@4x-8.png", "Ilusión",
+                "Un peso pesado que domina el área con fuerza bruta y astucia inesperada. Al activar su "
+                + "poder, multiplica el balón en 8 copias idénticas que confunden tanto al rival como a él "
+                + "mismo, desatando el caos en la cancha hasta que las 7 ilusiones desaparecen.")
     };
+    private static final String[] COUNTRIES = Arrays.stream(CHARACTER_PROFILES)
+            .map(CharacterProfile::country)
+            .toArray(String[]::new);
 
     // Nombres de las tarjetas que alternan entre tiempo y goles
     private static final String TIME_CARD = "TIME";
@@ -50,25 +67,25 @@ public class PersonalizationPanel extends BasePanel
     // Valores iniciales
     private static final String DEFAULT_MINUTES = "5";
     private static final String DEFAULT_GOALS = "3";
-    private static final int DEFAULT_PLAYER1_COUNTRY = 1;
+    private static final int DEFAULT_PLAYER1_COUNTRY = 0;
     private static final int DEFAULT_PLAYER2_COUNTRY = 2;
 
     // Medidas del panel
-    private static final int OUTER_MARGIN = 25;
+    private static final int OUTER_MARGIN = 15;
     private static final int CONTENT_ARC = 50;
-    private static final int CONTENT_PADDING_TOP = 14;
+    private static final int CONTENT_PADDING_TOP = 8;
     private static final int CONTENT_PADDING_SIDES = 40;
-    private static final int CONTENT_PADDING_BOTTOM = 14;
+    private static final int CONTENT_PADDING_BOTTOM = 8;
     private static final int CARD_ARC = 24;
     private static final int SECTION_GAP = 8;
     private static final int LABEL_GAP = 3;
     private static final int GRID_HGAP = 14;
 
     // Medidas de los personajes
-    private static final String COUNTRY_IMAGE_FOLDER = "/images/countries/";
-    private static final int PREVIEW_SIZE = 64;
+    private static final String COUNTRY_IMAGE_FOLDER = "/images/outfits/heads/";
+    private static final int PREVIEW_SIZE = 80;
     private static final int COMBO_WIDTH = 200;
-    private static final int DESCRIPTION_ROWS = 3;
+    private static final int DESCRIPTION_ROWS = 6;
 
     // Medidas de los botones
     private static final int STORE_BUTTON_HEIGHT = 36;
@@ -116,9 +133,22 @@ public class PersonalizationPanel extends BasePanel
         prepareViewMatchOptions(content);
         prepareViewPlayers(content);
         prepareViewButtons(content);
-        add(content, BorderLayout.CENTER);
+        add(createScrollPane(content), BorderLayout.CENTER);
         updateMode();
         updateMatchType();
+    }
+
+    /** Permite desplazarse verticalmente cuando el contenido supera la ventana. */
+    private JScrollPane createScrollPane(JPanel content)
+    {
+        JScrollPane scrollPane = new JScrollPane(content,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setBorder(null);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        return scrollPane;
     }
 
     /**
@@ -331,7 +361,9 @@ public class PersonalizationPanel extends BasePanel
         label.setFont(new Font("SansSerif", Font.BOLD, 14));
         label.setForeground(Theme.DARK_GREEN);
         label.setAlignmentX(Component.CENTER_ALIGNMENT);
-        Dimension size = new Dimension(COMBO_WIDTH, PREVIEW_SIZE);
+        label.setVerticalTextPosition(SwingConstants.BOTTOM);
+        label.setHorizontalTextPosition(SwingConstants.CENTER);
+        Dimension size = new Dimension(COMBO_WIDTH, PREVIEW_SIZE + 22);
         label.setPreferredSize(size);
         label.setMinimumSize(size);
         label.setMaximumSize(size);
@@ -357,7 +389,7 @@ public class PersonalizationPanel extends BasePanel
     }
 
     /**
-     * Arma la columna de un jugador: título, país, vista previa y descripción.
+     * Arma la columna de un jugador: país, vista previa del animal y descripción.
      *
      * @param title título de la columna
      * @param comboBox selector del país
@@ -385,8 +417,11 @@ public class PersonalizationPanel extends BasePanel
         column.add(title);
         column.add(Box.createVerticalStrut(LABEL_GAP));
         column.add(comboBox);
-        column.add(Box.createVerticalStrut(LABEL_GAP));
+        column.add(Box.createVerticalStrut(SECTION_GAP));
+        column.add(createColumnTitle("VISTA PREVIA"));
         column.add(preview);
+        column.add(Box.createVerticalStrut(LABEL_GAP));
+        column.add(createColumnTitle("DESCRIPCIÓN"));
         column.add(Box.createVerticalStrut(LABEL_GAP));
         column.add(descriptionCard);
         return column;
@@ -510,9 +545,15 @@ public class PersonalizationPanel extends BasePanel
     private void updateCountry(JComboBox<String> comboBox, JLabel preview, JTextArea description) 
     {
         int index = comboBox.getSelectedIndex();
-        description.setText(COUNTRY_DESCRIPTIONS[index]);
+        if (index < 0 || index >= CHARACTER_PROFILES.length)
+        {
+            return;
+        }
+        CharacterProfile profile = CHARACTER_PROFILES[index];
+        description.setText("Tiro de Poder: " + profile.powerName()
+                + "\nDescripción: " + profile.description());
         description.setCaretPosition(0);
-        loadPreview(preview, COUNTRIES[index]);
+        loadPreview(preview, profile);
     }
 
     /**
@@ -520,22 +561,25 @@ public class PersonalizationPanel extends BasePanel
      * el nombre del país como texto.
      *
      * @param preview etiqueta de la vista previa
-     * @param country nombre del país
+     * @param profile personaje que se mostrará
      */
-    private void loadPreview(JLabel preview, String country) 
+    private void loadPreview(JLabel preview, CharacterProfile profile)
     {
-        URL url = getClass().getResource(COUNTRY_IMAGE_FOLDER + country.toLowerCase() + ".png");
+        URL url = getClass().getResource(COUNTRY_IMAGE_FOLDER + profile.imageFile());
         if (url == null) 
         {
             preview.setIcon(null);
-            preview.setText(country);
+            preview.setText(profile.animal());
             return;
         }
         Image scaled = new ImageIcon(url).getImage()
                 .getScaledInstance(-1, PREVIEW_SIZE, Image.SCALE_SMOOTH);
-        preview.setText("");
+        preview.setText(profile.animal());
         preview.setIcon(new ImageIcon(scaled));
     }
+
+    private record CharacterProfile(String country, String animal, String imageFile,
+                                    String powerName, String description) { }
 
     /**
      * Verifica que el campo visible (minutos o goles) contenga un entero positivo.
