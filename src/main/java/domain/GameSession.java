@@ -134,7 +134,7 @@ public abstract class GameSession {
         user.move(direction);
         List<SessionParticipant> all = new ArrayList<>(participantsLeft);
         all.addAll(participantsRight);
-        field.resolveWalkingContact(user, previousX, all, BOUNCE_RETENTION);
+        field.resolveWalkingContact(user, previousX, all);
     }
 
     /**
@@ -345,6 +345,8 @@ public abstract class GameSession {
         timeLeft += STEP_SECONDS;
         field.advanceBalls(STEP_SECONDS, GRAVITY);
         collision();
+        for (SessionParticipant participant : participantsLeft) participant.rememberCurrentPosition();
+        for (SessionParticipant participant : participantsRight) participant.rememberCurrentPosition();
         if (!finished) checkTypeOfMatch();
     }
 

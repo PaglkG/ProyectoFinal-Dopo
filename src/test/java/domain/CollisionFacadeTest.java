@@ -42,7 +42,8 @@ class CollisionFacadeTest {
 
         collisions.resolveBallParticipantCollisions(java.util.List.of(participant), 0.70, 0.5);
 
-        assertFalse(ball.intersects(participant).isContact());
+        assertEquals(90, ball.getX(), 1e-9);
+        assertTrue(ball.intersects(participant).isContact());
         assertTrue(ball.getVelocityX() < 0);
     }
 

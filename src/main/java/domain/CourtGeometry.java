@@ -47,31 +47,30 @@ public final class CourtGeometry {
     /** Resuelve los rebotes contra paredes y marcos de arco. */
     public void bounceBallAtWallsAndGoalFrames(Ball ball, double retention) {
         RectangularHitbox[] walls = field.getHitboxField();
-        double radius = ball.getRadius();
-        double left = walls[2].getX() + walls[2].getWidth();
-        double right = walls[3].getX() - radius;
-        double top = walls[0].getY() + walls[0].getHeight() + radius;
-        if (ball.getX() < left + radius) ball.bounceHorizontallyAt(left + radius, retention);
-        else if (ball.getX() > right) ball.bounceHorizontallyAt(right, retention);
-        if (ball.getY() < top) ball.bounceVerticallyAt(top, retention);
+        for (int index : new int[] {0, 2, 3}) {
+            RectangularHitbox wall = walls[index];
+            CircleRectangleCollisionResolver.resolve(ball, wall,
+                    ball.getPreviousX(), ball.getPreviousY(), wall.getX(), wall.getY(), retention);
+        }
         for (RectangularHitbox goal : field.getGoalHitboxes()) {
+            // La franja vertical del arco es una boca abierta para permitir el gol.
             if (ball.getY() >= goal.getY() && ball.getY() <= goal.getY() + goal.getHeight()) continue;
-            double closestX = Math.max(goal.getX(), Math.min(ball.getX(), goal.getX() + goal.getWidth()));
-            double closestY = Math.max(goal.getY(), Math.min(ball.getY(), goal.getY() + goal.getHeight()));
-            double dx = ball.getX() - closestX;
-            double dy = ball.getY() - closestY;
-            if (Math.hypot(dx, dy) > radius) continue;
-            if (Math.abs(dx) >= Math.abs(dy)) {
-                ball.bounceHorizontallyAt(closestX + (dx < 0 ? -1 : 1) * radius, retention);
-            } else {
-                ball.bounceVerticallyAt(closestY + (dy < 0 ? -1 : 1) * radius, retention);
-            }
+            CircleRectangleCollisionResolver.resolve(ball, goal,
+                    ball.getPreviousX(), ball.getPreviousY(), goal.getX(), goal.getY(), retention);
         }
     }
 
     /** Rebota el balón al tocar el suelo y aplica una velocidad mínima si corresponde. */
     public void bounceBallAtGround(Ball ball, double retention, double minimumSpeed) {
-        if (touchesGround(ball)) ball.bounceAt(groundCenterY(ball), retention, minimumSpeed);
+        RectangularHitbox ground = field.getHitboxField()[1];
+        CircleRectangleCollisionResolver.Resolution result = CircleRectangleCollisionResolver.resolve(
+                ball, ground, ball.getPreviousX(), ball.getPreviousY(),
+                ground.getX(), ground.getY(), retention);
+        if (result != null && result.axis() == CollisionAxisResolver.Axis.VERTICAL
+                && result.side() < 0 && result.bounced()
+                && Math.abs(ball.getVelocityY()) < minimumSpeed) {
+            ball.applyImpulse(0, -ball.getVelocityY());
+        }
     }
 
     /** Indica si alguna parte del balón rebasa el rectángulo exterior de cancha. */

@@ -16,6 +16,8 @@ public class Ball implements Hitbox {
     private boolean physical;
     private double velocityX;
     private double velocityY;
+    private double previousX;
+    private double previousY;
     private CircularHitbox BallHitbox;
 
     /**
@@ -37,6 +39,8 @@ public class Ball implements Hitbox {
      */
     public void resetBall(double width, double height) {
         BallHitbox.reposition(width / 2, height / 2);
+        previousX = getX();
+        previousY = getY();
         velocityX = 0;
         velocityY = 0;
     }
@@ -59,6 +63,10 @@ public class Ball implements Hitbox {
     public double getY() {
         return BallHitbox.getY();
     }
+
+    double getPreviousX() { return previousX; }
+
+    double getPreviousY() { return previousY; }
 
     /** @return radio almacenado en la hitbox circular */
     public double getRadius() {
@@ -108,6 +116,8 @@ public class Ball implements Hitbox {
      * @param gravity aceleración vertical en unidades por segundo cuadrado
      */
     public void advance(double deltaSeconds, double gravity) {
+        previousX = getX();
+        previousY = getY();
         velocityY += gravity * deltaSeconds;
         BallHitbox.reposition(
                 getX() + velocityX * deltaSeconds,

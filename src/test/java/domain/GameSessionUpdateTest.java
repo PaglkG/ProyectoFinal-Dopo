@@ -198,8 +198,15 @@ class GameSessionUpdateTest {
         session.updateGame();
 
         assertEquals(0, session.getGoalsRight());
-        assertEquals(55, ball.getX(), 1e-9);
+        var goal = session.getField().getGoalHitboxes()[0];
+        double outsideDistanceY = goal.getY() - ball.getY();
+        double expectedX = goal.getX() + goal.getWidth()
+                + Math.sqrt(ball.getRadius() * ball.getRadius() - outsideDistanceY * outsideDistanceY);
+        assertEquals(expectedX, ball.getX(), 1e-9);
         assertEquals(7, ball.getVelocityX(), 1e-9);
+        double cornerDistance = Math.hypot(ball.getX() - (goal.getX() + goal.getWidth()),
+                ball.getY() - goal.getY());
+        assertEquals(ball.getRadius(), cornerDistance, 1e-9);
     }
 
     @Test
@@ -339,6 +346,40 @@ class GameSessionUpdateTest {
         assertEquals(0, ball.getVelocityX(), 1e-9);
         assertEquals(0, ball.getVelocityY(), 1e-9);
         assertFalse(ball.intersects(participant).isContact());
+    }
+
+    @Test
+    void walkingIntoMovingBallDisplacesItAndPreservesItsVelocity() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant participant = session.participantsLeft.get(0);
+        participant.resetPosition(100, 50);
+        Ball ball = ball(session);
+        ball.reposition(100 + participant.getHitbox().getWidth() + ball.getRadius() + 1, 75);
+        ball.applyImpulse(12, -3);
+        double originalBallX = ball.getX();
+
+        session.movePlayer(participant, true);
+
+        assertEquals(102.5, participant.getHitbox().getX(), 1e-9);
+        assertEquals(originalBallX + 1.5, ball.getX(), 1e-6);
+        assertEquals(12, ball.getVelocityX(), 1e-9);
+        assertEquals(-3, ball.getVelocityY(), 1e-9);
+        assertFalse(ball.intersects(participant).isContact());
+    }
+
+    @Test
+    void walkingAwayFromBallUnderParticipantMovesPlayerWithoutMovingBall() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant participant = session.participantsLeft.get(0);
+        participant.resetPosition(100, 50);
+        Ball ball = ball(session);
+        ball.reposition(111.25, 110);
+        double originalBallX = ball.getX();
+
+        session.movePlayer(participant, true);
+
+        assertEquals(102.5, participant.getHitbox().getX(), 1e-9);
+        assertEquals(originalBallX, ball.getX(), 1e-9);
     }
 
     @Test

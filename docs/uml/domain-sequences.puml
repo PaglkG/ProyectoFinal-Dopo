@@ -30,29 +30,32 @@ participant "field: SoccerField" as F
 participant "collisions: CollisionFacade" as C
 participant "geometry: CourtGeometry" as CG
 participant "resolver: BallCollisionResolver" as BR
+participant "participant resolver: BallParticipantCollisionResolver" as PR
+participant "axis resolver: CollisionAxisResolver" as AR
+participant "circle-rectangle resolver: CircleRectangleCollisionResolver" as CR
 participant "ball: Ball" as B
 Usuario -> G: movePlayer(player, direction)
 G -> S: movePlayer(player, direction)
-S -> P: guardar posición horizontal anterior
 S -> P: move(direction)
-S -> F: resolveWalkingContact(player, previousX, participants, 0.70)
-F -> C: resolveWalkingContact(player, previousX, participants, 0.70)
+P -> P: guardar posición X/Y anterior
+S -> F: resolveWalkingContact(player, previousX, participants)
+F -> C: resolveWalkingContact(player, previousX, participants)
 loop balones que intersectan al participante
-  alt balón quieto y empuje permitido
+  alt empuje permitido (balón quieto o en movimiento)
     C -> BR: recorrer contacto de caminata
     BR -> CG: isValidBallPosition(...)
     CG --> BR: posición permitida
     BR -> B: reposicionar en pasos pequeños
-    note over S,B: El empuje no cambia la velocidad
-  else balón en movimiento
-    C -> BR: delegar contacto con balón en movimiento
-    BR -> B: separar y reflejar velocidad normal
-    BR -> P: restaurar posición horizontal anterior
+    note over S,B: El empuje conserva la velocidad actual
   else el empuje choca con límite, balón o participante
     BR -> B: conservar la última posición válida
     BR -> P: restaurar posición horizontal anterior
   end
 end
+note over P,B
+  Si el movimiento reduce el solapamiento horizontal con un balón ya en contacto,
+  el jugador se aleja y el balón conserva su posición.
+end note
 alt direction == true
   note right of P: true = derecha
 else direction == false
@@ -61,8 +64,8 @@ end
 note over G,P
   La sesión ignora solicitudes para participantes no registrados
   o después de finalizar el partido. El desplazamiento total
-  equivale a 150 × speed / 60. Empuja balones quietos; ante un
-  balón en movimiento, resuelve el rebote sin atravesarlo.
+  equivale a 150 × speed / 60. Empuja balones quietos y en movimiento
+  sin cambiar su velocidad y sin atravesar límites u otros objetos.
 end note
 @enduml
 
@@ -176,9 +179,10 @@ S -> F: resetBall(centroX, centroY)
 loop cada balón
   F -> B: ubicar centro y detener
 end
-loop cada participante de ambos lados
-  S -> P: recolocar en posición simétrica
-end
+S -> F: positionParticipants(left, right)
+F -> P: resizeHitbox(width, height) para ambos
+F -> P: reposition(x, y) para cada lado
+F -> P: rememberCurrentPosition() para ambos
 note over G,P
   Conserva marcador, modalidad, tiempo y estado de finalización.
   Reutiliza la instancia singleton, sin crear otra sesión.
@@ -196,6 +200,8 @@ participant "collisions: CollisionFacade" as C
 participant "court geometry: CourtGeometry" as CG
 participant "ball resolver: BallCollisionResolver" as BR
 participant "participant resolver: BallParticipantCollisionResolver" as PR
+participant "axis resolver: CollisionAxisResolver" as AR
+participant "circle-rectangle resolver: CircleRectangleCollisionResolver" as CR
 participant "ball: Ball" as B
 Reloj -> G: updateGame()
 G -> S: updateGame()
@@ -213,6 +219,7 @@ else sesión activa
   S -> F: advanceBalls(1/60, 40)
   loop cada balón
     F -> B: advance(1/60, 40)
+    B -> B: guardar centro anterior antes de integrar
   end
   S -> S: collision()
   S -> S: validar participantes fuera/límites y superposición
@@ -248,11 +255,14 @@ else sesión activa
     F -> C: resolveBallParticipantCollisions(...)
     C -> PR: resolveAll(balls, participants, 70%, 0.5)
     loop cada balón y participante en contacto
-      PR -> B: corregir penetración contra hitbox rectangular
+      PR -> CR: resolver contacto círculo-rectángulo exacto
+      CR -> AR: clasificar eje con overlap AABB actual/anterior
+      AR --> CR: eje horizontal o vertical
+      CR -> B: corregir el círculo hasta tocar el rectángulo por ese eje
       opt el balón se aproxima al participante
-        PR -> B: reflejar velocidad normal (superficie fija, e=0.70)
+        CR -> B: reflejar solo la componente normal (superficie fija, e=0.70)
       end
-      opt contacto desde arriba y velocidad descendente menor a 0.5
+      opt participante desciende sobre el balón y su velocidad es menor a 0.5
         PR -> B: establecer velocidad vertical descendente mínima (0.5)
       end
     end
@@ -260,7 +270,11 @@ else sesión activa
       S -> F: bounceBallAtWallsAndGoalFrames(ball, 70%)
       F -> C: bounceBallAtWallsAndGoalFrames(...)
       C -> CG: bounceBallAtWallsAndGoalFrames(...)
-      CG -> B: bounceHorizontallyAt / bounceVerticallyAt
+      CG -> CR: resolver contacto con paredes/arcos rectangulares
+      CR -> AR: elegir eje con overlap actual/anterior
+      AR --> CR: eje y lado del impacto
+      CR -> B: separar círculo y reflejar componente normal
+      note over CG,CR: La boca del arco se omite para que el balón pueda entrar y marcar.
       S -> F: keepBallInsideCourt(ball, 70%)
       F -> C: keepBallInsideCourt(...)
       C -> CG: keepBallInsideCourt(...)
@@ -269,6 +283,7 @@ else sesión activa
       end
       note over S,CG: La geometría mantiene el balón dentro de la cancha.
     end
+    S -> P: guardar posición actual como previa para el siguiente paso
     S -> S: checkTypeOfMatch()
     opt transición a partida terminada con marcador desigual
       S -> S: awardWinningPlayers()

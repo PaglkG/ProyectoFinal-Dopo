@@ -11,46 +11,39 @@ public final class BallParticipantCollisionResolver {
             double restitution, double minimumLandingSpeed) {
         for (Ball ball : balls) {
             for (SessionParticipant participant : participants) {
-                resolve(ball, participant, restitution, minimumLandingSpeed);
+                resolve(ball, participant, ball.getPreviousX(), ball.getPreviousY(),
+                        participant.getPreviousX(), participant.getPreviousY(),
+                        restitution, minimumLandingSpeed);
             }
         }
     }
 
-    /** Separa el balón de la hitbox y refleja su velocidad normal cuando hay aproximación. */
+    /** Resuelve el contacto usando las posiciones previas registradas por las entidades. */
     public void resolve(Ball ball, SessionParticipant participant,
             double restitution, double minimumLandingSpeed) {
+        resolve(ball, participant, ball.getPreviousX(), ball.getPreviousY(),
+                participant.getPreviousX(), participant.getPreviousY(),
+                restitution, minimumLandingSpeed);
+    }
+
+    /**
+     * Resuelve un contacto surgido al caminar. Las posiciones recibidas son
+     * las del instante inmediatamente anterior al movimiento del participante.
+     */
+    void resolve(Ball ball, SessionParticipant participant,
+            double previousBallX, double previousBallY,
+            double previousParticipantX, double previousParticipantY,
+            double restitution, double minimumLandingSpeed) {
         RectangularHitbox box = participant.getHitbox();
-        double closestX = Math.max(box.getX(), Math.min(ball.getX(), box.getX() + box.getWidth()));
-        double closestY = Math.max(box.getY(), Math.min(ball.getY(), box.getY() + box.getHeight()));
-        double dx = ball.getX() - closestX;
-        double dy = ball.getY() - closestY;
-        double distance = Math.hypot(dx, dy);
-        if (distance > ball.getRadius()) return;
-        double nx;
-        double ny;
-        if (distance > 1e-9) {
-            nx = dx / distance;
-            ny = dy / distance;
-        } else {
-            double left = Math.abs(ball.getX() - box.getX());
-            double right = Math.abs(box.getX() + box.getWidth() - ball.getX());
-            double top = Math.abs(ball.getY() - box.getY());
-            double bottom = Math.abs(box.getY() + box.getHeight() - ball.getY());
-            double nearest = Math.min(Math.min(left, right), Math.min(top, bottom));
-            nx = nearest == left ? -1 : nearest == right ? 1 : 0;
-            ny = nearest == top ? -1 : nearest == bottom ? 1 : 0;
-            distance = -nearest;
+        CircleRectangleCollisionResolver.Resolution result = CircleRectangleCollisionResolver.resolve(
+                ball, box, previousBallX, previousBallY,
+                previousParticipantX, previousParticipantY, restitution);
+        if (result == null || result.axis() != CollisionAxisResolver.Axis.VERTICAL
+                || result.side() >= 0 || !result.bounced()) {
+            return;
         }
-        double penetration = ball.getRadius() - distance;
-        ball.reposition(ball.getX() + nx * (penetration + 1e-6),
-                ball.getY() + ny * (penetration + 1e-6));
-        double normalSpeed = ball.getVelocityX() * nx + ball.getVelocityY() * ny;
-        boolean bounced = normalSpeed < 0;
-        if (bounced) {
-            double delta = (1 + restitution) * normalSpeed;
-            ball.applyImpulse(-delta * nx, -delta * ny);
-        }
-        if (bounced && ny < -0.7 && ball.getVelocityY() < minimumLandingSpeed) {
+
+        if (ball.getVelocityY() < minimumLandingSpeed) {
             ball.applyImpulse(0, minimumLandingSpeed - ball.getVelocityY());
         }
     }

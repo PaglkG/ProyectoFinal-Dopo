@@ -14,21 +14,21 @@ public final class BallCollisionResolver {
         }
     }
 
-    /** Resuelve empujes o rebotes de balones en contacto con el participante que caminó. */
+    /** Empuja en pasos pequeños cualquier balón en contacto con el participante que caminó. */
     public void resolveWalkingContact(Ball[] balls, SessionParticipant moved, double previousX,
-            Iterable<SessionParticipant> participants, double restitution, CourtGeometry geometry,
-            BallParticipantCollisionResolver participantResolver) {
+            Iterable<SessionParticipant> participants, CourtGeometry geometry) {
         double movement = moved.getHitbox().getX() - previousX;
         if (movement == 0) return;
         int direction = movement > 0 ? 1 : -1;
         for (Ball ball : balls) {
             if (!ball.intersects(moved).isContact()) continue;
-            double speed = Math.hypot(ball.getVelocityX(), ball.getVelocityY());
-            if (speed > 1e-6) {
-                participantResolver.resolve(ball, moved, restitution, 0.5);
-                moved.reposition(previousX, moved.getHitbox().getY());
-                continue;
-            }
+            double halfWidth = moved.getHitbox().getWidth() / 2;
+            double previousOverlap = ball.getRadius() + halfWidth
+                    - Math.abs(ball.getX() - (previousX + halfWidth));
+            double currentOverlap = ball.getRadius() + halfWidth
+                    - Math.abs(ball.getX() - (moved.getHitbox().getX() + halfWidth));
+            if (currentOverlap <= previousOverlap + 1e-9) continue;
+
             double overlap = direction > 0
                     ? moved.getHitbox().getX() + moved.getHitbox().getWidth() + ball.getRadius() - ball.getX()
                     : ball.getX() + ball.getRadius() - moved.getHitbox().getX();
@@ -40,7 +40,7 @@ public final class BallCollisionResolver {
                 ball.reposition(ball.getX() + direction * step, ball.getY());
                 if (!geometry.isValidBallPosition(ball, moved, participants)) {
                     ball.reposition(originalX + direction * movedDistance, ball.getY());
-                    moved.reposition(previousX, moved.getHitbox().getY());
+                    moved.repositionForCollision(previousX, moved.getHitbox().getY());
                     break;
                 }
                 movedDistance += step;

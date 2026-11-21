@@ -153,7 +153,7 @@ class GameTest {
         assertSame(first, second);
         assertInstanceOf(PlayerVsPlayer.class, second);
         assertNotNull(managedSession(game));
-        assertEquals(PlayerVsPlayer.class.getName(), game.getSessionType());
+        assertEquals(PlayerVsPlayer.class.getSimpleName(), game.getSessionType());
     }
 
     @Test

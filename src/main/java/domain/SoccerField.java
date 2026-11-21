@@ -72,10 +72,10 @@ public class SoccerField implements Hitbox {
         collisions.resolveBallParticipantCollisions(participants, restitution, minimumLandingSpeed);
     }
 
-    /** Resuelve contactos creados por caminar: empuja balones quietos y bloquea el paso ante los móviles. */
+    /** Resuelve contactos creados al caminar empujando balones en su dirección de avance. */
     public void resolveWalkingContact(SessionParticipant moved, double previousX,
-            Iterable<SessionParticipant> participants, double restitution) {
-        collisions.resolveWalkingContact(moved, previousX, participants, restitution);
+            Iterable<SessionParticipant> participants) {
+        collisions.resolveWalkingContact(moved, previousX, participants);
     }
 
     /** Corrige la salida del balón y aplica rebote hacia el interior en cada borde de cancha. */
@@ -245,6 +245,8 @@ public class SoccerField implements Hitbox {
         right.resizeHitbox(width, height);
         left.reposition(courtX() + courtWidth() / 4 - width / 2, floor - height);
         right.reposition(courtX() + courtWidth() * 3 / 4 - width / 2, floor - height);
+        left.rememberCurrentPosition();
+        right.rememberCurrentPosition();
     }
 
 

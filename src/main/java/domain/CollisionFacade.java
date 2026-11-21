@@ -28,11 +28,11 @@ public final class CollisionFacade {
             double restitution, double minimumLandingSpeed) {
         participantResolver.resolveAll(field.balls(), participants, restitution, minimumLandingSpeed);
     }
-    /** Resuelve el contacto de un participante que caminó desde {@code previousX}. */
+    /** Empuja los balones que alcanza un participante al caminar desde {@code previousX}. */
     public void resolveWalkingContact(SessionParticipant moved, double previousX,
-            Iterable<SessionParticipant> participants, double restitution) {
+            Iterable<SessionParticipant> participants) {
         ballResolver.resolveWalkingContact(field.balls(), moved, previousX, participants,
-                restitution, geometry, participantResolver);
+                geometry);
     }
     /** Corrige la posición del balón para mantenerlo dentro del área jugable. */
     public void keepBallInsideCourt(Ball ball, double retention) { geometry.keepBallInsideCourt(ball, retention); }

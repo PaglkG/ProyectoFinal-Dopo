@@ -20,6 +20,8 @@ public abstract class SessionParticipant implements Hitbox {
 
     private double x;
     private double y;
+    private double previousX;
+    private double previousY;
     private RectangularHitbox UserHitbox;
     private Stats stats;
     private List<StatusEffect> status;
@@ -118,7 +120,8 @@ public abstract class SessionParticipant implements Hitbox {
      * @param y coordenada vertical
      */
     public void resetPosition(double x, double y) {
-        reposition(x, y);
+        setPosition(x, y);
+        rememberCurrentPosition();
     }
 
     /** Método reservado para activar el poder especial; aún no tiene implementación. */
@@ -155,6 +158,21 @@ public abstract class SessionParticipant implements Hitbox {
         return UserHitbox;
     }
 
+    double getPreviousX() { return previousX; }
+
+    double getPreviousY() { return previousY; }
+
+    /** Marca la posición vigente como base para el siguiente paso de simulación. */
+    void rememberCurrentPosition() {
+        previousX = x;
+        previousY = y;
+    }
+
+    /** Corrige la posición sin reemplazar el origen del movimiento del frame. */
+    void repositionForCollision(double x, double y) {
+        setPosition(x, y);
+    }
+
     /**
      * Cambia el ancho y el alto de la hitbox sin modificar su posición.
      *
@@ -185,6 +203,12 @@ public abstract class SessionParticipant implements Hitbox {
      */
     @Override
     public void reposition(double x, double y) {
+        previousX = this.x;
+        previousY = this.y;
+        setPosition(x, y);
+    }
+
+    private void setPosition(double x, double y) {
         this.x = x;
         this.y = y;
         if (UserHitbox != null) {

@@ -122,6 +122,8 @@ package "domain" {
   abstract class SessionParticipant {
     - x: double
     - y: double
+    - previousX: double
+    - previousY: double
     - life: int = 100
     - maxLife: int = 100
     - UserHitbox: RectangularHitbox
@@ -143,6 +145,10 @@ package "domain" {
     + getSpecialPower(): Power
     + setSpecialPower(specialPower: Power): void
     + resetPosition(x: double, y: double): void
+    ~ getPreviousX(): double
+    ~ getPreviousY(): double
+    ~ rememberCurrentPosition(): void
+    ~ repositionForCollision(x: double, y: double): void
     + resizeHitbox(width: double, height: double): void
     + improveStatistics(stats: String): void
     + intersects(hitbox: Hitbox): HitboxContact
@@ -168,7 +174,7 @@ package "domain" {
     + addBall(ball: Ball): void
     + resolveBallCollisions(restitution: double): void
     + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
-    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double): void
+    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>): void
     + keepBallInsideCourt(ball: Ball, retention: double): void
     + balls(): Ball[]
     + courtX(): double
@@ -203,7 +209,7 @@ package "domain" {
     - participantResolver: BallParticipantCollisionResolver
     + resolveBallCollisions(restitution: double): void
     + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
-    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double): void
+    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>): void
     + keepBallInsideCourt(ball: Ball, retention: double): void
     + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
     + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
@@ -228,21 +234,33 @@ package "domain" {
   }
   class BallCollisionResolver {
     + resolveAll(balls: Ball[], restitution: double): void
-    + resolveWalkingContact(balls: Ball[], moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, restitution: double, geometry: CourtGeometry, participantResolver: BallParticipantCollisionResolver): void
+    + resolveWalkingContact(balls: Ball[], moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, geometry: CourtGeometry): void
   }
   class BallParticipantCollisionResolver {
     + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
     + resolve(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
+    ~ resolve(ball: Ball, participant: SessionParticipant, previousBallX: double, previousBallY: double, previousParticipantX: double, previousParticipantY: double, restitution: double, minimumLandingSpeed: double): void
+  }
+  class CollisionAxisResolver <<utility>> {
+    ~ forCircleRectangle(ball: Ball, rectangle: RectangularHitbox, previousBallX: double, previousBallY: double, previousRectangleX: double, previousRectangleY: double): Axis
+    ~ sideForAxis(axis: Axis, ball: Ball, rectangle: RectangularHitbox, previousBallX: double, previousBallY: double, previousRectangleX: double, previousRectangleY: double): double
+  }
+  class CircleRectangleCollisionResolver <<utility>> {
+    ~ resolve(ball: Ball, rectangle: RectangularHitbox, previousBallX: double, previousBallY: double, previousRectangleX: double, previousRectangleY: double, restitution: double): Resolution
   }
   class Ball {
     - physical: boolean
     - velocityX: double
     - velocityY: double
+    - previousX: double
+    - previousY: double
     - BallHitbox: CircularHitbox
     + resetBall(width: double, height: double): void
     + getHitbox(): CircularHitbox
     + getX(): double
     + getY(): double
+    ~ getPreviousX(): double
+    ~ getPreviousY(): double
     + getRadius(): double
     + getVelocityX(): double
     + getVelocityY(): double
@@ -423,8 +441,9 @@ package "presentation.testing" {
     - held: EnumSet<Control>
     - jumpRequested: EnumSet<Control>
     - verticalSpeeds: Map<String, Double>
+    - carriedBallIndexes: Map<String, Integer>
     - activeGame: Game
-    - JUMP_SPEED: double = 110
+    - JUMP_SPEED: double = 121
     - GRAVITY: double = 180
     + setControl(control: Control, pressed: boolean): void
     + clearInputs(): void
@@ -432,6 +451,7 @@ package "presentation.testing" {
     + resetAfterRound(game: Game): void
     + update(game: Game, mode: SessionMode): void
     - updateActor(game: Game, actor: ParticipantView, opponent: ParticipantView, leftControl: Control, rightControl: Control, jumpControl: Control): void
+    - ballOnHead(balls: List<BallView>, x: double, y: double, width: double): BallView
     - supportedByBall(balls: List<BallView>, x: double, y: double, width: double, height: double): boolean
     - resolveBallVerticalContact(balls: List<BallView>, x: double, oldY: double, nextY: double, width: double, height: double, verticalSpeed: double): double
     - overlapsHorizontally(x: double, width: double, ball: BallView): boolean
@@ -460,6 +480,13 @@ CollisionFacade *-- CourtGeometry
 CollisionFacade *-- BallCollisionResolver
 CollisionFacade *-- BallParticipantCollisionResolver
 CollisionFacade --> SoccerField
+CourtGeometry ..> CircleRectangleCollisionResolver
+BallParticipantCollisionResolver ..> CircleRectangleCollisionResolver
+CircleRectangleCollisionResolver ..> CollisionAxisResolver
+CircleRectangleCollisionResolver ..> Ball
+CircleRectangleCollisionResolver ..> RectangularHitbox
+CollisionAxisResolver ..> Ball
+CollisionAxisResolver ..> RectangularHitbox
 GameSession "1" o-- "0..*" SessionParticipant : participants
 GameSession --> TypeOfMatch
 GameSession ..> GameException : errors

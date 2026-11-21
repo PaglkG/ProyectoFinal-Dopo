@@ -15,7 +15,7 @@ import domain.Game;
 final class PresentationMovement {
 
     static final double STEP_SECONDS = 1.0 / 60.0;
-    static final double JUMP_SPEED = 110.0;
+    static final double JUMP_SPEED = 121.0;
     static final double GRAVITY = 180.0;
     private static final double EDGE_GAP = 0.02;
 
@@ -27,6 +27,7 @@ final class PresentationMovement {
     private final EnumSet<Control> held = EnumSet.noneOf(Control.class);
     private final EnumSet<Control> jumpRequested = EnumSet.noneOf(Control.class);
     private final Map<String, Double> verticalSpeeds = Collections.synchronizedMap(new HashMap<>());
+    private final Map<String, Integer> carriedBallIndexes = Collections.synchronizedMap(new HashMap<>());
     private Game activeGame;
 
     /** Registra la presión o liberación de una tecla de movimiento o salto. */
@@ -49,6 +50,7 @@ final class PresentationMovement {
     public void reset(Game game) {
         clearInputs();
         verticalSpeeds.clear();
+        carriedBallIndexes.clear();
         activeGame = game;
     }
 
@@ -56,6 +58,7 @@ final class PresentationMovement {
     public void resetAfterRound(Game game) {
         jumpRequested.clear();
         verticalSpeeds.clear();
+        carriedBallIndexes.clear();
         activeGame = game;
     }
 
@@ -63,8 +66,9 @@ final class PresentationMovement {
     public void update(Game game, MechanicsTestController.SessionMode mode, boolean playerOneOnRight) {
         if (game != activeGame) {
             verticalSpeeds.clear();
+            carriedBallIndexes.clear();
             activeGame = game;
-            }
+        }
         SessionView state = MechanicsTestController.state(game, playerOneOnRight);
         if (state.finished()) return;
 
@@ -112,10 +116,15 @@ final class PresentationMovement {
         var boundaries = currentState.boundaries();
         double floorY = boundaries.get(1).y() - positioned.height();
         double ceilingY = boundaries.get(0).y() + boundaries.get(0).height() + EDGE_GAP;
+        BallView headBall = ballOnHead(currentState.balls(), nextX, oldY, positioned.width());
         double verticalSpeed = verticalSpeeds.getOrDefault(id, 0.0);
         boolean grounded = oldY >= floorY - EDGE_GAP
-                || supportedByBall(currentState.balls(), nextX, oldY, positioned.width(), positioned.height());
-        if (jumpRequested.contains(jumpControl) && grounded) verticalSpeed = -JUMP_SPEED;
+                || supportedByBall(currentState.balls(), nextX, oldY, positioned.width(), positioned.height())
+                || headBall != null;
+        if (jumpRequested.contains(jumpControl) && grounded) {
+            verticalSpeed = -JUMP_SPEED;
+            if (headBall != null) carriedBallIndexes.put(id, headBall.index());
+        }
         verticalSpeed += GRAVITY * STEP_SECONDS;
         double nextY = oldY + verticalSpeed * STEP_SECONDS;
         if (nextY >= floorY) {
@@ -133,7 +142,32 @@ final class PresentationMovement {
                 positioned.width(), positioned.height(), verticalSpeed);
         if (nextY == oldY) verticalSpeed = 0;
         game.setPlayerPosition(playerOne, nextX, nextY);
+        Integer carriedBallIndex = carriedBallIndexes.get(id);
+        if (carriedBallIndex != null) {
+            BallView carriedBall = currentState.balls().stream()
+                    .filter(ball -> ball.index() == carriedBallIndex)
+                    .findFirst().orElse(null);
+            if (carriedBall == null || headBall == null || headBall.index() != carriedBallIndex) {
+                carriedBallIndexes.remove(id);
+            } else {
+                game.setBallPosition(carriedBallIndex, nextX + positioned.width() / 2,
+                        nextY - carriedBall.radius());
+                if (nextY >= floorY - EDGE_GAP && verticalSpeed == 0) {
+                    carriedBallIndexes.remove(id);
+                }
+            }
+        }
         verticalSpeeds.put(id, verticalSpeed);
+    }
+
+    /** Busca el balón cuyo borde inferior está apoyado sobre la cabeza del participante. */
+    private BallView ballOnHead(java.util.List<BallView> balls,
+            double x, double y, double width) {
+        for (BallView ball : balls) {
+            if (Math.abs(y - (ball.y() + ball.radius())) <= EDGE_GAP
+                    && overlapsHorizontally(x, width, ball)) return ball;
+        }
+        return null;
     }
 
     /** Detecta apoyo desde arriba para permitir que el participante vuelva a saltar. */

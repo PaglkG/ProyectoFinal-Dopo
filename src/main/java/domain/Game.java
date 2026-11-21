@@ -174,7 +174,23 @@ public class Game {
 
     /** Devuelve el nombre de clase concreto de la sesión administrada. */
     public String getSessionType() {
-        return requireSession().getClass().getName();
+        return requireSession().getClass().getSimpleName();
+    }
+
+    /** Devuelve los nombres simples de las implementaciones de GameSession. */
+    public List<String> getSessionTypes() {
+        return List.of(PlayerVsBot.class.getSimpleName(), PlayerVsPlayer.class.getSimpleName());
+    }
+
+    /** Devuelve los nombres simples de los tipos de partido disponibles. */
+    public List<String> getMatchTypes() {
+        return List.of(ByGoals.class.getSimpleName(), ByTime.class.getSimpleName());
+    }
+
+    /** Devuelve los nombres simples de los perfiles de bot disponibles. */
+    public List<String> getBotTypes() {
+        return List.of(Clumsy.class.getSimpleName(), Offensive.class.getSimpleName(),
+                Defensive.class.getSimpleName(), Expert.class.getSimpleName());
     }
 
     /** Coloca a un participante para una prueba manual o visual. */
