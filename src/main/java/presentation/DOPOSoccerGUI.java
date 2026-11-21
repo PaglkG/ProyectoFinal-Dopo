@@ -70,8 +70,8 @@ public class DOPOSoccerGUI extends JFrame
         personalizationPanel = new PersonalizationPanel(navigationController);
         storeImprovementPanel = new StoreImprovementPanel(navigationController);
         preparationPanel = new PreparationPanel(navigationController);
-        matchPanel = new MatchPanel(game);
-        pausePanel = new PausePanel();
+        matchPanel = new MatchPanel(game, navigationController);
+        pausePanel = new PausePanel(navigationController);
     }
 
     /**
@@ -159,8 +159,6 @@ public class DOPOSoccerGUI extends JFrame
 
     /**
      * Inicia la aplicación.
-     *
-     * @param args argumentos de la línea de comandos (no se usan)
      */
     public static void main(String[] args) 
     {

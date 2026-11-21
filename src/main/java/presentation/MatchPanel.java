@@ -1,6 +1,5 @@
 package presentation;
 
-import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -17,9 +16,9 @@ import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
 import javax.swing.SwingConstants;
 
 import domain.BallView;
@@ -30,24 +29,28 @@ import domain.SessionView;
 
 /** Vista del partido: HUD y dibujo de la cancha desde la instantánea de Game. */
 public class MatchPanel extends BasePanel {
-    private static final Color FIELD_GREEN = new Color(0x277C4D);
-    private static final Color LEFT_HITBOX = new Color(0x37D5E7);
-    private static final Color RIGHT_HITBOX = new Color(0xFF5E75);
-    private static final Color BOUNDARY_HITBOX = new Color(0xFFE45E);
-    private static final Color GOAL_HITBOX = new Color(0xFF9D42);
+    private static final String COURT_IMAGE = "/images/ui/court@4x-8.png";
+    private static final String LEFT_STATUS_IMAGE = "/images/ui/jugador_izquierdo.png";
+    private static final String RIGHT_STATUS_IMAGE = "/images/ui/jugador_derecho.png";
+    private static final String SCOREBOARD_IMAGE = "/images/ui/scoreboard@4x-8.png";
+    private static final String LOGO_IMAGE = "/images/ui/logo@4x-8.png";
     private static final int FIELD_MARGIN = 24;
 
     private final Game game;
+    private final NavigationController navigationController;
     private final Map<String, Image> characterImages = new HashMap<>();
 
-    private JLabel scoreLabel;
+    private JLabel leftScoreLabel;
+    private JLabel rightScoreLabel;
     private JLabel elapsedLabel;
     private JLabel leftParticipantLabel;
+    private JButton pauseButton;
     private CourtView courtView;
 
     /** Crea la vista conectada a la fachada y a la navegación de presentación. */
-    public MatchPanel(Game game) {
+    public MatchPanel(Game game, NavigationController navigationController) {
         this.game = game;
+        this.navigationController = navigationController;
         prepareView();
         prepareController();
     }
@@ -76,7 +79,7 @@ public class MatchPanel extends BasePanel {
     private JPanel prepareViewPlayerStatus(boolean left) {
         JPanel status = new JPanel(new BorderLayout(8, 2));
         status.setOpaque(false);
-        status.setPreferredSize(new Dimension(230, 66));
+        status.setPreferredSize(new Dimension(230, 156));
 
         JLabel animal = new JLabel(left ? "JUGADOR 2" : "JUGADOR 1", SwingConstants.CENTER);
         if (left) {
@@ -86,65 +89,93 @@ public class MatchPanel extends BasePanel {
         animal.setForeground(Theme.DARK_GREEN);
         status.add(animal, BorderLayout.NORTH);
 
-        JPanel bars = new JPanel(new java.awt.GridLayout(2, 1, 0, 3));
-        bars.setOpaque(false);
-        JProgressBar lifeBar = createUnavailableBar(new Color(0xD9534F));
-        JProgressBar powerBar = createUnavailableBar(Theme.GREEN);
-        JLabel lifeLabel = new JLabel("VIDA · no conectada", SwingConstants.LEFT);
-        JLabel powerLabel = new JLabel("PODER · no conectado", SwingConstants.LEFT);
-        styleStatusLabel(lifeLabel);
-        styleStatusLabel(powerLabel);
-        bars.add(createLabeledBar(lifeLabel, lifeBar));
-        bars.add(createLabeledBar(powerLabel, powerBar));
-        status.add(bars, BorderLayout.CENTER);
+        Image statusImage = loadImage(left ? LEFT_STATUS_IMAGE : RIGHT_STATUS_IMAGE);
+        status.add(new StatusArtwork(statusImage), BorderLayout.CENTER);
 
         return status;
     }
 
-    /** Crea una barra visual sin porcentaje para no representar datos inexistentes. */
-    /** Crea el marco de una barra cuyo valor todavía no ofrece la fachada Game. */
-    private JProgressBar createUnavailableBar(Color color) {
-        JProgressBar bar = new JProgressBar(0, 100);
-        bar.setValue(0);
-        bar.setStringPainted(false);
-        bar.setForeground(color);
-        bar.setBackground(new Color(0xE4E4E4));
-        bar.setBorder(BorderFactory.createLineBorder(new Color(0xA7A7A7)));
-        bar.setPreferredSize(new Dimension(150, 12));
-        bar.setToolTipText("Game aún no expone este valor a la presentación");
-        return bar;
-    }
-
-    /** Agrupa un rótulo y su barra sin añadir comportamiento de juego. */
-    /** Compone un rótulo con su espacio de barra correspondiente. */
-    private JPanel createLabeledBar(JLabel label, JProgressBar bar) {
-        JPanel row = new JPanel(new BorderLayout(7, 0));
-        row.setOpaque(false);
-        label.setPreferredSize(new Dimension(92, 14));
-        row.add(label, BorderLayout.WEST);
-        row.add(bar, BorderLayout.CENTER);
-        return row;
-    }
-
-    /** Aplica la tipografía común a rótulos de vida y poder. */
-    private void styleStatusLabel(JLabel label) {
-        label.setFont(new Font("SansSerif", Font.BOLD, 9));
-        label.setForeground(Theme.LABEL_COLOR);
-    }
-
-    /** Inicializa marcador y tiempo que provienen de la instantánea del dominio. */
+    /** Inicializa marcador y tiempo sobre el arte del tablero de puntuación. */
     private JPanel prepareViewScore() {
-        JPanel score = new JPanel(new java.awt.GridLayout(2, 1, 0, 2));
-        score.setOpaque(false);
-        scoreLabel = new JLabel("0  :  0", SwingConstants.CENTER);
-        scoreLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
-        scoreLabel.setForeground(Theme.DARK_GREEN);
+        JPanel scoreArea = new JPanel(new BorderLayout(0, 3));
+        scoreArea.setOpaque(false);
+        ScoreboardArtwork score = new ScoreboardArtwork();
+        leftScoreLabel = createScoreLabel();
+        rightScoreLabel = createScoreLabel();
         elapsedLabel = new JLabel("00:00", SwingConstants.CENTER);
-        elapsedLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        elapsedLabel.setForeground(Theme.LABEL_COLOR);
-        score.add(scoreLabel);
+        elapsedLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        elapsedLabel.setForeground(Color.WHITE);
+        score.add(leftScoreLabel);
+        score.add(rightScoreLabel);
         score.add(elapsedLabel);
-        return score;
+        scoreArea.add(score, BorderLayout.CENTER);
+
+        pauseButton = new RoundedButton("Pausa", Theme.GREEN, Color.WHITE,
+                Theme.SAND_BORDER, 12);
+        pauseButton.setIcon(loadIcon(LOGO_IMAGE, 22, 22));
+        pauseButton.setIconTextGap(8);
+        pauseButton.setToolTipText("Abrir menú de pausa");
+        pauseButton.setPreferredSize(new Dimension(150, 32));
+        scoreArea.add(pauseButton, BorderLayout.SOUTH);
+        return scoreArea;
+    }
+
+    /** Crea una cifra de marcador que se ubicará dentro del panel de cada lado. */
+    private JLabel createScoreLabel() {
+        JLabel label = new JLabel("0", SwingConstants.CENTER);
+        label.setFont(new Font("SansSerif", Font.BOLD, 24));
+        label.setForeground(Color.WHITE);
+        return label;
+    }
+
+    /** Dibuja la composición del marcador por encima de un fondo transparente. */
+    private final class ScoreboardArtwork extends JPanel {
+        private final Image image = loadImage(SCOREBOARD_IMAGE);
+
+        private ScoreboardArtwork() {
+            setOpaque(false);
+            setLayout(null);
+            setPreferredSize(new Dimension(300, 118));
+        }
+
+        @Override
+        public void doLayout() {
+            int width = getWidth();
+            int height = getHeight();
+            leftScoreLabel.setBounds((int) (width * 0.12), (int) (height * 0.38),
+                    (int) (width * 0.18), (int) (height * 0.36));
+            elapsedLabel.setBounds((int) (width * 0.39), (int) (height * 0.42),
+                    (int) (width * 0.22), (int) (height * 0.3));
+            rightScoreLabel.setBounds((int) (width * 0.70), (int) (height * 0.38),
+                    (int) (width * 0.18), (int) (height * 0.36));
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+            if (image != null) {
+                graphics.drawImage(image, 0, 0, getWidth(), getHeight(),
+                        2000, 1500, 5600, 3200, this);
+            }
+        }
+    }
+
+    /** Presenta el arte del jugador y deja libres las zonas visuales de vida y poder. */
+    private static final class StatusArtwork extends JPanel {
+        private final Image image;
+
+        private StatusArtwork(Image image) {
+            this.image = image;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+            if (image != null) {
+                graphics.drawImage(image, 0, 0, getWidth(), getHeight(), this);
+            }
+        }
     }
 
     /** Agrega la cancha, que pinta las posiciones y hitboxes consultadas a Game. */
@@ -156,7 +187,13 @@ public class MatchPanel extends BasePanel {
     /** Este panel no registra acciones mientras el movimiento del partido está pendiente. */
     @Override
     public void prepareController() {
-        // Esta vista solo representa el estado consultado en Game.
+        prepareControllerPause();
+    }
+
+    /** Abre la pantalla de pausa desde el botón ubicado bajo el marcador. */
+    private void prepareControllerPause() {
+        pauseButton.addActionListener(event ->
+                navigationController.showScreen(NavigationController.PAUSE));
     }
 
     /** Asigna las imágenes seleccionadas a los lados de la cancha. */
@@ -177,7 +214,8 @@ public class MatchPanel extends BasePanel {
     /** Refresca marcador, tiempo y geometría una vez que Game tiene una sesión. */
     public void refreshMatchView() {
         SessionView session = game.inspectSession();
-        scoreLabel.setText(session.goalsLeft() + "  :  " + session.goalsRight());
+        leftScoreLabel.setText(Integer.toString(session.goalsLeft()));
+        rightScoreLabel.setText(Integer.toString(session.goalsRight()));
         int elapsed = (int) session.elapsedSeconds();
         elapsedLabel.setText(String.format("%02d:%02d", elapsed / 60, elapsed % 60));
         courtView.setSession(session);
@@ -192,12 +230,22 @@ public class MatchPanel extends BasePanel {
         return url == null ? null : new ImageIcon(url).getImage();
     }
 
+    /** Carga el logo con un tamaño adecuado para un control de la interfaz. */
+    private ImageIcon loadIcon(String resourcePath, int width, int height) {
+        Image image = loadImage(resourcePath);
+        if (image == null) {
+            return null;
+        }
+        return new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH));
+    }
+
     /** Dibuja cancha y entidades usando solamente los valores de SessionView. */
     private final class CourtView extends JPanel {
         private SessionView session;
+        private final Image courtImage = loadImage(COURT_IMAGE);
 
         private CourtView() {
-            setBackground(FIELD_GREEN.darker());
+            setBackground(new Color(0x29A8DB));
             setBorder(BorderFactory.createLineBorder(Theme.SAND_BORDER, 2));
             setMinimumSize(new Dimension(320, 220));
         }
@@ -223,35 +271,20 @@ public class MatchPanel extends BasePanel {
             double offsetX = (getWidth() - drawWidth) / 2.0;
             double offsetY = (getHeight() - drawHeight) / 2.0;
 
-            drawField(g, court, offsetX, offsetY, scale);
+            drawCourtImage(g, offsetX, offsetY, drawWidth, drawHeight);
             drawPlayers(g, session, court, offsetX, offsetY, scale);
             drawBalls(g, session, court, offsetX, offsetY, scale);
-            drawHitboxes(g, session, court, offsetX, offsetY, scale);
             g.dispose();
         }
 
-        /** Pinta el terreno y sus marcas centradas dentro del área disponible. */
-        private void drawField(Graphics2D g, RectangleView court,
-                double offsetX, double offsetY, double scale) {
-            double width = court.width() * scale;
-            double height = court.height() * scale;
-            g.setColor(FIELD_GREEN);
-            g.fill(new Rectangle2D.Double(offsetX, offsetY, width, height));
-            for (int stripe = 0; stripe < 8; stripe += 2) {
-                g.setColor(new Color(255, 255, 255, 16));
-                g.fill(new Rectangle2D.Double(offsetX + stripe * width / 8, offsetY,
-                        width / 8, height));
+        /** Pinta el recurso completo de la cancha dentro de los límites del juego. */
+        private void drawCourtImage(Graphics2D g, double x, double y, double width, double height) {
+            if (courtImage != null) {
+                g.drawImage(courtImage, (int) x, (int) y, (int) width, (int) height, this);
             }
-            g.setColor(Color.WHITE);
-            g.setStroke(new BasicStroke(2f));
-            g.draw(new Rectangle2D.Double(offsetX, offsetY, width, height));
-            g.drawLine((int) (offsetX + width / 2), (int) offsetY,
-                    (int) (offsetX + width / 2), (int) (offsetY + height));
-            g.draw(new Ellipse2D.Double(offsetX + width * .375, offsetY + height * .25,
-                    width * .25, height * .5));
         }
 
-        /** Pinta el animal asociado al lado y contornea su hitbox real. */
+        /** Pinta cada sprite en la posición de su hitbox, sin mostrar el contorno. */
         private void drawPlayers(Graphics2D g, SessionView state, RectangleView court,
                 double offsetX, double offsetY, double scale) {
             for (ParticipantView player : state.participants()) {
@@ -265,13 +298,7 @@ public class MatchPanel extends BasePanel {
                     int imageHeight = Math.max(1, (int) (image.getHeight(this) * imageScale));
                     int imageX = (int) (box.getCenterX() - imageWidth / 2.0);
                     g.drawImage(image, imageX, (int) box.getY(), imageWidth, imageHeight, this);
-                } else {
-                    g.setColor(player.side().equals("left") ? LEFT_HITBOX : RIGHT_HITBOX);
-                    g.fill(box);
                 }
-                g.setColor(player.side().equals("left") ? LEFT_HITBOX : RIGHT_HITBOX);
-                g.setStroke(new BasicStroke(2f));
-                g.draw(box);
             }
         }
 
@@ -287,31 +314,6 @@ public class MatchPanel extends BasePanel {
                 g.setColor(Theme.DARK_GREEN);
                 g.draw(new Ellipse2D.Double(x, y, diameter, diameter));
             }
-        }
-
-        /** Distingue visualmente límites y arcos usando los rectángulos de la instantánea. */
-        private void drawHitboxes(Graphics2D g, SessionView state, RectangleView court,
-                double offsetX, double offsetY, double scale) {
-            for (RectangleView boundary : state.boundaries()) {
-                drawWorldRectangle(g, boundary, court, offsetX, offsetY, scale,
-                        new Color(255, 228, 94, 70), BOUNDARY_HITBOX);
-            }
-            for (RectangleView goal : state.goals()) {
-                drawWorldRectangle(g, goal, court, offsetX, offsetY, scale,
-                        new Color(255, 157, 66, 60), GOAL_HITBOX);
-            }
-        }
-
-        /** Dibuja un área de la cancha con su color de relleno y borde identificador. */
-        private void drawWorldRectangle(Graphics2D g, RectangleView rectangle, RectangleView court,
-                double offsetX, double offsetY, double scale, Color fill, Color border) {
-            Rectangle2D box = worldRectangle(rectangle.x(), rectangle.y(),
-                    rectangle.width(), rectangle.height(), court, offsetX, offsetY, scale);
-            g.setColor(fill);
-            g.fill(box);
-            g.setColor(border);
-            g.setStroke(new BasicStroke(1.5f));
-            g.draw(box);
         }
 
         /** Convierte un rectángulo del mundo del juego a coordenadas de pantalla. */
