@@ -3,7 +3,7 @@ package domain;
 import domain.Ball;
 import domain.SessionParticipant;
 import domain.SoccerField;
-import domain.hitbox.RectangularHitbox;
+import domain.RectangularHitbox;
 
 /** Consultas y respuestas de contacto determinadas por la geometría de cancha. */
 public final class CourtGeometry {

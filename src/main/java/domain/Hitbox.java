@@ -1,4 +1,4 @@
-package domain.hitbox;
+package domain;
 
 /**
  * Define las operaciones geométricas comunes a las hitboxes del dominio.

@@ -4,10 +4,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import domain.StatusEffect;
-import domain.hitbox.Hitbox;
-import domain.hitbox.HitboxContact;
-import domain.hitbox.HitboxIntersections;
-import domain.hitbox.RectangularHitbox;
+import domain.Hitbox;
+import domain.HitboxContact;
+import domain.HitboxIntersections;
+import domain.RectangularHitbox;
 import domain.Power;
 import domain.GameException;
 

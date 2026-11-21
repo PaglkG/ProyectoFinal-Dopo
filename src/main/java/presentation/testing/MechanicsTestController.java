@@ -1,4 +1,8 @@
 package presentation.testing;
+import domain.BallView;
+import domain.ParticipantView;
+import domain.RectangleView;
+import domain.SessionView;
 
 import java.util.List;
 
@@ -61,7 +65,7 @@ public final class MechanicsTestController {
         configuration = new MechanicsTestConfiguration(sessionMode, matchMode, selectedLimit,
                 sessionMode == SessionMode.PLAYER_VS_BOT ? "domain.PlayerVsBot" : "domain.PlayerVsPlayer",
                 matchMode == MatchMode.TIME ? "domain.ByTime" : "domain.ByGoals",
-                List.of(Integer.toString(selectedLimit)), "domain.BlueAura",
+                List.of("150", "450", Integer.toString(selectedLimit)), "domain.BlueAura",
                 "domain.Lightning", "Clumsy", true);
         createConfiguredSession();
     }
@@ -94,16 +98,17 @@ public final class MechanicsTestController {
 
     /** Ejecuta un paso del movimiento visual y uno de la lógica del dominio. */
     public void step() {
-        Game.SessionView before = game.inspectSession();
+        SessionView before = state();
         if (before.finished()) return;
-        movement.update(game, selectedSessionMode);
+        movement.update(game, selectedSessionMode,
+                selectedSessionMode == SessionMode.PLAYER_VS_BOT ? configuration.playerOne() : true);
         advanceDomainOnly(before);
     }
 
     /** Avanza la lógica del dominio y reinicia el movimiento visual cuando cambió el marcador. */
-    private void advanceDomainOnly(Game.SessionView before) {
+    private void advanceDomainOnly(SessionView before) {
         game.updateGame();
-        Game.SessionView after = game.inspectSession();
+        SessionView after = state();
         if (after.goalsLeft() != before.goalsLeft() || after.goalsRight() != before.goalsRight()) {
             movement.resetAfterRound(game);
         }
@@ -117,27 +122,28 @@ public final class MechanicsTestController {
     /** @return {@code true} si la patada del jugador izquierdo alcanzó el balón */
     public boolean kickLeft() {
         return configuration.sessionMode() == SessionMode.PLAYER_VS_PLAYER
-                && game.kickPlayer("left:0");
+                && game.kickPlayer(false);
     }
 
     /** @return {@code true} si la patada del jugador derecho alcanzó el balón */
     public boolean kickRight() {
-        return game.kickPlayer("right:0");
+        return game.kickPlayer(configuration.sessionMode() == SessionMode.PLAYER_VS_BOT
+                ? configuration.playerOne() : true);
     }
 
     /** Prepara el escenario solicitado a través de las operaciones de {@link Game}. */
     public void runScenario(Scenario scenario) {
         createConfiguredSession();
         neutralizeBall();
-        Game.SessionView state = game.inspectSession();
-        Game.BallView ball = state.balls().get(0);
-        List<Game.RectangleView> walls = state.boundaries();
+        SessionView state = state();
+        BallView ball = state.balls().get(0);
+        List<RectangleView> walls = state.boundaries();
 
         switch (scenario) {
             case LEFT_GOAL -> placeInGoal(0);
             case RIGHT_GOAL -> placeInGoal(1);
             case PLAYER_BALL_CONTACT -> {
-                Game.ParticipantView player = participant(state, "left");
+                ParticipantView player = participant(state, "left");
                 if (player == null) return;
                 game.setBallPosition(ball.index(),
                         player.x() + player.width() / 2, player.y() + player.height() / 2);
@@ -159,8 +165,8 @@ public final class MechanicsTestController {
                 if (state.balls().size() < 2) {
                     return;
                 }
-                Game.BallView first = state.balls().get(0);
-                Game.BallView second = state.balls().get(1);
+                BallView first = state.balls().get(0);
+                BallView second = state.balls().get(1);
                 double contactDistance = first.radius() + second.radius();
                 game.setBallPosition(first.index(), 225 - contactDistance / 2, 70);
                 game.setBallPosition(second.index(), 225 + contactDistance / 2, 70);
@@ -168,37 +174,37 @@ public final class MechanicsTestController {
                 game.applyBallImpulse(second.index(), -15, 0);
             }
             case PARTICIPANT_OUTSIDE -> {
-                Game.ParticipantView player = participant(state, "left");
+                ParticipantView player = participant(state, "left");
                 if (player == null) return;
-                game.setParticipantPosition(player.id(),
+                game.setPlayerPosition(playerOneForSide("left"),
                         walls.get(2).x() - player.width() - 1, player.y());
             }
             case PARTICIPANT_TOUCHES_SIDE -> {
-                Game.ParticipantView player = participant(state, "left");
+                ParticipantView player = participant(state, "left");
                 if (player == null) return;
-                game.setParticipantPosition(player.id(),
+                game.setPlayerPosition(playerOneForSide("left"),
                         walls.get(2).x() + walls.get(2).width(), player.y());
             }
             case PARTICIPANTS_OVERLAP -> {
-                Game.ParticipantView left = participant(state, "left");
-                Game.ParticipantView right = participant(state, "right");
+                ParticipantView left = participant(state, "left");
+                ParticipantView right = participant(state, "right");
                 if (left == null || right == null) return;
-                game.setParticipantPosition(right.id(), left.x(), left.y());
+                game.setPlayerPosition(playerOneForSide("right"), left.x(), left.y());
             }
             case KICK_OPPONENT -> {
-                Game.ParticipantView left = participant(state, "left");
-                Game.ParticipantView right = participant(state, "right");
+                ParticipantView left = participant(state, "left");
+                ParticipantView right = participant(state, "right");
                 if (left == null || right == null) return;
                 double center = state.court().x() + state.court().width() / 2;
                 double gap = 8;
                 double leftX = center - left.width() - gap / 2;
                 double rightX = center + gap / 2;
-                game.setParticipantPosition(left.id(), leftX, left.y());
-                game.setParticipantPosition(right.id(), rightX, right.y());
+                game.setPlayerPosition(playerOneForSide("left"), leftX, left.y());
+                game.setPlayerPosition(playerOneForSide("right"), rightX, right.y());
             }
             case SUDDEN_DEATH_WIN -> {
                 configuration = new MechanicsTestConfiguration(selectedSessionMode, MatchMode.TIME, 0,
-                        configuration.sessionClass(), "domain.ByTime", List.of("0"),
+                        configuration.sessionClass(), "domain.ByTime", List.of("150", "450", "0"),
                         configuration.rightPowerClass(), configuration.leftPowerClass(),
                         configuration.botProfile(), configuration.playerOne());
                 createConfiguredSession();
@@ -206,25 +212,25 @@ public final class MechanicsTestController {
                 placeInGoal(0);
             }
         }
-        advanceDomainOnly(game.inspectSession());
+        advanceDomainOnly(state());
     }
 
     /** Coloca el balón en el centro del arco indicado para preparar un gol. */
     private void placeInGoal(int goalIndex) {
-        Game.SessionView state = game.inspectSession();
-        Game.RectangleView goal = state.goals().get(goalIndex);
+        SessionView state = state();
+        RectangleView goal = state.goals().get(goalIndex);
         game.setBallPosition(0,
                 goal.x() + goal.width() / 2, goal.y() + goal.height() / 2);
     }
 
     /** Cancela la velocidad actual del balón antes de ubicar un escenario. */
     private void neutralizeBall() {
-        Game.BallView ball = game.inspectSession().balls().get(0);
+        BallView ball = state().balls().get(0);
         game.applyBallImpulse(ball.index(), -ball.velocityX(), -ball.velocityY());
     }
 
     /** Busca la instantánea del primer participante del lado indicado. */
-    private static Game.ParticipantView participant(Game.SessionView state, String side) {
+    private static ParticipantView participant(SessionView state, String side) {
         return state.participants().stream()
                 .filter(player -> player.side().equals(side))
                 .findFirst()
@@ -232,7 +238,40 @@ public final class MechanicsTestController {
     }
 
     /** Devuelve la instantánea actual de la sesión para presentación. */
-    public Game.SessionView getSessionView() {
-        return game.inspectSession();
+    public SessionView getSessionView() {
+        return state();
+    }
+
+    private boolean playerOneForSide(String side) {
+        if (selectedSessionMode == SessionMode.PLAYER_VS_BOT) {
+            return side.equals("right") ? configuration.playerOne() : !configuration.playerOne();
+        }
+        return side.equals("right");
+    }
+
+    private SessionView state() {
+        return state(game, selectedSessionMode == SessionMode.PLAYER_VS_BOT ? configuration.playerOne() : true);
+    }
+
+    /** Builds the presentation snapshot exclusively from primitive Game queries. */
+    public static SessionView state(Game game, boolean playerOneOnRight) {
+        List<RectangleView> boundaries = new java.util.ArrayList<>();
+        for (int i = 0; i < 4; i++) boundaries.add(new RectangleView(game.getBoundaryX(i),
+                game.getBoundaryY(i), game.getBoundaryWidth(i), game.getBoundaryHeight(i)));
+        List<RectangleView> goals = new java.util.ArrayList<>();
+        for (int i = 0; i < 2; i++) goals.add(new RectangleView(game.getGoalX(i), game.getGoalY(i),
+                game.getGoalWidth(i), game.getGoalHeight(i)));
+        List<ParticipantView> players = List.of(
+                new ParticipantView("left", game.getPlayerX(!playerOneOnRight), game.getPlayerY(!playerOneOnRight),
+                        game.getPlayerWidth(!playerOneOnRight), game.getPlayerHeight(!playerOneOnRight), game.getPlayerSpeed(!playerOneOnRight)),
+                new ParticipantView("right", game.getPlayerX(playerOneOnRight), game.getPlayerY(playerOneOnRight),
+                        game.getPlayerWidth(playerOneOnRight), game.getPlayerHeight(playerOneOnRight), game.getPlayerSpeed(playerOneOnRight)));
+        List<BallView> balls = new java.util.ArrayList<>();
+        for (int i = 0; i < game.getBallCount(); i++) balls.add(new BallView(i, game.getBallX(i), game.getBallY(i),
+                game.getBallRadius(i), game.getBallVelocityX(i), game.getBallVelocityY(i)));
+        RectangleView court = new RectangleView(game.getCourtX(), game.getCourtY(), game.getCourtWidth(), game.getCourtHeight());
+        List<String> match = game.getMatchState();
+        return new SessionView(court, boundaries, goals, players, balls, Integer.parseInt(match.get(0)),
+                Integer.parseInt(match.get(1)), game.getElapsedSeconds(), game.isFinished());
     }
 }

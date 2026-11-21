@@ -1,4 +1,4 @@
-package domain.hitbox;
+package domain;
 
 import domain.Ball;
 import domain.SessionParticipant;

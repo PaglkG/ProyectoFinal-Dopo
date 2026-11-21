@@ -1,4 +1,4 @@
-package domain.hitbox;
+package domain;
 
 /**
  * Representa una hitbox circular definida por el centro {@code (x, y)} y un

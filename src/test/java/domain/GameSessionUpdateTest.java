@@ -449,7 +449,7 @@ class GameSessionUpdateTest {
 
     @Test
     void timeModeReceivesCompletedMinutesAndEndsAfterWinnerAppears() throws Exception {
-        PlayerVsPlayer session = session(PlayerVsPlayer.class, ByTime.class.getName(), List.of("0"));
+        PlayerVsPlayer session = session(PlayerVsPlayer.class, ByTime.class.getName(), List.of("150", "450", "0"));
         session.participantsLeft.get(0).resetPosition(50, 50);
         session.participantsRight.get(0).resetPosition(350, 50);
         session.updateGame();
@@ -462,7 +462,7 @@ class GameSessionUpdateTest {
 
     @Test
     void completedMinuteWithTieContinuesInSuddenDeath() throws Exception {
-        PlayerVsPlayer session = session(PlayerVsPlayer.class, ByTime.class.getName(), List.of("1"));
+        PlayerVsPlayer session = session(PlayerVsPlayer.class, ByTime.class.getName(), List.of("150", "450", "1"));
         for (int tick = 0; tick < 3600; tick++) session.updateGame();
 
         assertEquals(60.0, session.getElapsedSeconds(), 1e-8);
@@ -470,7 +470,8 @@ class GameSessionUpdateTest {
     }
 
     private static PlayerVsPlayer session(int limit) throws GameException {
-        return session(PlayerVsPlayer.class, ByGoals.class.getName(), List.of(Integer.toString(limit)));
+        return session(PlayerVsPlayer.class, ByGoals.class.getName(),
+                List.of("150", "450", Integer.toString(limit)));
     }
 
     private static PlayerVsPlayer session(Class<PlayerVsPlayer> type, String matchType,

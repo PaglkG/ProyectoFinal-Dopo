@@ -22,9 +22,9 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `closeSession()` | Limpia la referencia administrada; no destruye el singleton. |
 | `resetSession()` | Reinicia la ronda de la sesión administrada sin cambiar el marcador, tiempo, modalidad ni estado final. |
 | `inspectSession()` | Devuelve una instantánea inmutable de cancha, hitboxes, participantes, balón, marcador, tiempo y estado de término. |
-| `movePlayer(participantId, direction)` / `kickPlayer(participantId)` | Ejecutan movimiento o patada para un participante identificado por lado e índice. |
+| `movePlayer(playerOne, direction)` / `kickPlayer(playerOne)` | Ejecutan movimiento o patada; `true` selecciona al jugador 1 y `false` al jugador 2. |
 | `updateGame()` | Avanza la única sesión administrada un paso fijo. |
-| `setParticipantPosition(...)`, `setBallPosition(...)`, `applyBallImpulse(...)` | Preparan coordenadas e impulsos para escenarios visuales mediante la fachada. |
+| `setPlayerPosition(playerOne, ...)`, `setBallPosition(...)`, `applyBallImpulse(...)` | Preparan coordenadas e impulsos para escenarios visuales mediante la fachada. |
 | `powerPlayer(player)` | Está vacío; no activa poderes. |
 | `improveStatistics(player, stats)` | Delega en la sesión única para mejorar la habilidad seleccionada; `true` selecciona derecha/jugador 1. |
 | `save()` | Está vacío; no persiste datos. |
@@ -362,7 +362,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Métodos:** `ByTime(parametersRules)` lee el primer elemento como minutos y rechaza negativos; `check(parameters)` evalúa ambos marcadores y minutos transcurridos, actualizando muerte súbita cuando el límite ya se alcanzó; `isSuddenDeath(goalLeft, goalRight)` comprueba empate; `isTime(minutesInGame)` comprueba si se igualó o superó el límite.
 
-## Geometría (`domain.hitbox`)
+## Geometría (`domain`)
 
 ### `Hitbox` (interfaz)
 
@@ -372,13 +372,13 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Métodos:** `intersects(hitbox)` devuelve el contacto detectado; `reposition(x, y)` reposiciona la forma preservando tamaño. Para círculos `(x,y)` es el centro; para rectángulos, la esquina superior izquierda.
 
-### `HitboxContact` (record)
+### `HitboxContact` (clase final)
 
 **Responsabilidad:** transportar el nombre de la entidad contactada y la forma concreta implicada.
 
 **Componentes:** `name: String`, nombre simple o cadena vacía; `hitbox: Hitbox`, forma implicada o `null` si no hubo contacto.
 
-**Métodos:** `none()` devuelve la instancia compartida sin contacto; `isContact()` devuelve `true` si hay nombre y hitbox no nulos. El record genera automáticamente constructor y accesores `name()` y `hitbox()`.
+**Métodos:** constructor, accesores `name()` y `hitbox()`, `none()` devuelve la instancia compartida sin contacto; `isContact()` devuelve `true` si hay nombre y hitbox no nulos. `equals`, `hashCode` y `toString` comparan y representan los dos campos.
 
 ### `HitboxIntersections`
 
@@ -475,7 +475,7 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 | `kickLeft()` | Paquete: intenta patear con el primer jugador izquierdo; no aplica en modo contra bot. |
 | `kickRight()` | Paquete: intenta patear con el primer participante derecho. |
 | `runScenario(scenario)` | Crea sesión limpia, prepara el escenario mediante `Game` y ejecuta el dominio; la colisión entre balones necesita al menos dos. |
-| `getSessionView()` | Devuelve una instantánea `Game.SessionView` para que la interfaz la dibuje. |
+| `getSessionView()` | Devuelve una instantánea `SessionView` para que la interfaz la dibuje. |
 
 ### `MechanicsTestPanel`
 

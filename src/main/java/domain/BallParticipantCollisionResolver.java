@@ -2,7 +2,7 @@ package domain;
 
 import domain.Ball;
 import domain.SessionParticipant;
-import domain.hitbox.RectangularHitbox;
+import domain.RectangularHitbox;
 
 /** Resuelve la penetración y el rebote de balones contra hitboxes de participantes. */
 public final class BallParticipantCollisionResolver {

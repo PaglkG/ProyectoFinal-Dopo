@@ -1,4 +1,4 @@
-package domain.hitbox;
+package domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -89,7 +89,7 @@ class HitboxTest {
         Ball farBall = ballAt(500, 200, 2);
 
         assertContact(field.intersects(boundaryBall), "Ball", boundaryBall.getHitbox());
-        assertContact(boundaryBall.intersects(field), "SoccerField", field.getHitboxField()[0]);
+        assertContact(boundaryBall.intersects(field), "SoccerField", field.getFieldHitbox());
         assertContact(field.intersects(goalBall), "Ball", goalBall.getHitbox());
         assertContact(field.intersects(containedBall), "Ball", containedBall.getHitbox());
         assertNoContact(field.intersects(farBall));
@@ -102,7 +102,7 @@ class HitboxTest {
         participant.resetPosition(0, 70);
 
         assertContact(field.intersects(participant), "SessionParticipant", participant.getHitbox());
-        assertContact(participant.intersects(field), "SoccerField", field.getHitboxField()[2]);
+        assertContact(participant.intersects(field), "SoccerField", field.getFieldHitbox());
     }
 
     @Test

@@ -8,19 +8,20 @@ import java.lang.reflect.Field;
 
 import org.junit.jupiter.api.Test;
 
-import domain.hitbox.CircularHitbox;
-import domain.hitbox.RectangularHitbox;
+import domain.CircularHitbox;
+import domain.RectangularHitbox;
 import domain.GameException;
 
 /** Pruebas de las hitboxes y del reinicio de los balones de la cancha. */
 class SoccerFieldTest {
 
     @Test
-    void getHitboxFieldReturnsTheFourBoundaryHitboxes() throws ReflectiveOperationException {
+    void fieldStoresOneOuterHitboxAndExposesFourDerivedBoundaryStrips() throws ReflectiveOperationException {
         SoccerField field = new SoccerField();
 
         RectangularHitbox[] hitboxes = field.getHitboxField();
 
+        assertEquals(RectangularHitbox.class, SoccerField.class.getDeclaredField("fieldHitbox").getType());
         assertEquals(4, hitboxes.length);
         assertEquals(450.0, readValue(hitboxes[0], "width"));
         assertEquals(1.5, readValue(hitboxes[0], "height"));
@@ -29,13 +30,13 @@ class SoccerFieldTest {
     @Test
     void repositionMovesTheFieldBoundariesAsAGroup() throws ReflectiveOperationException {
         SoccerField field = new SoccerField();
-        RectangularHitbox[] originalFieldHitboxes = field.getHitboxField();
+        RectangularHitbox originalFieldHitbox = field.getFieldHitbox();
         RectangularHitbox originalLeftGoal = readGoal(field, "LeftGoalHitbox");
 
         field.reposition(20.0, 30.0);
 
         RectangularHitbox[] hitboxes = field.getHitboxField();
-        assertSame(originalFieldHitboxes, hitboxes);
+        assertSame(originalFieldHitbox, field.getFieldHitbox());
         assertSame(originalLeftGoal, readGoal(field, "LeftGoalHitbox"));
         assertEquals(20.0, readValue(hitboxes[0], "x"));
         assertEquals(30.0, readValue(hitboxes[0], "y"));

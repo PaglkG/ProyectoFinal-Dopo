@@ -100,6 +100,6 @@ class PlayerVsBotTest {
 
     private static PlayerVsBot createSession(boolean player, String difficulty, String limit) throws GameException {
         return GameSessionTestSupport.create(PlayerVsBot.class, player, ByGoals.class.getName(),
-                List.of(limit), List.of("domain.BlueAura", "domain.Lightning", difficulty));
+                List.of("150", "450", limit), List.of("domain.BlueAura", "domain.Lightning", difficulty));
     }
 }

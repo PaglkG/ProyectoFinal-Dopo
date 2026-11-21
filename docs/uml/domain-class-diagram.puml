@@ -6,12 +6,12 @@ hide empty members
 package "domain" {
   class Game {
     - session: GameSession
-    + startSession(parametersRules: List<String>, parametersPowers: List<String>, typeGame: String, typeMatche: String, player: boolean): GameSession
+    + startSession(parametersRules: List<String> [height, width, modeParameter], parametersPowers: List<String>, typeGame: String, typeMatche: String, player: boolean): GameSession
     + closeSession(): void
-    + movePlayer(participantId: String, direction: boolean): void
-    + kickPlayer(participantId: String): boolean
+    + movePlayer(playerOne: boolean, direction: boolean): void
+    + kickPlayer(playerOne: boolean): boolean
     + inspectSession(): SessionView
-    + setParticipantPosition(participantId: String, x: double, y: double): void
+    + setPlayerPosition(playerOne: boolean, x: double, y: double): void
     + setBallPosition(ballIndex: int, x: double, y: double): void
     + applyBallImpulse(ballIndex: int, deltaX: double, deltaY: double): void
     + updateGame(): void
@@ -19,39 +19,64 @@ package "domain" {
     + save(): void
     + open(file: File): void
   }
-  class "Game.SessionView" as SessionView <<record>> {
-    + court: RectangleView
-    + boundaries: List<RectangleView>
-    + goals: List<RectangleView>
-    + participants: List<ParticipantView>
-    + balls: List<BallView>
-    + goalsLeft: int
-    + goalsRight: int
-    + elapsedSeconds: double
-    + finished: boolean
+  class SessionView {
+    - court: RectangleView
+    - boundaries: List<RectangleView>
+    - goals: List<RectangleView>
+    - participants: List<ParticipantView>
+    - balls: List<BallView>
+    - goalsLeft: int
+    - goalsRight: int
+    - elapsedSeconds: double
+    - finished: boolean
+    + SessionView(court: RectangleView, boundaries: List<RectangleView>, goals: List<RectangleView>, participants: List<ParticipantView>, balls: List<BallView>, goalsLeft: int, goalsRight: int, elapsedSeconds: double, finished: boolean)
+    + court(): RectangleView
+    + boundaries(): List<RectangleView>
+    + goals(): List<RectangleView>
+    + participants(): List<ParticipantView>
+    + balls(): List<BallView>
+    + goalsLeft(): int
+    + goalsRight(): int
+    + elapsedSeconds(): double
+    + finished(): boolean
   }
-  class "Game.ParticipantView" as ParticipantView <<record>> {
-    + id: String
-    + side: String
-    + x: double
-    + y: double
-    + width: double
-    + height: double
-    + speed: int
+  class ParticipantView {
+    - side: String
+    - x: double
+    - y: double
+    - width: double
+    - height: double
+    - speed: int
+    + side(): String
+    + x(): double
+    + y(): double
+    + width(): double
+    + height(): double
+    + speed(): int
   }
-  class "Game.BallView" as BallView <<record>> {
-    + index: int
-    + x: double
-    + y: double
-    + radius: double
-    + velocityX: double
-    + velocityY: double
+  class BallView {
+    - index: int
+    - x: double
+    - y: double
+    - radius: double
+    - velocityX: double
+    - velocityY: double
+    + index(): int
+    + x(): double
+    + y(): double
+    + radius(): double
+    + velocityX(): double
+    + velocityY(): double
   }
-  class "Game.RectangleView" as RectangleView <<record>> {
-    + x: double
-    + y: double
-    + width: double
-    + height: double
+  class RectangleView {
+    - x: double
+    - y: double
+    - width: double
+    - height: double
+    + x(): double
+    + y(): double
+    + width(): double
+    + height(): double
   }
   abstract class GameSession {
     {static} - instance: GameSession
@@ -136,7 +161,7 @@ package "domain" {
   class SoccerField {
     - LeftGoalHitbox: RectangularHitbox
     - RightGoalHitbox: RectangularHitbox
-    - fieldHitbox: RectangularHitbox[]
+    - fieldHitbox: RectangularHitbox
     - balls: Ball[]
     - collisions: CollisionFacade
     + advanceBalls(deltaSeconds: double, gravity: double): void
@@ -155,6 +180,7 @@ package "domain" {
     + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
     + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
     + resetBall(x: double, y: double): void
+    + getFieldHitbox(): RectangularHitbox
     + getHitboxField(): RectangularHitbox[]
     + getHitboxBalls(): CircularHitbox[]
     + getHitboxes(): Hitbox[]
@@ -270,8 +296,11 @@ package "domain" {
   }
   class ByGoals {
     - goals: int
+    - goals: int
   }
   class ByTime {
+    - minutes: int
+    - suddenDeath: boolean
     - minutes: int
     - suddenDeath: boolean
   }
@@ -292,14 +321,12 @@ package "domain" {
   Power <|-- Lightning
   Power <|-- Tornado
   Power <|-- Illusion
-}
 
-package "domain.hitbox" {
   interface Hitbox {
     + intersects(hitbox: Hitbox): HitboxContact
     + reposition(x: double, y: double): void
   }
-  class HitboxContact <<record>> {
+  class HitboxContact {
     + name: String
     + hitbox: Hitbox
     + none(): HitboxContact {static}
@@ -336,7 +363,7 @@ package "presentation.testing" {
     - onStart: Consumer<MechanicsTestConfiguration>
     + MechanicsTestSetupPanel(onStart: Consumer<MechanicsTestConfiguration>)
   }
-  class MechanicsTestConfiguration <<record>> {
+  class MechanicsTestConfiguration {
     + sessionMode: SessionMode
     + matchMode: MatchMode
     + limit: int
@@ -368,7 +395,7 @@ package "presentation.testing" {
     + kickLeft(): boolean
     + kickRight(): boolean
     + runScenario(scenario: Scenario): void
-    + getSessionView(): Game.SessionView
+    + getSessionView(): SessionView
   }
   enum Scenario {
     LEFT_GOAL
@@ -404,10 +431,10 @@ package "presentation.testing" {
     + reset(game: Game): void
     + resetAfterRound(game: Game): void
     + update(game: Game, mode: SessionMode): void
-    - updateActor(game: Game, actor: Game.ParticipantView, opponent: Game.ParticipantView, leftControl: Control, rightControl: Control, jumpControl: Control): void
-    - supportedByBall(balls: List<Game.BallView>, x: double, y: double, width: double, height: double): boolean
-    - resolveBallVerticalContact(balls: List<Game.BallView>, x: double, oldY: double, nextY: double, width: double, height: double, verticalSpeed: double): double
-    - overlapsHorizontally(x: double, width: double, ball: Game.BallView): boolean
+    - updateActor(game: Game, actor: ParticipantView, opponent: ParticipantView, leftControl: Control, rightControl: Control, jumpControl: Control): void
+    - supportedByBall(balls: List<BallView>, x: double, y: double, width: double, height: double): boolean
+    - resolveBallVerticalContact(balls: List<BallView>, x: double, oldY: double, nextY: double, width: double, height: double, verticalSpeed: double): double
+    - overlapsHorizontally(x: double, width: double, ball: BallView): boolean
   }
   enum Control {
     LEFT_LEFT
@@ -445,7 +472,7 @@ BotPlayer <|-- Offensive
 BotPlayer <|-- Defensive
 BotPlayer <|-- Expert
 SoccerField "1" *-- "1..*" Ball : balls
-SoccerField "1" *-- "4" RectangularHitbox : fieldHitbox
+SoccerField "1" *-- "1" RectangularHitbox : fieldHitbox
 SoccerField "1" *-- "2" RectangularHitbox : goal hitboxes
 Ball "1" *-- "1" CircularHitbox : BallHitbox
 SessionParticipant "1" *-- "1" RectangularHitbox : UserHitbox
@@ -483,7 +510,7 @@ MechanicsTestPanel --> MechanicsTestController
 MechanicsTestController --> Game
 MechanicsTestController ..> Scenario
 MechanicsTestController --> PresentationMovement
-MechanicsTestPanel ..> Game : Game.SessionView
+MechanicsTestPanel ..> Game : SessionView
 PresentationMovement --> Game
 MechanicsTestPanel ..> Control
 

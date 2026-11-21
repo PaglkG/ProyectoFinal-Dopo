@@ -11,6 +11,8 @@ public class ByTime extends TypeOfMatch {
     private int minutes;
     private boolean suddenDeath;
 
+    public boolean isSuddenDeath() { return suddenDeath; }
+
 
     /**
      * Lee el primer parámetro como duración límite en minutos y rechaza valores

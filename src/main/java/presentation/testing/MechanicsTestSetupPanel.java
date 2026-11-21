@@ -23,7 +23,7 @@ public final class MechanicsTestSetupPanel extends JPanel {
             new JComboBox<>(MechanicsTestController.MatchMode.values());
     private final JTextField sessionClass = new JTextField("domain.PlayerVsPlayer");
     private final JTextField matchClass = new JTextField("domain.ByGoals");
-    private final JTextField ruleParameters = new JTextField("5");
+    private final JTextField ruleParameters = new JTextField("150,450,5");
     private final JTextField limit = new JTextField("5");
     private final JTextField rightPower = new JTextField("domain.BlueAura");
     private final JTextField leftPower = new JTextField("domain.Lightning");
@@ -40,7 +40,7 @@ public final class MechanicsTestSetupPanel extends JPanel {
         fields.add(new JLabel("Modalidad")); fields.add(matchMode);
         addField(fields, "Clase de sesión (nombre completo)", sessionClass);
         addField(fields, "Clase de regla (nombre completo)", matchClass);
-        addField(fields, "Parámetros de regla (separados por coma)", ruleParameters);
+        addField(fields, "Altura, anchura y parámetro de modalidad", ruleParameters);
         addField(fields, "Límite (goles o minutos)", limit);
         addField(fields, "Poder lado derecho (clase completa)", rightPower);
         addField(fields, "Poder lado izquierdo / bot", leftPower);

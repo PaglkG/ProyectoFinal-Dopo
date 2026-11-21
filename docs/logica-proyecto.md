@@ -83,6 +83,7 @@
 - `Hitbox.intersects(hitbox)` devuelve un `HitboxContact` con el nombre simple de la entidad contactada y la hitbox asociada que participó. Sin contacto devuelve un resultado con `name = ""` y `hitbox = null`. Los nombres usados son `Ball`, `SessionParticipant` y `SoccerField`.
 - `Ball` y `SessionParticipant` comprueban intersección mediante sus hitboxes asociadas. `SoccerField.intersects(hitbox)` busca contacto con sus límites, arcos y balones; si la cancha es el objeto contactado, devuelve la parte concreta de la cancha o el balón contenido que intervino.
 - `Hitbox.reposition(x, y)` reposiciona la referencia de cada forma: centro para círculos y esquina superior izquierda para rectángulos. `Ball` y `SessionParticipant` delegan en su hitbox; `SoccerField` reposiciona las formas que contiene.
+- `SoccerField` mantiene una sola `RectangularHitbox` como rectángulo exterior. Sus límites superior, inferior y laterales se derivan de los cuatro bordes y del grosor configurado; los límites derivados no son hitboxes almacenadas independientes.
 - Como propuesta provisional, la cancha mide 450 × 150 unidades, los límites tienen grosor `alto / 100`, y cada arco mide `ancho / 10` por `alto / 3` y queda apoyado sobre el límite inferior dentro de la cancha.
 - Como propuesta provisional, la hitbox del participante mide `ancho / 20` por `alto / 3`.
 
@@ -108,9 +109,9 @@
 
 ## Estado actual del código (no equivale a una regla confirmada)
 
-- Los tipos del dominio están en domain, salvo las formas de hitbox en domain.hitbox. Action, las modalidades, los poderes, StatusEffect y GameException también están directamente en domain desde el aplanado de paquetes.
+- Los tipos del dominio están en domain, salvo las formas de hitbox en domain. Action, las modalidades, los poderes, StatusEffect y GameException también están directamente en domain desde el aplanado de paquetes.
 - La presentación principal no importa clases del dominio y todavía no conecta una partida jugable. presentation.testing sí usa únicamente la fachada Game, que entrega instantáneas inmutables y operaciones para mover, patear y preparar escenarios.
-- La fachada de prueba usa `Game.startSession`, `inspectSession`, `movePlayer`, `kickPlayer`, `updateGame`, `setParticipantPosition`, `setBallPosition` y `applyBallImpulse` para crear, consultar y preparar escenarios. La presentación usa `Game` y no conserva referencias mutables a sesión, participante, cancha o balón. El salto de `PresentationMovement` es visual, pero la posición resultante participa en las colisiones y permite aterrizar encima de un balón.
+- La presentación consulta el estado mediante getters planos de `Game`; `inspectSession` permanece disponible, pero la presentación no depende de sus vistas. `movePlayer`, `kickPlayer` y `setPlayerPosition` seleccionan identidad con booleano (`true`: jugador 1; `false`: jugador 2). La presentación no conserva referencias mutables a sesión, participante, cancha o balón. El salto de `PresentationMovement` es visual, pero la posición resultante participa en las colisiones y permite aterrizar encima de un balón.
 - `Game.movePlayer` delega en `GameSession`; la sesión solo delega el movimiento si el participante pertenece a ella y no está terminada. `SessionParticipant` actualiza su posición y su hitbox con `150 × speed / 60`; `speed` inicia en 1.
 - `Game.startSession` obtiene reflectivamente la subclase singleton de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, y guarda la única referencia administrada.
 - `PlayerVsBot` construye un jugador humano y un bot; `PlayerVsPlayer` construye dos jugadores humanos.
@@ -122,8 +123,7 @@
 - En la implementación actual, `PlayerVsPlayer` coloca al jugador 1 a la derecha y al jugador 2 a la izquierda. `PlayerVsBot` coloca al jugador humano a la derecha y al bot a la izquierda, tanto cuando el humano es el jugador 1 como cuando es el jugador 2; esto coincide con la regla confirmada.
 - `GameSession` instancia una subclase de `TypeOfMatch` mediante reflexión.
 - `Game` registra cero o una referencia a la sesión singleton. Los niveles y puntos siguen asociados a los `SessionParticipant` de esa instancia, que persisten cuando `closeSession` retira y `startSession` vuelve a registrar la misma sesión; `Game` no mantiene un mapa duplicado de estadísticas.
-- `ByGoals` recibe el límite de goles como primer parámetro de su lista. Su método `check` recibe dos marcadores.
-- `ByTime` recibe los minutos del partido como primer parámetro de su lista. Su método `check` lee los marcadores desde las posiciones 0 y 1 y el tiempo transcurrido desde la posición 2.
+- `Game.startSession` recibe en `parametersRules` la altura como primer parámetro, la anchura como segundo y el parámetro propio de la modalidad como tercero. `ByGoals` usa el tercero como límite de goles; `ByTime` lo usa como minutos del partido. `ByTime.check` recibe los marcadores en las posiciones 0 y 1 y el tiempo transcurrido en la posición 2.
 - `ByTime.suddenDeath` se activa cuando se agota el tiempo con empate; en ese caso `check` devuelve `true` y, si un marcador queda desigual, se apaga al terminar.
 - En el código actual no existen Scoreboard, Outfit, Head, Shoe, Rule ni Side en el dominio. Action está en domain y aparece en el tipo de retorno de BotPlayer.decideAction.
 - Se conservan los parámetros de jugador y reglas en los constructores de `GameSession`, `PlayerVsBot` y `PlayerVsPlayer`, y la lista de parámetros en las fábricas reflectivas. `TypeOfMatch.check` conserva su contrato `boolean` con parámetros, de acuerdo con la regla de continuidad confirmada.
@@ -177,3 +177,5 @@
 | 2026-11-17 | La vida máxima/inicial es 100; la patada causa 10 de daño base y cada nivel adicional de `kick` suma 5; alcanzar cero activa un aturdimiento de 3 segundos con `StatusEffect` y recuperación de vida al expirar. | Pablo |
 | 2026-11-17 | Se reemplaza la respuesta de contacto participante-balón: al caminar, el jugador puede empujar balones quietos en pasos pequeños sin atravesarlos; el empuje no cambia su velocidad. Un balón en movimiento rebota contra el jugador en lugar de ser empujado. El empuje se bloquea si causaría colisión con la cancha u otra entidad. | Pablo |
 | 2026-11-17 | Los balones rebotan contra participantes con restitución de `0.70`. Si el jugador cae sobre el balón, permanece encima y el balón adquiere movimiento hacia abajo, con mínimo de `0.5` unidades/s. | Pablo |
+| 2026-11-20 | `parametersRules` de `Game.startSession` ordena altura, anchura y parámetro propio de modalidad; `ByGoals` usa el tercero como límite de goles y `ByTime` como minutos. | Pablo |
+| 2026-11-20 | `SoccerField` conserva una única hitbox rectangular exterior; los cuatro límites se derivan de sus bordes. | Pablo |

@@ -4,7 +4,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import domain.GameException;
-import domain.hitbox.Hitbox;
+import domain.Hitbox;
 import domain.TypeOfMatch;
 
 /**
@@ -98,11 +98,26 @@ public abstract class GameSession {
     public GameSession(boolean player,String typeMatche, List<String> parametersRules) throws GameException {
         participantsRight = new ArrayList<>();
         participantsLeft = new ArrayList<>();
-        Object typeMatcheObject = createMatchRule(typeMatche, parametersRules);
+        if (parametersRules == null || parametersRules.size() < 2) {
+            throw new GameException(GameException.INVALID_RULE_PARAMETERS);
+        }
+        double height = parseDimension(parametersRules.get(0));
+        double width = parseDimension(parametersRules.get(1));
+        Object typeMatcheObject = createMatchRule(typeMatche, parametersRules.subList(2, parametersRules.size()));
         TypeOfMatch typeMatcheFinal = (TypeOfMatch) typeMatcheObject;
-        field = new SoccerField();
+        field = new SoccerField(height, width);
         timeLeft = 0;
         TypeOfMatch = typeMatcheFinal;
+    }
+
+    private double parseDimension(String value) {
+        try {
+            double dimension = Double.parseDouble(value);
+            if (!Double.isFinite(dimension) || dimension <= 0) throw new NumberFormatException();
+            return dimension;
+        } catch (NumberFormatException exception) {
+            throw new GameException(GameException.INVALID_RULE_PARAMETERS, exception);
+        }
     }
 
     /**
@@ -216,7 +231,7 @@ public abstract class GameSession {
 
     /** Busca el rival más cercano cuya hitbox esté dentro del alcance de patada. */
     private SessionParticipant closestOpponentInReach(
-            domain.hitbox.RectangularHitbox attacker, List<SessionParticipant> opponents) {
+            domain.RectangularHitbox attacker, List<SessionParticipant> opponents) {
         SessionParticipant closest = null;
         double closestDistance = Double.POSITIVE_INFINITY;
         for (SessionParticipant opponent : opponents) {
@@ -391,6 +406,7 @@ public abstract class GameSession {
 
     /** Devuelve la cancha de esta sesión para que la presentación pueda dibujarla. */
     public SoccerField getField() { return field; }
+    public TypeOfMatch getTypeOfMatch() { return TypeOfMatch; }
 
     /** Devuelve una copia de los participantes del lado izquierdo. */
     public List<SessionParticipant> getParticipantsLeft() { return List.copyOf(participantsLeft); }

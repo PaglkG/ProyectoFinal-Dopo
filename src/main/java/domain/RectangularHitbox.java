@@ -1,4 +1,4 @@
-package domain.hitbox;
+package domain;
 
 /**
  * Representa una hitbox rectangular mediante la esquina superior izquierda

@@ -6,7 +6,7 @@ import java.lang.reflect.Field;
 
 import org.junit.jupiter.api.Test;
 
-import domain.hitbox.CircularHitbox;
+import domain.CircularHitbox;
 
 /** Pruebas del balón y de su hitbox circular. */
 class BallTest {

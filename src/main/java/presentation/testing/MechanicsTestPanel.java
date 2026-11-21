@@ -1,4 +1,8 @@
 package presentation.testing;
+import domain.BallView;
+import domain.ParticipantView;
+import domain.RectangleView;
+import domain.SessionView;
 
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -305,7 +309,7 @@ public final class MechanicsTestPanel extends JPanel {
     private void advanceOneStep(boolean showStepStatus) {
         try {
             controller.step();
-            Game.SessionView session = controller.getSessionView();
+            SessionView session = controller.getSessionView();
             if (session.finished()) {
                 timer.stop();
                 runButton.setText("Iniciar simulación");
@@ -325,8 +329,8 @@ public final class MechanicsTestPanel extends JPanel {
 
     /** Actualiza el texto del marcador y solicita redibujar el campo. */
     private void refreshView() {
-        Game.SessionView session = controller.getSessionView();
-        Game.BallView ball = session.balls().get(0);
+        SessionView session = controller.getSessionView();
+        BallView ball = session.balls().get(0);
         score.setText(String.format("Izquierda %d  :  %d Derecha  ·  %.2f s  ·  balón vx %.1f / vy %.1f%s",
                 session.goalsLeft(), session.goalsRight(), session.elapsedSeconds(),
                 ball.velocityX(), ball.velocityY(),
@@ -356,8 +360,8 @@ public final class MechanicsTestPanel extends JPanel {
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             drawStadium(g);
-            Game.SessionView session = controller.getSessionView();
-            Game.RectangleView court = session.court();
+            SessionView session = controller.getSessionView();
+            RectangleView court = session.court();
             double x = court.x();
             double y = court.y();
             double width = court.width();
@@ -395,7 +399,7 @@ public final class MechanicsTestPanel extends JPanel {
             drawParticipants(g, session.participants().stream().filter(player -> player.side().equals("right")).toList(),
                     x, y, offsetX, offsetY, scale,
                     new Color(255, 105, 105));
-            for (Game.BallView ball : session.balls()) {
+            for (BallView ball : session.balls()) {
                 double radius = ball.radius();
                 double ballX = offsetX + (ball.x() - radius - x) * scale;
                 double ballY = offsetY + (ball.y() - radius - y) * scale;
@@ -412,24 +416,24 @@ public final class MechanicsTestPanel extends JPanel {
         }
 
         /** Dibuja los límites, arcos, hitboxes de jugadores y balones sobre los sprites. */
-        private void drawHitboxOverlay(Graphics2D g, Game.SessionView session,
+        private void drawHitboxOverlay(Graphics2D g, SessionView session,
                 double courtX, double courtY, double offsetX, double offsetY, double scale) {
             g.setStroke(new BasicStroke(1.5f));
             for (int index = 0; index < session.boundaries().size(); index++) {
-                Game.RectangleView box = session.boundaries().get(index);
+                RectangleView box = session.boundaries().get(index);
                 drawRect(g, box.x() - courtX, box.y() - courtY, box.width(), box.height(),
                         offsetX, offsetY, scale, new Color(255, 236, 80), false);
             }
-            for (Game.RectangleView goal : session.goals()) {
+            for (RectangleView goal : session.goals()) {
                 drawRect(g, goal.x() - courtX, goal.y() - courtY, goal.width(), goal.height(),
                         offsetX, offsetY, scale, new Color(255, 153, 40), false);
             }
-            for (Game.ParticipantView participant : session.participants()) {
+            for (ParticipantView participant : session.participants()) {
                 drawRect(g, participant.x() - courtX, participant.y() - courtY,
                         participant.width(), participant.height(), offsetX, offsetY, scale,
                         participant.side().equals("left") ? Color.CYAN : Color.MAGENTA, false);
             }
-            for (Game.BallView ball : session.balls()) {
+            for (BallView ball : session.balls()) {
                 double diameter = ball.radius() * 2 * scale;
                 double screenX = offsetX + (ball.x() - ball.radius() - courtX) * scale;
                 double screenY = offsetY + (ball.y() - ball.radius() - courtY) * scale;
@@ -513,9 +517,9 @@ public final class MechanicsTestPanel extends JPanel {
          * @param scale escala entre unidades de dominio y píxeles
          * @param color color del cuerpo del participante
          */
-        private void drawParticipants(Graphics2D g, java.util.List<Game.ParticipantView> participants,
+        private void drawParticipants(Graphics2D g, java.util.List<ParticipantView> participants,
                 double courtX, double courtY, double offsetX, double offsetY, double scale, Color color) {
-            for (Game.ParticipantView participant : participants) {
+            for (ParticipantView participant : participants) {
                 double x = offsetX + (participant.x() - courtX) * scale;
                 double y = offsetY + (participant.y() - courtY) * scale;
                 double width = participant.width() * scale;

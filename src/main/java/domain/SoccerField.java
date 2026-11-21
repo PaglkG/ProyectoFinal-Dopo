@@ -1,10 +1,10 @@
 package domain;
 
 import java.util.Arrays;
-import domain.hitbox.Hitbox;
-import domain.hitbox.HitboxContact;
-import domain.hitbox.CircularHitbox;
-import domain.hitbox.RectangularHitbox;
+import domain.Hitbox;
+import domain.HitboxContact;
+import domain.CircularHitbox;
+import domain.RectangularHitbox;
 import domain.GameException;
 
 
@@ -16,9 +16,12 @@ import domain.GameException;
  */
 public class SoccerField implements Hitbox {
 
+    private final double courtHeight;
+    private final double courtWidth;
+
     private RectangularHitbox LeftGoalHitbox;
     private RectangularHitbox RightGoalHitbox;
-    private RectangularHitbox[] fieldHitbox;
+    private RectangularHitbox fieldHitbox;
     private Ball[] balls;
     private CollisionFacade collisions;
 
@@ -26,7 +29,17 @@ public class SoccerField implements Hitbox {
      * Crea una cancha provisional de 450 por 150 unidades y un balón de radio 10.
      */
     public SoccerField() {
-        balls = new Ball[] {new Ball(450, 150, 10)};
+        this(150, 450);
+    }
+
+    /** Creates a field using the requested height and width. */
+    public SoccerField(double height, double width) {
+        if (!Double.isFinite(height) || !Double.isFinite(width) || height <= 0 || width <= 0) {
+            throw new GameException(GameException.INVALID_RULE_PARAMETERS);
+        }
+        this.courtHeight = height;
+        this.courtWidth = width;
+        balls = new Ball[] {new Ball(width, height, 10)};
         reposition(0, 0);
         collisions = new CollisionFacade(this);
     }
@@ -77,12 +90,12 @@ public class SoccerField implements Hitbox {
      * @return arreglo de objetos que exponen hitboxes
      */
     public Hitbox[] getHitboxes() {
-        Hitbox[] hitbox = new Hitbox[fieldHitbox.length + 2 + balls.length];
-        System.arraycopy(fieldHitbox, 0, hitbox, 0, fieldHitbox.length);
-        hitbox[fieldHitbox.length] = LeftGoalHitbox;
-        hitbox[fieldHitbox.length + 1] = RightGoalHitbox;
+        Hitbox[] hitbox = new Hitbox[4 + 2 + balls.length];
+        System.arraycopy(getHitboxField(), 0, hitbox, 0, 4);
+        hitbox[4] = LeftGoalHitbox;
+        hitbox[5] = RightGoalHitbox;
         for (int i = 0; i < balls.length; i++) {
-            hitbox[fieldHitbox.length + 2 + i] = balls[i];
+            hitbox[6 + i] = balls[i];
         }
         return hitbox;
     }
@@ -106,8 +119,23 @@ public class SoccerField implements Hitbox {
      *
      * @return hitboxes superior, inferior, izquierda y derecha
      */
-    public RectangularHitbox[] getHitboxField() {
+    public RectangularHitbox getFieldHitbox() {
         return fieldHitbox;
+    }
+
+    /** Returns boundary strips derived from the four edges of the single field rectangle. */
+    public RectangularHitbox[] getHitboxField() {
+        double x = fieldHitbox.getX();
+        double y = fieldHitbox.getY();
+        double width = fieldHitbox.getWidth();
+        double height = fieldHitbox.getHeight();
+        double thickness = boundaryThickness();
+        return new RectangularHitbox[] {
+            new RectangularHitbox(x, y, width, thickness),
+            new RectangularHitbox(x, y + height - thickness, width, thickness),
+            new RectangularHitbox(x, y, thickness, height),
+            new RectangularHitbox(x + width - thickness, y, thickness, height)
+        };
     }
 
     /**
@@ -137,17 +165,17 @@ public class SoccerField implements Hitbox {
     }
 
     /** @return coordenada horizontal izquierda del rectángulo exterior */
-    public double courtX() { return fieldHitbox[0].getX(); }
+    public double courtX() { return fieldHitbox.getX(); }
     /** @return coordenada vertical superior del rectángulo exterior */
-    public double courtY() { return fieldHitbox[0].getY(); }
+    public double courtY() { return fieldHitbox.getY(); }
     /** @return ancho del rectángulo exterior */
-    public double courtWidth() { return fieldHitbox[0].getWidth(); }
+    public double courtWidth() { return fieldHitbox.getWidth(); }
     /** @return alto del rectángulo exterior */
-    public double courtHeight() { return fieldHitbox[2].getHeight(); }
+    public double courtHeight() { return fieldHitbox.getHeight(); }
     /** @return grosor de los límites superior e inferior */
-    public double boundaryThickness() { return fieldHitbox[0].getHeight(); }
+    public double boundaryThickness() { return courtHeight() / 100; }
     /** @return coordenada vertical del borde superior del límite inferior */
-    public double groundY() { return fieldHitbox[1].getY(); }
+    public double groundY() { return courtY() + courtHeight() - boundaryThickness(); }
 
     /** Resuelve los rebotes de un balón contra límites laterales, techo y arcos. */
     public void bounceBallAtWallsAndGoalFrames(Ball ball, double retention) {
@@ -233,7 +261,7 @@ public class SoccerField implements Hitbox {
         if (hitbox == null) {
             return HitboxContact.none();
         }
-        for (RectangularHitbox boundary : fieldHitbox) {
+        for (RectangularHitbox boundary : getHitboxField()) {
             HitboxContact contact = boundary.intersects(hitbox);
             if (contact.isContact()) {
                 return contact;
@@ -269,9 +297,9 @@ public class SoccerField implements Hitbox {
         if (other == null) {
             return HitboxContact.none();
         }
-        for (RectangularHitbox boundary : fieldHitbox) {
+        for (RectangularHitbox boundary : getHitboxField()) {
             if (boundary.intersects(other).isContact()) {
-                return new HitboxContact("SoccerField", boundary);
+                return new HitboxContact("SoccerField", fieldHitbox);
             }
         }
         if (LeftGoalHitbox.intersects(other).isContact()) {
@@ -298,8 +326,8 @@ public class SoccerField implements Hitbox {
      */
     @Override
     public void reposition(double x, double y) {
-        double width = 450;
-        double height = 150;
+        double width = courtWidth;
+        double height = courtHeight;
         double boundaryThickness = height / 100;
         double goalWidth = width / 10;
         double goalHeight = height / 3;
@@ -323,19 +351,7 @@ public class SoccerField implements Hitbox {
         else {
             RightGoalHitbox.reposition(x + width - goalWidth, goalY);
         }
-        if (fieldHitbox == null) {
-            fieldHitbox = new RectangularHitbox[] {
-                    new RectangularHitbox(x, y, width, boundaryThickness),
-                    new RectangularHitbox(x, y + height - boundaryThickness, width, boundaryThickness),
-                    new RectangularHitbox(x, y, boundaryThickness, height),
-                    new RectangularHitbox(x + width - boundaryThickness, y, boundaryThickness, height)
-            };
-        }
-        else {
-            fieldHitbox[0].reposition(x, y);
-            fieldHitbox[1].reposition(x, y + height - boundaryThickness);
-            fieldHitbox[2].reposition(x, y);
-            fieldHitbox[3].reposition(x + width - boundaryThickness, y);
-        }
+        if (fieldHitbox == null) fieldHitbox = new RectangularHitbox(x, y, width, height);
+        else fieldHitbox.reposition(x, y);
     }
 }

@@ -1,9 +1,9 @@
 package domain;
 
-import domain.hitbox.CircularHitbox;
-import domain.hitbox.Hitbox;
-import domain.hitbox.HitboxContact;
-import domain.hitbox.HitboxIntersections;
+import domain.CircularHitbox;
+import domain.Hitbox;
+import domain.HitboxContact;
+import domain.HitboxIntersections;
 
 /**
  * Representa el balón y su hitbox circular.

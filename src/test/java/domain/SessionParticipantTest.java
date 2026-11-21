@@ -9,7 +9,7 @@ import java.lang.reflect.Field;
 
 import org.junit.jupiter.api.Test;
 
-import domain.hitbox.RectangularHitbox;
+import domain.RectangularHitbox;
 
 /** Pruebas del comportamiento de posición común de los participantes. */
 class SessionParticipantTest {
