@@ -24,7 +24,9 @@ public class PausePanel extends BasePanel {
     private final NavigationController navigationController;
     private JButton mainMenuButton;
 
-    /** Crea la pantalla de pausa conectada con la navegación principal. */
+    /** Crea la pantalla de pausa conectada con la navegación principal.
+     * @param navigationController controlador para mostrar otras pantallas
+     */
     public PausePanel(NavigationController navigationController) {
         this.navigationController = navigationController;
         prepareView();

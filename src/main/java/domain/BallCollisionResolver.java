@@ -5,7 +5,13 @@ import domain.SessionParticipant;
 
 /** Resuelve contactos e impulsos entre balones y el empuje al caminar. */
 public final class BallCollisionResolver {
-    /** Resuelve los contactos entre cada par de balones recibidos. */
+    /** Crea el resolutor de contactos entre balones. */
+    public BallCollisionResolver() { }
+
+    /** Resuelve los contactos entre cada par de balones recibidos.
+     * @param balls balones cuyo contacto por pares se evaluará
+     * @param restitution fracción de velocidad normal conservada en el rebote
+     */
     public void resolveAll(Ball[] balls, double restitution) {
         for (int first = 0; first < balls.length; first++) {
             for (int second = first + 1; second < balls.length; second++) {
@@ -14,7 +20,13 @@ public final class BallCollisionResolver {
         }
     }
 
-    /** Empuja en pasos pequeños cualquier balón en contacto con el participante que caminó. */
+    /** Empuja en pasos pequeños cualquier balón en contacto con el participante que caminó.
+     * @param balls balones susceptibles de ser empujados
+     * @param moved participante que terminó de caminar
+     * @param previousX coordenada horizontal del participante antes del movimiento
+     * @param participants participantes que bloquean el desplazamiento de los balones
+     * @param geometry validador de posiciones dentro de la cancha
+     */
     public void resolveWalkingContact(Ball[] balls, SessionParticipant moved, double previousX,
             Iterable<SessionParticipant> participants, CourtGeometry geometry) {
         double movement = moved.getHitbox().getX() - previousX;

@@ -6,4 +6,6 @@ package domain;
  * @author Samuel Ahumada Florez
  */
 public class Defensive extends BotPlayer {
+    /** Crea un perfil de bot defensivo. */
+    public Defensive() { }
 }

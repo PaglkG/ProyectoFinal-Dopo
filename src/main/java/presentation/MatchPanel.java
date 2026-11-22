@@ -47,7 +47,10 @@ public class MatchPanel extends BasePanel {
     private JButton pauseButton;
     private CourtView courtView;
 
-    /** Crea la vista conectada a la fachada y a la navegación de presentación. */
+    /** Crea la vista conectada a la fachada y a la navegación de presentación.
+     * @param game fachada que entrega el estado del partido
+     * @param navigationController controlador para cambiar de pantalla
+     */
     public MatchPanel(Game game, NavigationController navigationController) {
         this.game = game;
         this.navigationController = navigationController;
@@ -196,7 +199,10 @@ public class MatchPanel extends BasePanel {
                 navigationController.showScreen(NavigationController.PAUSE));
     }
 
-    /** Asigna las imágenes seleccionadas a los lados de la cancha. */
+    /** Asigna las imágenes seleccionadas a los lados de la cancha.
+     * @param leftImage ruta de la imagen para el lado izquierdo
+     * @param rightImage ruta de la imagen para el lado derecho
+     */
     public void setCharacterImages(String leftImage, String rightImage) {
         characterImages.clear();
         characterImages.put("left", loadImage(leftImage));
@@ -206,7 +212,9 @@ public class MatchPanel extends BasePanel {
         }
     }
 
-    /** Actualiza el nombre del lado izquierdo según la modalidad seleccionada. */
+    /** Actualiza el nombre del lado izquierdo según la modalidad seleccionada.
+     * @param againstBot indica si ese lado está controlado por un bot
+     */
     public void setAgainstBot(boolean againstBot) {
         leftParticipantLabel.setText(againstBot ? "MÁQUINA" : "JUGADOR 2");
     }

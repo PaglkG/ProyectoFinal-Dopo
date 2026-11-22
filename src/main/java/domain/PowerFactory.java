@@ -11,7 +11,11 @@ public final class PowerFactory {
     private PowerFactory() {
     }
 
-    /** Instancia un poder nombrado por su nombre de clase completo. */
+    /** Instancia un poder nombrado por su nombre de clase completo.
+     * @param className nombre completo de la clase de poder
+     * @return instancia de la clase solicitada
+     * @throws GameException si la clase no se encuentra, no es un poder o falla su constructor
+     */
     public static Power create(String className) throws GameException {
         return instantiate(className, Power.class);
     }

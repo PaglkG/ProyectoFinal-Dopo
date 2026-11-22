@@ -11,6 +11,9 @@ public class ByTime extends TypeOfMatch {
     private int minutes;
     private boolean suddenDeath;
 
+    /** Indica si el partido se encuentra en muerte súbita.
+     * @return {@code true} si el tiempo terminó con empate y el partido continúa
+     */
     public boolean isSuddenDeath() { return suddenDeath; }
 
 

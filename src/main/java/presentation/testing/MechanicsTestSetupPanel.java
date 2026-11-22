@@ -30,7 +30,9 @@ public final class MechanicsTestSetupPanel extends JPanel {
     private final JTextField botProfile = new JTextField("Clumsy");
     private final JCheckBox playerOne = new JCheckBox("Seleccionar jugador 1", true);
 
-    /** Construye el formulario inicial y registra el destino de la configuración. */
+    /** Construye el formulario inicial y registra el destino de la configuración.
+     * @param onStart consumidor que recibe las opciones al iniciar el banco
+     */
     public MechanicsTestSetupPanel(Consumer<MechanicsTestConfiguration> onStart) {
         super(new BorderLayout(12, 12));
         this.onStart = onStart;

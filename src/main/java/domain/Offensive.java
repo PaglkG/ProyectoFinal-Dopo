@@ -6,4 +6,6 @@ package domain;
  * @author Samuel Ahumada Florez
  */
 public class Offensive extends BotPlayer {
+    /** Crea un perfil de bot ofensivo. */
+    public Offensive() { }
 }

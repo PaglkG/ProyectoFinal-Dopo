@@ -67,7 +67,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `kickPlayer(player)` | Rechaza sesiones terminadas, nulos, no registrados o aturdidos; si el rival está a 8 unidades o menos, le aplica daño según `kick` y prioriza ese golpe. Si no, patea el balón al alcance. |
 | `createMatchRule(typeGame, parametersRules)` | Privado: carga una modalidad por nombre, valida su tipo y constructor, y la instancia. |
 | `checkTypeOfMatch()` | Pasa marcadores y, para `ByTime`, minutos completos transcurridos a la modalidad; actualiza `finished`. |
-| `improveStatistics(player, stats)` | Mejora un nivel de la habilidad del lado elegido con costo de 5 puntos; premia con 5 puntos a los jugadores humanos al ganar. |
+| `improveStatistics(player, stats)` | Mejora una habilidad del lado elegido con el costo vigente de su jugador; al terminar el partido se otorgan 100 puntos por victoria y 25 por derrota o empate. |
 | `updateGame()` | Si la sesión sigue activa, avanza los efectos temporales un paso, suma tiempo, delega el avance de balones a la cancha, procesa colisiones y comprueba el término. |
 | `collision()` | Privado: valida participantes, procesa goles, delega en la cancha las colisiones entre balones y entre balones y participantes, y procesa rebotes contra límites/arcos/suelo; puede lanzar `GameException`. |
 | `positionParticipants()` | Público: delega a `SoccerField` la colocación simétrica del primer participante de cada lado, si ambos lados tienen uno. |
@@ -242,7 +242,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `UserHitbox: RectangularHitbox` | Geometría de colisión del participante. |
 | `stats: Stats` | Estadísticas inicializadas al crear al participante; incluyen niveles de acción y puntos de victoria. |
 | `status: List<StatusEffect>` | Efectos temporales activos, incluido el aturdimiento. |
-| `life`, `maxLife: int` | Vida actual y máxima; ambas inician en 100. |
+| `life: int` | Vida actual; inicia en 100 y aumenta junto con la vida máxima al mejorar `survival`. La vida máxima se calcula desde `Stats`. |
 | `specialPower: Power` | Poder asociado al participante durante la creación de la sesión; su activación aún no está implementada. |
 
 **Métodos:**
@@ -260,7 +260,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `power()` | Está vacío; no aplica poder. |
 | `getSpecialPower()` | Devuelve el poder asociado. |
 | `setSpecialPower(power)` | Asocia el poder al participante. |
-| `improveStatistics(stats)` | Delega en `Stats` la mejora de un nivel, que cuesta 5 puntos. |
+| `improveStatistics(stats)` | Delega en `Stats` la mejora de un nivel hasta el nivel 10, con el precio vigente del jugador. |
 | `getHitbox()` | Devuelve la hitbox rectangular. |
 | `resizeHitbox(width, height)` | Público: cambia sus dimensiones sin moverla. |
 | `intersects(hitbox)` | Delega la detección geométrica a `HitboxIntersections`. |
@@ -296,17 +296,19 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | Atributo | Representa |
 |---|---|
 | `points: int` | Puntos disponibles; inicia en cero. |
-| `action: Map<String, Integer>` | Niveles `speed`, `goal`, `kick` y `jump`; cada uno inicia en uno. |
+| `action: Map<String, Integer>` | Niveles `speed`, `jump`, `kick` y `survival`; cada uno inicia en uno y llega hasta diez. |
 
 **Métodos:**
 
 | Método | Qué hace |
 |---|---|
 | `getPoints()` | Devuelve los puntos disponibles. |
-| `getKickDamage()` | Devuelve 10 de daño base y suma 5 por cada nivel de `kick` sobre el primero. |
+| `getKickMultiplier()` / `getKickDamage()` | Devuelve el multiplicador de 1,0 a 1,9 y el daño normal de 10 a 19 según `kick`. |
+| `getMaxLife()` | Devuelve la vida máxima entre 100 y 190 según `survival`. |
+| `getNextUpgradeCost()` | Devuelve el precio de la próxima compra, que inicia en 500 y se duplica tras cada mejora. |
 | `getStatistic(statistic)` | Devuelve el nivel de una habilidad válida o lanza `GameException`. |
-| `awardWin()` | Agrega 5 puntos por victoria. |
-| `improveStatistics(stats)` | Incrementa una habilidad en 1 y descuenta 5 puntos; lanza `GameException` si faltan puntos o la habilidad es inválida. |
+| `awardWin()` / `awardLoss()` / `awardDraw()` | Agregan 100 puntos por victoria o 25 por derrota o empate. |
+| `improveStatistics(stats)` | Incrementa una habilidad válida en 1 hasta nivel 10 y descuenta el precio vigente; lanza `GameException` si faltan puntos o la habilidad es inválida. |
 
 ### `StatusEffect`
 
