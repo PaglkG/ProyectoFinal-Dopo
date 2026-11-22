@@ -2,4 +2,6 @@ package domain;
 
 /** Poder de Corea del Sur: tiro recto y horizontal de alta velocidad. */
 public final class BlueAura extends Power {
+    /** Crea el poder BlueAura. */
+    public BlueAura() { }
 }

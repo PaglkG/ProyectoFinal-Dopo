@@ -17,7 +17,10 @@ public abstract class GameSession {
 
     private static GameSession instance;
 
-    /** Devuelve la sesión singleton existente sin crear una nueva. */
+    /** Devuelve la sesión singleton existente sin crear una nueva.
+     * @return instancia única existente
+     * @throws GameException si todavía no se ha creado la sesión
+     */
     public static GameSession getInstance() throws GameException {
         if (instance == null) {
             throw new GameException(GameException.NO_FOUND_SESSION);
@@ -29,6 +32,13 @@ public abstract class GameSession {
      * Devuelve la única sesión compartida por todas las clases concretas.
      * La primera llamada crea la subclase indicada; llamadas posteriores
      * devuelven esa sesión sin aplicar nuevos parámetros ni cambiar modalidad.
+     * @param typeGame nombre completo de la clase concreta de sesión
+     * @param player identidad humana seleccionada por las modalidades que la usan
+     * @param typeMatche nombre completo de la clase de regla del partido
+     * @param parametersRules dimensiones y parámetros de la regla, en el orden acordado
+     * @param parametersPowers nombres de clases de poderes y, para PVB, perfil de bot
+     * @return sesión singleton creada o existente
+     * @throws GameException si faltan clases o constructores válidos para crearla
      */
     public static GameSession getInstance(String typeGame, boolean player,
             String typeMatche, List<String> parametersRules, List<String> parametersPowers) throws GameException {
@@ -80,7 +90,9 @@ public abstract class GameSession {
     private int goalsLeft;
     private int goalsRight;
     private boolean finished;
+    /** Participantes que la modalidad asigna al lado derecho. */
     protected List<SessionParticipant> participantsRight;
+    /** Participantes que la modalidad asigna al lado izquierdo. */
     protected List<SessionParticipant> participantsLeft;
     
 
@@ -290,8 +302,8 @@ public abstract class GameSession {
      * Evalúa la regla activa con los marcadores y, para {@link domain.ByTime},
      * los minutos completos transcurridos. Actualiza {@code finished}; la regla
      * temporal devuelve si continúa, por lo que su resultado se invierte. Al
-     * terminar con marcador desigual, otorga puntos a participantes humanos
-     * del lado ganador una sola vez.
+     * terminar, otorga puntos a cada participante humano una sola vez según
+     * el resultado: 100 por victoria y 25 por derrota o empate.
      */
     public void checkTypeOfMatch() {
         boolean wasFinished = finished;
@@ -302,7 +314,7 @@ public abstract class GameSession {
                     Integer.toString((int) Math.floor((timeLeft + 1e-9) / 60))));
         }
         if (!wasFinished && finished) {
-            awardWinningPlayers();
+            awardMatchPoints();
         }
     }
 
@@ -322,13 +334,31 @@ public abstract class GameSession {
         selectedSide.get(0).improveStatistics(stats);
     }
 
-    /** Otorga los puntos de victoria a los jugadores humanos del lado ganador. */
-    private void awardWinningPlayers() {
-        if (goalsLeft == goalsRight) return;
-        List<SessionParticipant> winningSide = goalsRight > goalsLeft ? participantsRight : participantsLeft;
-        for (SessionParticipant participant : winningSide) {
+    /** Reparte los puntos del resultado a los jugadores humanos, sin premiar al bot. */
+    private void awardMatchPoints() {
+        if (goalsLeft == goalsRight) {
+            awardDrawPoints(participantsLeft);
+            awardDrawPoints(participantsRight);
+            return;
+        }
+        boolean rightWon = goalsRight > goalsLeft;
+        awardSideResult(participantsLeft, !rightWon);
+        awardSideResult(participantsRight, rightWon);
+    }
+
+    /** Otorga puntos de empate a los participantes humanos del lado indicado. */
+    private void awardDrawPoints(List<SessionParticipant> side) {
+        for (SessionParticipant participant : side) {
+            if (participant instanceof Player) participant.getStats().awardDraw();
+        }
+    }
+
+    /** Otorga puntos de victoria o derrota a los participantes humanos del lado indicado. */
+    private void awardSideResult(List<SessionParticipant> side, boolean won) {
+        for (SessionParticipant participant : side) {
             if (participant instanceof Player) {
-                participant.getStats().awardWin();
+                if (won) participant.getStats().awardWin();
+                else participant.getStats().awardLoss();
             }
         }
     }
@@ -397,22 +427,39 @@ public abstract class GameSession {
         }
     }
 
-    /** @return goles anotados por el lado izquierdo */
+    /** Devuelve los goles anotados por el lado izquierdo.
+     * @return goles del lado izquierdo
+     */
     public int getGoalsLeft() { return goalsLeft; }
-    /** @return goles anotados por el lado derecho */
+    /** Devuelve los goles anotados por el lado derecho.
+     * @return goles del lado derecho
+     */
     public int getGoalsRight() { return goalsRight; }
-    /** @return {@code true} si la regla del partido ya terminó la sesión */
+    /** Indica si la regla del partido ya terminó la sesión.
+     * @return {@code true} si la sesión terminó
+     */
     public boolean isFinished() { return finished; }
-    /** @return tiempo transcurrido de la sesión, en segundos */
+    /** Devuelve el tiempo transcurrido de la sesión.
+     * @return tiempo transcurrido en segundos
+     */
     public double getElapsedSeconds() { return timeLeft; }
 
-    /** Devuelve la cancha de esta sesión para que la presentación pueda dibujarla. */
+    /** Devuelve la cancha de esta sesión para que la presentación pueda dibujarla.
+     * @return cancha de la sesión
+     */
     public SoccerField getField() { return field; }
+    /** Devuelve la regla que determina el final del partido.
+     * @return regla de partido activa
+     */
     public TypeOfMatch getTypeOfMatch() { return TypeOfMatch; }
 
-    /** Devuelve una copia de los participantes del lado izquierdo. */
+    /** Devuelve una copia de los participantes del lado izquierdo.
+     * @return lista inmutable de participantes de ese lado
+     */
     public List<SessionParticipant> getParticipantsLeft() { return List.copyOf(participantsLeft); }
 
-    /** Devuelve una copia de los participantes del lado derecho. */
+    /** Devuelve una copia de los participantes del lado derecho.
+     * @return lista inmutable de participantes de ese lado
+     */
     public List<SessionParticipant> getParticipantsRight() { return List.copyOf(participantsRight); }
 }

@@ -57,22 +57,22 @@ class PlayerVsBotTest {
     }
 
     @Test
-    void humanReceivesFivePointsWhenWinningAgainstBotAndBotReceivesNone() throws Exception {
+    void humanReceivesWinPointsAgainstBotAndBotReceivesNone() throws Exception {
         PlayerVsBot session = createSession(true, "Clumsy", "1");
 
         session.goal("right");
 
-        assertEquals(5, session.participantsRight.get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_WIN, session.participantsRight.get(0).getStats().getPoints());
         assertEquals(0, session.participantsLeft.get(0).getStats().getPoints());
     }
 
     @Test
-    void botWinDoesNotAwardPointsToEitherBotOrLosingHuman() throws Exception {
-        PlayerVsBot session = createSession(true, "Clumsy");
+    void humanReceivesLossPointsWhenBotWinsAndBotReceivesNone() throws Exception {
+        PlayerVsBot session = createSession(true, "Clumsy", "1");
 
         session.goal("left");
 
-        assertEquals(0, session.participantsRight.get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_LOSS, session.participantsRight.get(0).getStats().getPoints());
         assertEquals(0, session.participantsLeft.get(0).getStats().getPoints());
     }
 

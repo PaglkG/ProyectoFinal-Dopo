@@ -5,22 +5,29 @@ import java.util.Objects;
 /**
  * Identifica una entidad de dominio con la que se detectó contacto y la
  * hitbox asociada que participó en él.
- *
- * @param name nombre simple de la entidad, o {@code ""} cuando no hay contacto
- * @param hitbox hitbox asociada a la entidad; es {@code null} si no hay contacto
  */
 public final class HitboxContact {
 
     private final String name;
     private final Hitbox hitbox;
 
+    /** Crea el resultado de una consulta de contacto.
+     * @param name nombre simple de la entidad, vacío si no hubo contacto
+     * @param hitbox hitbox asociada al contacto, nula si no hubo contacto
+     */
     public HitboxContact(String name, Hitbox hitbox) {
         this.name = name;
         this.hitbox = hitbox;
     }
 
+    /** Devuelve el nombre simple de la entidad contactada.
+     * @return nombre, o cadena vacía si no hubo contacto
+     */
     public String name() { return name; }
 
+    /** Devuelve la hitbox asociada al contacto.
+     * @return hitbox de la entidad contactada, o {@code null} si no hubo contacto
+     */
     public Hitbox hitbox() { return hitbox; }
 
     private static final HitboxContact NO_CONTACT = new HitboxContact("", null);

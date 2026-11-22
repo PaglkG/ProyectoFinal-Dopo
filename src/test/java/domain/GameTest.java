@@ -182,6 +182,7 @@ class GameTest {
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         first.goal("right");
         Stats playerOne = first.getParticipantsRight().get(0).getStats();
+        for (int win = 0; win < 4; win++) playerOne.awardWin();
         playerOne.improveStatistics("speed");
         game.closeSession();
 
@@ -193,7 +194,7 @@ class GameTest {
         assertSame(first, second);
         assertEquals(2, second.getParticipantsRight().get(0).getStats().getStatistic("speed"));
         assertEquals(0, second.getParticipantsRight().get(0).getStats().getPoints());
-        assertEquals(0, second.getParticipantsLeft().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_LOSS, second.getParticipantsLeft().get(0).getStats().getPoints());
 
         assertSame(second, game.startSession(
                 List.of("150", "450", "1"), List.of("domain.BlueAura", "domain.Lightning"),
@@ -243,7 +244,7 @@ class GameTest {
                 List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         Stats rightStats = session.getParticipantsRight().get(0).getStats();
-        rightStats.awardWin();
+        for (int win = 0; win < 5; win++) rightStats.awardWin();
 
         game.improveStatistics(true, "kick");
 

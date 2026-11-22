@@ -58,8 +58,8 @@ class GameSessionUpdateTest {
         double elapsed = session.getElapsedSeconds();
 
         assertTrue(session.isFinished());
-        assertEquals(5, session.getParticipantsRight().get(0).getStats().getPoints());
-        assertEquals(0, session.getParticipantsLeft().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_WIN, session.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_LOSS, session.getParticipantsLeft().get(0).getStats().getPoints());
         session.updateGame();
         assertEquals(elapsed, session.getElapsedSeconds());
     }
@@ -72,7 +72,8 @@ class GameSessionUpdateTest {
         session.checkTypeOfMatch();
         session.checkTypeOfMatch();
 
-        assertEquals(5, session.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_WIN, session.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_LOSS, session.getParticipantsLeft().get(0).getStats().getPoints());
     }
 
     @Test
@@ -80,8 +81,10 @@ class GameSessionUpdateTest {
         PlayerVsPlayer session = session(5);
         Stats rightStats = session.getParticipantsRight().get(0).getStats();
         Stats leftStats = session.getParticipantsLeft().get(0).getStats();
-        rightStats.awardWin();
-        leftStats.awardWin();
+        for (int win = 0; win < 5; win++) {
+            rightStats.awardWin();
+            leftStats.awardWin();
+        }
 
         session.improveStatistics(true, "speed");
         session.improveStatistics(false, "jump");
@@ -241,18 +244,18 @@ class GameSessionUpdateTest {
     }
 
     @Test
-    void kickDamageIncreasesByFiveForEachKickSkillLevel() throws Exception {
+    void kickDamageIncreasesByTenPercentForEachKickSkillLevel() throws Exception {
         PlayerVsPlayer session = session(5);
         SessionParticipant attacker = session.participantsLeft.get(0);
         SessionParticipant target = session.participantsRight.get(0);
         attacker.resetPosition(100, 50);
         target.resetPosition(130, 50);
-        attacker.getStats().awardWin();
+        for (int win = 0; win < 5; win++) attacker.getStats().awardWin();
         attacker.getStats().improveStatistics("kick");
 
         assertTrue(session.kickPlayer(attacker));
 
-        assertEquals(85, target.getLife());
+        assertEquals(89, target.getLife());
     }
 
     @Test
@@ -306,7 +309,7 @@ class GameSessionUpdateTest {
         ball(session).reposition(20, 125);
         session.updateGame();
         assertTrue(session.isFinished());
-        assertEquals(5, session.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_WIN, session.getParticipantsRight().get(0).getStats().getPoints());
         assertFalse(session.kickPlayer(left));
     }
 
@@ -498,7 +501,8 @@ class GameSessionUpdateTest {
         ball(session).reposition(20, 125);
         session.updateGame();
         assertTrue(session.isFinished());
-        assertEquals(5, session.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_WIN, session.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_LOSS, session.getParticipantsLeft().get(0).getStats().getPoints());
     }
 
     @Test

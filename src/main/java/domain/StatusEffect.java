@@ -9,7 +9,9 @@ import domain.GameException;
  */
 public class StatusEffect {
 
+    /** Identificador del efecto de aturdimiento. */
     public static final String STUNNED = "stunned";
+    /** Duración del efecto de aturdimiento, en segundos. */
     public static final double STUN_DURATION_SECONDS = 3.0;
     private static final double STEP_SECONDS = 1.0 / 60.0;
 
@@ -17,7 +19,11 @@ public class StatusEffect {
     private double duration;
     private double remaining;
 
-    /** Crea un efecto temporal con el tipo y la duración indicados. */
+    /** Crea un efecto temporal con el tipo y la duración indicados.
+     * @param type identificador no vacío del efecto
+     * @param duration duración positiva y finita en segundos
+     * @throws GameException si el tipo o la duración no son válidos
+     */
     public StatusEffect(String type, double duration) {
         if (type == null || type.isBlank() || !Double.isFinite(duration) || duration <= 0) {
             throw new GameException(GameException.INVALID_STATUS_EFFECT);
@@ -45,13 +51,19 @@ public class StatusEffect {
         remaining = duration;
     }
 
-    /** Devuelve el identificador del efecto. */
+    /** Devuelve el identificador del efecto.
+     * @return tipo de efecto
+     */
     public String getType() { return type; }
 
-    /** Devuelve la duración inicial del efecto en segundos. */
+    /** Devuelve la duración inicial del efecto.
+     * @return duración en segundos
+     */
     public double getDuration() { return duration; }
 
-    /** Devuelve el tiempo restante del efecto en segundos. */
+    /** Devuelve el tiempo restante del efecto.
+     * @return segundos restantes
+     */
     public double getRemaining() { return remaining; }
 
     /**

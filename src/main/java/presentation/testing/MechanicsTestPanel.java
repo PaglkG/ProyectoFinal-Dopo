@@ -60,7 +60,9 @@ public final class MechanicsTestPanel extends JPanel {
         this(MechanicsTestConfiguration.defaults());
     }
 
-    /** Construye el banco usando la configuración elegida en la pantalla inicial. */
+    /** Construye el banco usando la configuración elegida en la pantalla inicial.
+     * @param configuration configuración de modalidad, sesión y límite
+     */
     public MechanicsTestPanel(MechanicsTestConfiguration configuration) {
         super(new BorderLayout(10, 10));
         controller = new MechanicsTestController(configuration);

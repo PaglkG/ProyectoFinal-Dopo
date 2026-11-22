@@ -6,7 +6,15 @@ import domain.RectangularHitbox;
 
 /** Resuelve la penetración y el rebote de balones contra hitboxes de participantes. */
 public final class BallParticipantCollisionResolver {
-    /** Resuelve los contactos de cada balón con cada participante. */
+    /** Crea el resolutor de contactos entre balones y participantes. */
+    public BallParticipantCollisionResolver() { }
+
+    /** Resuelve los contactos de cada balón con cada participante.
+     * @param balls balones que se comprobarán
+     * @param participants participantes que pueden contactar con los balones
+     * @param restitution fracción de velocidad normal conservada en el rebote
+     * @param minimumLandingSpeed velocidad vertical mínima al aterrizar sobre un balón
+     */
     public void resolveAll(Ball[] balls, Iterable<SessionParticipant> participants,
             double restitution, double minimumLandingSpeed) {
         for (Ball ball : balls) {
@@ -18,7 +26,12 @@ public final class BallParticipantCollisionResolver {
         }
     }
 
-    /** Resuelve el contacto usando las posiciones previas registradas por las entidades. */
+    /** Resuelve el contacto usando las posiciones previas registradas por las entidades.
+     * @param ball balón que se comprueba
+     * @param participant participante que se comprueba
+     * @param restitution fracción de velocidad normal conservada en el rebote
+     * @param minimumLandingSpeed velocidad vertical mínima al aterrizar sobre el balón
+     */
     public void resolve(Ball ball, SessionParticipant participant,
             double restitution, double minimumLandingSpeed) {
         resolve(ball, participant, ball.getPreviousX(), ball.getPreviousY(),

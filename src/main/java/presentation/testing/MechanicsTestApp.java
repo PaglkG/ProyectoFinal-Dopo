@@ -12,7 +12,9 @@ public final class MechanicsTestApp {
     /** Impide instanciar el punto de entrada, que solo contiene el método estático {@code main}. */
     private MechanicsTestApp() { }
 
-    /** Crea y muestra la ventana del banco manual en el hilo de eventos de Swing. */
+    /** Crea y muestra la ventana del banco manual en el hilo de eventos de Swing.
+     * @param args argumentos de línea de comandos; no se utilizan
+     */
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             JFrame setup = new JFrame("POOBSoccer · Configuración del banco de pruebas");

@@ -11,8 +11,12 @@ import domain.Game;
 /** Coordina escenarios reproducibles usando únicamente la fachada {@link Game}. */
 public final class MechanicsTestController {
 
+    /** Modalidades disponibles en el formulario del banco de pruebas. */
     public enum MatchMode {
-        GOALS("Por goles"), TIME("Por tiempo");
+        /** Partido con límite de goles. */
+        GOALS("Por goles"),
+        /** Partido con límite de tiempo. */
+        TIME("Por tiempo");
         private final String label;
         MatchMode(String label) { this.label = label; }
         /** Devuelve la etiqueta que se muestra en los controles de Swing. */
@@ -20,8 +24,12 @@ public final class MechanicsTestController {
         public String toString() { return label; }
     }
 
+    /** Combinaciones de participantes disponibles para el banco de pruebas. */
     public enum SessionMode {
-        PLAYER_VS_PLAYER("Dos jugadores"), PLAYER_VS_BOT("Jugador contra bot");
+        /** Partida local entre dos participantes humanos. */
+        PLAYER_VS_PLAYER("Dos jugadores"),
+        /** Partida entre una persona y un bot. */
+        PLAYER_VS_BOT("Jugador contra bot");
         private final String label;
         SessionMode(String label) { this.label = label; }
         /** Devuelve la etiqueta que se muestra en los controles de Swing. */
@@ -29,10 +37,31 @@ public final class MechanicsTestController {
         public String toString() { return label; }
     }
 
+    /** Escenarios reproducibles que se pueden preparar desde el banco. */
     public enum Scenario {
-        LEFT_GOAL, RIGHT_GOAL, PLAYER_BALL_CONTACT, GROUND_BOUNCE,
-        SAFE_FIELD_CONTACT, BALL_SIDE_REBOUND, BALL_BALL_COLLISION, PARTICIPANT_OUTSIDE,
-        PARTICIPANT_TOUCHES_SIDE, PARTICIPANTS_OVERLAP, SUDDEN_DEATH_WIN,
+        /** Gol en el arco izquierdo. */
+        LEFT_GOAL,
+        /** Gol en el arco derecho. */
+        RIGHT_GOAL,
+        /** Contacto inicial entre un participante y el balón. */
+        PLAYER_BALL_CONTACT,
+        /** Rebote del balón contra el suelo. */
+        GROUND_BOUNCE,
+        /** Contacto seguro del balón con una franja de cancha. */
+        SAFE_FIELD_CONTACT,
+        /** Rebote contra un límite lateral. */
+        BALL_SIDE_REBOUND,
+        /** Colisión entre dos balones. */
+        BALL_BALL_COLLISION,
+        /** Participante colocado fuera de la cancha. */
+        PARTICIPANT_OUTSIDE,
+        /** Participante en contacto con un límite lateral prohibido. */
+        PARTICIPANT_TOUCHES_SIDE,
+        /** Participantes colocados en superposición. */
+        PARTICIPANTS_OVERLAP,
+        /** Victoria después de resolver un empate en muerte súbita. */
+        SUDDEN_DEATH_WIN,
+        /** Distancia de patada al rival. */
         KICK_OPPONENT
     }
 
@@ -48,7 +77,9 @@ public final class MechanicsTestController {
         this(MechanicsTestConfiguration.defaults());
     }
 
-    /** Inicia el controlador con una configuración extensible elegida en la pantalla inicial. */
+    /** Inicia el controlador con una configuración extensible elegida en la pantalla inicial.
+     * @param configuration configuración de sesión seleccionada
+     */
     public MechanicsTestController(MechanicsTestConfiguration configuration) {
         this.configuration = configuration;
         selectedSessionMode = configuration.sessionMode();
@@ -58,6 +89,11 @@ public final class MechanicsTestController {
     }
 
     /** Guarda las opciones solicitadas y se asocia a la sesión singleton existente o inicial. */
+    /** Solicita crear o reutilizar la sesión con las opciones del banco.
+     * @param sessionMode modalidad de participantes
+     * @param matchMode modalidad de partido
+     * @param limit límite de goles o minutos
+     */
     public void startNewSession(SessionMode sessionMode, MatchMode matchMode, int limit) {
         selectedSessionMode = sessionMode;
         selectedMatchMode = matchMode;
@@ -114,24 +150,33 @@ public final class MechanicsTestController {
         }
     }
 
-    /** @param control tecla lógica que cambia de estado @param pressed indica si permanece presionada */
+    /** Actualiza el estado de una tecla de movimiento o salto.
+     * @param control control lógico que cambia de estado
+     * @param pressed {@code true} si la tecla permanece presionada
+     */
     public void setMovementControl(PresentationMovement.Control control, boolean pressed) {
         movement.setControl(control, pressed);
     }
 
-    /** @return {@code true} si la patada del jugador izquierdo alcanzó el balón */
+    /** Intenta patear con el lado izquierdo en una sesión entre dos personas.
+     * @return {@code true} si la patada alcanzó un objetivo
+     */
     public boolean kickLeft() {
         return configuration.sessionMode() == SessionMode.PLAYER_VS_PLAYER
                 && game.kickPlayer(false);
     }
 
-    /** @return {@code true} si la patada del jugador derecho alcanzó el balón */
+    /** Intenta patear con el participante del lado derecho.
+     * @return {@code true} si la patada alcanzó un objetivo
+     */
     public boolean kickRight() {
         return game.kickPlayer(configuration.sessionMode() == SessionMode.PLAYER_VS_BOT
                 ? configuration.playerOne() : true);
     }
 
-    /** Prepara el escenario solicitado a través de las operaciones de {@link Game}. */
+    /** Prepara el escenario solicitado a través de las operaciones de {@link Game}.
+     * @param scenario escenario reproducible que se preparará
+     */
     public void runScenario(Scenario scenario) {
         createConfiguredSession();
         neutralizeBall();
@@ -237,7 +282,9 @@ public final class MechanicsTestController {
                 .orElse(null);
     }
 
-    /** Devuelve la instantánea actual de la sesión para presentación. */
+    /** Devuelve la instantánea actual de la sesión para presentación.
+     * @return estado inmutable de la sesión
+     */
     public SessionView getSessionView() {
         return state();
     }
@@ -253,7 +300,11 @@ public final class MechanicsTestController {
         return state(game, selectedSessionMode == SessionMode.PLAYER_VS_BOT ? configuration.playerOne() : true);
     }
 
-    /** Builds the presentation snapshot exclusively from primitive Game queries. */
+    /** Construye la instantánea de presentación usando solo consultas de la fachada.
+     * @param game fachada que entrega los datos actuales
+     * @param playerOneOnRight indica si el jugador 1 ocupa el lado derecho
+     * @return estado inmutable preparado para presentar
+     */
     public static SessionView state(Game game, boolean playerOneOnRight) {
         List<RectangleView> boundaries = new java.util.ArrayList<>();
         for (int i = 0; i < 4; i++) boundaries.add(new RectangleView(game.getBoundaryX(i),

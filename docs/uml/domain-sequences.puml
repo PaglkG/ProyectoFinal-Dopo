@@ -119,9 +119,16 @@ else player == false
   S -> P: improveStatistics(stat) [lado izquierdo / jugador 2]
 end
 P -> T: improveStatistics(stat)
-alt saldo >= 5 y habilidad válida
+alt habilidad válida, nivel menor que 10 y saldo >= precio vigente
+  T -> T: guardar vida máxima anterior
   T -> T: incrementar habilidad en 1
-  T -> T: restar 5 puntos
+  T -> T: descontar precio vigente (500, 1000, 2000...)
+  T -> T: duplicar precio para la siguiente compra
+  opt estadística == survival
+    P -> P: aumentar vida máxima y actual en 10
+  end
+else habilidad en nivel 10
+  T -> T: no modificar estado ni saldo
 else saldo insuficiente o habilidad desconocida
   T --> G: GameException
 end
@@ -145,14 +152,17 @@ else atacante activo
   S -> S: buscar rival más cercano a <= 8 unidades
   alt rival al alcance
     S -> A: getStats()
-    A -> ST: getKickDamage() [10 + 5 × (kick - 1)]
+    A -> ST: getKickDamage() [10 × (1 + 0.10 × (kick - 1))]
+    ST -> ST: calcular daño normal (10 a 19)
+    ST --> A: daño
     S -> T: takeDamage(damage)
     alt vida llega a 0
       T -> T: clamp life a 0
       T -> E: new StatusEffect(STUNNED, 3 s)
       note over T,E
         No puede moverse ni patear.
-        Al expirar el efecto recupera 100 de vida.
+        Al expirar el efecto recupera su vida máxima actual,
+        determinada por survival (100 a 190).
       end note
     else conserva vida positiva
       T -> T: restar daño
@@ -212,7 +222,7 @@ else sesión activa
     S -> P: updateStatusEffects()
     P -> P: StatusEffect.update() [1/60 s]
     opt aturdimiento expirado
-      P -> P: restaurar vida máxima (100)
+      P -> P: restaurar vida máxima actual (según survival)
     end
   end
   S -> S: tiempo += 1/60 s
@@ -285,11 +295,21 @@ else sesión activa
     end
     S -> P: guardar posición actual como previa para el siguiente paso
     S -> S: checkTypeOfMatch()
-    opt transición a partida terminada con marcador desigual
-      S -> S: awardWinningPlayers()
-      loop cada participante humano del lado ganador
-        S -> P: Stats.awardWin() [sumar 5 puntos]
+    opt transición a partida terminada
+      S -> S: awardMatchPoints()
+      alt marcador empatado
+        loop cada participante humano
+          S -> P: Stats.awardDraw() [sumar 25 puntos]
+        end
+      else marcador desigual
+        loop cada participante humano del lado ganador
+          S -> P: Stats.awardWin() [sumar 100 puntos]
+        end
+        loop cada participante humano del lado perdedor
+          S -> P: Stats.awardLoss() [sumar 25 puntos]
+        end
       end
+      note over S,P: El bot no recibe puntos.
     end
   end
 end

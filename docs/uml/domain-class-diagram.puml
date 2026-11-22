@@ -110,7 +110,7 @@ package "domain" {
     + getParticipantsLeft(): List<SessionParticipant>
     + getParticipantsRight(): List<SessionParticipant>
     + improveStatistics(player: boolean, stats: String): void
-    - awardWinningPlayers(): void
+    - awardMatchPoints(): void
   }
   class PlayerVsBot {
     - PlayerVsBot(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
@@ -125,7 +125,6 @@ package "domain" {
     - previousX: double
     - previousY: double
     - life: int = 100
-    - maxLife: int = 100
     - UserHitbox: RectangularHitbox
     - stats: Stats
     - status: List<StatusEffect>
@@ -273,17 +272,28 @@ package "domain" {
     + intersects(hitbox: Hitbox): HitboxContact
   }
   class Stats {
-    + POINTS_PER_WIN: int = 5 {static, readOnly}
-    + POINTS_PER_UPGRADE: int = 5 {static, readOnly}
+    + Stats()
+    + POINTS_PER_WIN: int = 100 {static, readOnly}
+    + POINTS_PER_LOSS: int = 25 {static, readOnly}
+    + POINTS_PER_DRAW: int = 25 {static, readOnly}
+    + INITIAL_UPGRADE_COST: int = 500 {static, readOnly}
+    + MAX_STAT_LEVEL: int = 10 {static, readOnly}
+    + BASE_LIFE: int = 100 {static, readOnly}
     + KICK_BASE_DAMAGE: int = 10 {static, readOnly}
-    + KICK_DAMAGE_PER_LEVEL: int = 5 {static, readOnly}
+    + KICK_MULTIPLIER_PER_LEVEL: double = 0.10 {static, readOnly}
     - points: int = 0
+    - nextUpgradeCost: int = 500
     - action: Map<String, Integer>
     + getSpeed(): int
+    + getKickMultiplier(): double
     + getKickDamage(): int
+    + getMaxLife(): int
     + getPoints(): int
+    + getNextUpgradeCost(): int
     + getStatistic(statistic: String): int
     + awardWin(): void
+    + awardLoss(): void
+    + awardDraw(): void
     + improveStatistics(stats: String): void
   }
   class StatusEffect {

@@ -6,4 +6,6 @@ package domain;
  * @author Samuel Ahumada Florez
  */
 public class Clumsy extends BotPlayer {
+    /** Crea un perfil de bot descuidado. */
+    public Clumsy() { }
 }

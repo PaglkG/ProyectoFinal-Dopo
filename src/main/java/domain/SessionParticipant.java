@@ -26,8 +26,7 @@ public abstract class SessionParticipant implements Hitbox {
     private Stats stats;
     private List<StatusEffect> status;
     private Power specialPower;
-    private int maxLife = 100;
-    private int life = maxLife;
+    private int life = Stats.BASE_LIFE;
 
     /** Crea el participante con una hitbox provisional en el origen. */
     public SessionParticipant() {
@@ -49,23 +48,33 @@ public abstract class SessionParticipant implements Hitbox {
         reposition(x + distance, y);
     }
 
-    /** Devuelve las estadísticas asociadas a este participante. */
+    /** Devuelve las estadísticas asociadas a este participante.
+     * @return estadísticas actuales del participante
+     */
     public Stats getStats() {
         return stats;
     }
 
-    /** Devuelve la vida actual del participante. */
+    /** Devuelve la vida actual del participante.
+     * @return vida restante
+     */
     public int getLife() { return life; }
 
-    /** Devuelve la vida máxima del participante. */
-    public int getMaxLife() { return maxLife; }
+    /** Devuelve la vida máxima calculada por la estadística {@code survival}.
+     * @return vida máxima entre 100 y 190
+     */
+    public int getMaxLife() { return stats.getMaxLife(); }
 
-    /** @return {@code true} cuando algún efecto activo bloquea el movimiento */
+    /** Indica si algún efecto activo bloquea el movimiento.
+     * @return {@code true} si el participante no puede moverse
+     */
     public boolean blocksMovement() {
         return status.stream().anyMatch(StatusEffect::blocksMovement);
     }
 
-    /** Reduce la vida sin permitir que baje de cero y aturde al llegar a cero. */
+    /** Reduce la vida sin permitir que baje de cero y aturde al llegar a cero.
+     * @param damage cantidad de daño positivo que se aplicará
+     */
     public void takeDamage(int damage) {
         if (damage <= 0) throw new GameException(GameException.INVALID_DAMAGE);
         life = Math.max(0, life - damage);
@@ -73,32 +82,37 @@ public abstract class SessionParticipant implements Hitbox {
                 StatusEffect.STUN_DURATION_SECONDS));
     }
 
-    /** Agrega un efecto y reemplaza cualquier efecto previo del mismo tipo. */
+    /** Agrega un efecto y reemplaza cualquier efecto previo del mismo tipo.
+     * @param effect efecto temporal que se aplicará
+     */
     public void applyStatusEffect(StatusEffect effect) {
         if (effect == null) throw new GameException(GameException.INVALID_STATUS_EFFECT);
         status.removeIf(active -> active.getType().equals(effect.getType()));
         status.add(effect);
     }
 
-    /** Avanza los efectos un paso y restaura la vida cuando termina el aturdimiento. */
+    /** Avanza los efectos un paso y restaura la vida máxima actual al terminar el aturdimiento. */
     public void updateStatusEffects() {
         Iterator<StatusEffect> iterator = status.iterator();
         while (iterator.hasNext()) {
             StatusEffect effect = iterator.next();
             effect.update();
             if (effect.isExpired()) {
-                if (StatusEffect.STUNNED.equals(effect.getType())) life = maxLife;
+                if (StatusEffect.STUNNED.equals(effect.getType())) life = getMaxLife();
                 iterator.remove();
             }
         }
     }
 
-    /** Asocia estadísticas, por ejemplo las recuperadas por {@link Game} para un usuario. */
+    /** Asocia estadísticas y ajusta la vida actual a la vida máxima resultante.
+     * @param stats estadísticas no nulas que se asociarán
+     */
     public void setStats(Stats stats) {
         if (stats == null) {
             throw new domain.GameException(domain.GameException.INVALID_STATISTICS);
         }
         this.stats = stats;
+        life = stats.getMaxLife();
     }
 
     /**
@@ -128,25 +142,34 @@ public abstract class SessionParticipant implements Hitbox {
     public void power() {
     }
 
-    /** Devuelve el poder asignado a este participante. */
+    /** Devuelve el poder asignado a este participante.
+     * @return poder actual o {@code null} si aún no se asignó uno
+     */
     public Power getSpecialPower() {
         return specialPower;
     }
 
-    /** Asigna el poder especial del participante. */
+    /** Asigna el poder especial del participante.
+     * @param specialPower poder que se asociará
+     */
     public void setSpecialPower(Power specialPower) {
         this.specialPower = specialPower;
     }
 
     /**
-     * Punto de extensión para mejorar la estadística indicada con puntos; el
-     * cuerpo está vacío y no modifica ni las estadísticas ni los puntos.
+     * Mejora la estadística indicada usando el saldo del participante. Si cambia
+     * {@code survival}, aumenta la vida actual y máxima en la misma cantidad.
      *
      * @param stats estadística que se mejorará
-     * @param points puntos asignados a la mejora
      */
     public void improveStatistics(String stats) {
+        int previousMaxLife = this.stats.getMaxLife();
         this.stats.improveStatistics(stats);
+        int newMaxLife = this.stats.getMaxLife();
+        if (newMaxLife > previousMaxLife) {
+            int increase = newMaxLife - previousMaxLife;
+            life = Math.min(newMaxLife, life + increase);
+        }
     }
 
     /**

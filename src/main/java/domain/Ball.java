@@ -54,12 +54,16 @@ public class Ball implements Hitbox {
         return BallHitbox;
     }
 
-    /** @return coordenada horizontal del centro almacenada en la hitbox */
+    /** Devuelve la coordenada horizontal actual del centro del balón.
+     * @return coordenada horizontal del centro almacenada en la hitbox
+     */
     public double getX() {
         return BallHitbox.getX();
     }
 
-    /** @return coordenada vertical del centro almacenada en la hitbox */
+    /** Devuelve la coordenada vertical actual del centro del balón.
+     * @return coordenada vertical del centro almacenada en la hitbox
+     */
     public double getY() {
         return BallHitbox.getY();
     }
@@ -68,17 +72,23 @@ public class Ball implements Hitbox {
 
     double getPreviousY() { return previousY; }
 
-    /** @return radio almacenado en la hitbox circular */
+    /** Devuelve el radio del balón.
+     * @return radio almacenado en la hitbox circular
+     */
     public double getRadius() {
         return BallHitbox.getRadius();
     }
 
-    /** @return componente horizontal de la velocidad actual */
+    /** Devuelve la componente horizontal actual de la velocidad.
+     * @return componente horizontal de la velocidad actual
+     */
     public double getVelocityX() {
         return velocityX;
     }
 
-    /** @return componente vertical de la velocidad actual */
+    /** Devuelve la componente vertical actual de la velocidad.
+     * @return componente vertical de la velocidad actual
+     */
     public double getVelocityY() {
         return velocityY;
     }

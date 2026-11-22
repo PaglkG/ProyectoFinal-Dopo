@@ -35,7 +35,8 @@ Estas reglas aplican a cualquier trabajo realizado en este repositorio, en cualq
 
 ## Fuente de verdad de la lógica
 
-- Antes de cambiar comportamiento, consultar `docs/logica-proyecto.md`.
+- Antes de iniciar cualquier tarea o realizar cualquier acción en el repositorio, leer las reglas vigentes de este `AGENTS.md` y consultar `docs/logica-proyecto.md`, también en trabajos de documentación, revisión o mantenimiento.
+- Antes de cambiar comportamiento, volver a consultar `docs/logica-proyecto.md` para confirmar las reglas aplicables al cambio.
 - No tratar el comportamiento actual del código, nombres de métodos ni pruebas existentes como requisitos confirmados si el documento no lo establece.
 - Si falta una regla o hay más de una interpretación posible, preguntar al usuario antes de programar o escribir una prueba que dependa de esa regla.
 - Antes de agregar, modificar o eliminar cualquier regla o decisión en `docs/logica-proyecto.md`, pedir aprobación explícita al usuario para el cambio concreto y esperar su respuesta.
@@ -86,6 +87,15 @@ Estas reglas aplican a cualquier trabajo realizado en este repositorio, en cualq
 - Mantener el código escalable y consistente con las responsabilidades de las clases.
 - Si el diseño de un método depende de una regla de negocio, de otro método pendiente o de una decisión de arquitectura no especificada, preguntar antes de implementarlo.
 - No inventar contratos para completar vacíos. Se puede inspeccionar y explicar el estado actual mientras se espera aclaración, sin codificar la suposición.
+
+## Documentación Java
+
+- Documentar en español con Javadoc cada clase, interfaz, enumeración y record, incluidos sus constructores explícitos.
+- Documentar cada método y constructor `public` o `protected` con una descripción del contrato; incluir `@param`, `@return` y `@throws` cuando correspondan.
+- Añadir Javadoc a miembros internos cuando su propósito, invariantes, efectos o decisiones no resulten claros por el código.
+- Mantener los comentarios fieles a la implementación y a las reglas confirmadas; corregirlos junto con cualquier cambio de comportamiento.
+- No usar Javadoc para convertir comportamientos pendientes o provisionales en reglas confirmadas.
+- Verificar la cobertura Javadoc de `src/main/java` con `javadoc -Xdoclint:missing` al terminar cambios de documentación.
 
 ## Comunicación
 

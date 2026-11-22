@@ -36,7 +36,8 @@
 - La barra de poder se llena en 10 segundos. Recibir un gol agrega inmediatamente un cuarto de carga. Con la barra llena, activar el poder vacía la barra e inicia su recarga; el participante conserva un aura visible sin límite temporal hasta que toca el balón y ejecuta el tiro, momento en que el aura desaparece.
 - Si el tiro de poder golpea al rival, causa `dañoBase × multiplicadorKick` y aplica su efecto. Si entra al arco sin tocar al rival, cuenta como gol y no causa daño ni efecto. Mientras conserva un poder activo, el participante no puede activar otro. Los efectos no se acumulan: uno nuevo reemplaza al anterior.
 - La vida no baja de cero. Al llegar a cero por una patada o tiro de poder, el jugador queda aturdido durante 3 segundos; no puede moverse, saltar ni patear, y al terminar recupera su vida máxima.
-- La vida inicial y máxima es 100. Una patada normal a un rival causa 10 de daño en `kick` nivel 1; cada nivel adicional de `kick` aumenta el daño en 5. La vida no baja de cero.
+- La vida base es 100. `survival` determina la vida máxima con `vidaMáxima = 100 × (1 + 0,10 × (survival - 1))`; cada nivel aumenta en 10 tanto la vida máxima como la vida actual. La vida no baja de cero.
+- Una patada normal causa `10 × multiplicadorKick` de daño y un tiro de poder causa `dañoBase × multiplicadorKick`. `multiplicadorKick = 1 + 0,10 × (kick - 1)`; los niveles de `kick` del 1 al 10 corresponden a multiplicadores de 1,0 a 1,9 y daño normal de 10 a 19.
 - Una patada alcanza a un rival si la distancia entre las hitboxes es de 8 unidades o menos. Si rival y balón están simultáneamente en alcance, la patada golpea primero al rival. Al llegar a cero se aplica `StatusEffect.STUNNED` durante 3 segundos; el participante no puede moverse ni patear mientras esté activo y recupera 100 de vida cuando expira.
 - Los perfiles de bot se diferencian por su prioridad: `Clumsy` elige movimientos al azar, `Offensive` prioriza anotar, `Defensive` prioriza defender el arco y `Expert` decide según el estado del partido.
 
@@ -76,7 +77,7 @@
 - Un gol ocurre cuando el centro del balón entra en el rectángulo de gol dentro de la cancha. Las hitboxes de gol conservan ancho `cancha/10` y alto `cancha/3`, y quedan apoyadas sobre la línea del suelo dentro del límite inferior. La entrada frontal del arco permanece libre para permitir el gol; los bordes del arco rebotan el balón. El arco izquierdo concede un punto al lado derecho y viceversa. La detección del gol precede a la comprobación de salida del balón.
 - Después de un gol se reinicia el balón al centro y se ubican los participantes de forma simétrica: hitbox de ancho `cancha/20`, alto `cancha/3`, centros horizontales en `1/4` y `3/4` del ancho, apoyados sobre el suelo.
 - Una colisión que empuje el balón contra un límite lo mantiene dentro del área jugable y lo rebota hacia el interior. Un participante que salga del rectángulo exterior o toque el límite superior o lateral produce `GameException` con mensaje `objeto fuera de la partida`. El contacto participante-participante produce `GameException` con mensaje `dos objetos super puestos`.
-- El balón rebota contra laterales, techo, arcos y suelo con retención de `0.70`. Después de una colisión, la cancha corrige cualquier salida de los límites interiores y devuelve el balón hacia dentro. El movimiento del participante empuja balones quietos o rebota contra los que ya se mueven; durante la actualización el contacto físico con participantes también se resuelve como rebote.
+- El balón rebota contra laterales, techo, arcos y suelo con retención de `0.70`. Después de una colisión, la cancha corrige cualquier salida de los límites interiores y devuelve el balón hacia dentro. Al caminar, el participante puede empujar en su dirección cualquier balón en contacto, quieto o en movimiento, conservando la velocidad del balón; durante la actualización, el contacto físico con participantes se resuelve como rebote.
 - La sesión conserva goles izquierdo y derecho. En `ByGoals`, alcanzar el límite termina la sesión; en `ByTime`, el tiempo transcurrido se cuenta en segundos y se pasan a `check` los minutos enteros completos. La modalidad temporal continúa en empate (muerte súbita) y termina al quedar un ganador una vez agotado el límite. Una sesión terminada no avanza más.
 
 ### Hitboxes y medidas provisionales
@@ -96,32 +97,31 @@
 
 ### Estadísticas actuales
 
-- `Stats.action` es un `Map<String, Integer>` con `speed`, `goal`, `kick` y `jump` inicializados en 1; `points` inicia en 0.
-- Cada jugador humano que gana una partida recibe 5 puntos; en jugador contra bot, el bot no recibe puntos de victoria.
+- `Stats.action` es un `Map<String, Integer>` con `speed`, `jump`, `kick` y `survival` inicializados en 1; cada estadística puede subir hasta nivel 10. `points` inicia en 0.
+- Al terminar un partido, cada jugador humano recibe 100 puntos por victoria y 25 por derrota. En empate, cada jugador humano recibe 25 puntos. En jugador contra bot, el bot no recibe puntos.
 - Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`.
-- Mejorar `speed`, `goal`, `kick` o `jump` aumenta su nivel en 1 y cuesta 5 puntos. Si el saldo es menor a 5 o la habilidad no existe, se lanza `GameException` y no se modifica el estado.
+- Cada mejora válida aumenta en 1 el nivel de `speed`, `jump`, `kick` o `survival`. La primera compra cuesta 500 puntos y cada compra posterior cuesta el doble que la anterior, sin importar qué estadística se mejore. Si el saldo no alcanza o la habilidad no existe, se lanza `GameException` y no se modifica el estado. Una estadística en nivel 10 no cambia con otra solicitud de mejora.
+- Si `survival` se mejora durante una partida, aumentan en 10 tanto la vida máxima como la vida actual. La tienda no debería permitir comprar mejoras durante un partido.
 - En `GameSession.improveStatistics`, `true` selecciona el lado derecho/jugador 1 y `false` el lado izquierdo/jugador 2.
 
 ### Excepciones
 
 - Toda excepción que lance explícitamente el código de la aplicación debe ser `domain.GameException`, con un mensaje definido en esa clase. Los errores de formato, índices e inputs de reglas también se convierten a `GameException`.
 
-### Reglas futuras fuera del diagrama actual
-
-- Se conserva para una versión futura la fórmula de supervivencia `vidaMáxima = 100 × (1 + 0,10 × (supervivencia - 1))`. `survival` no forma parte del `Map` de estadísticas del diagrama actual.
-
 ## Estado actual del código (no equivale a una regla confirmada)
 
 - Los tipos del dominio están en domain, salvo las formas de hitbox en domain. Action, las modalidades, los poderes, StatusEffect y GameException también están directamente en domain desde el aplanado de paquetes.
 - La presentación principal no importa clases del dominio y todavía no conecta una partida jugable. presentation.testing sí usa únicamente la fachada Game, que entrega instantáneas inmutables y operaciones para mover, patear y preparar escenarios.
 - La presentación consulta el estado mediante getters planos de `Game`; `inspectSession` permanece disponible, pero la presentación no depende de sus vistas. `movePlayer`, `kickPlayer` y `setPlayerPosition` seleccionan identidad con booleano (`true`: jugador 1; `false`: jugador 2). La presentación no conserva referencias mutables a sesión, participante, cancha o balón. El salto de `PresentationMovement` es visual, pero la posición resultante participa en las colisiones y permite aterrizar encima de un balón. Si el balón está apoyado sobre la cabeza al iniciar el salto, el banco lo desplaza junto al jugador durante el salto; al aterrizar se libera para que continúe la física normal. La velocidad inicial visual del salto es 121 unidades/s y la gravedad es 180 unidades/s².
+- `Game.getSessionTypes()`, `getMatchTypes()` y `getBotTypes()` devuelven nombres simples de las clases concretas disponibles; `getSessionType()` devuelve el nombre simple de la sesión activa.
+- `DOPOSoccerGUI.startMatch` también lanza `IllegalStateException` si se intenta iniciar otra configuración tras fijar la sesión singleton. Esto es una excepción explícita de presentación que no coincide con la regla confirmada de usar `GameException` para las excepciones explícitas de la aplicación.
 - `Game.movePlayer` delega en `GameSession`; la sesión solo delega el movimiento si el participante pertenece a ella y no está terminada. `SessionParticipant` actualiza su posición y su hitbox con `150 × speed / 60`; `speed` inicia en 1.
 - `Game.startSession` obtiene reflectivamente la subclase singleton de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, y guarda la única referencia administrada.
 - `PlayerVsBot` construye un jugador humano y un bot; `PlayerVsPlayer` construye dos jugadores humanos.
 - PlayerVsPlayer y PlayerVsBot asocian los poderes elegidos mediante nombres completos de clase (domain.BlueAura, etc.); PlayerVsBot también crea el perfil indicado. Power.usePower, SessionParticipant.power y las clases concretas no activan ni disparan poderes; la carga, el aura, el daño y los efectos de poder siguen sin implementarse.
 - BotPlayer.decideAction devuelve null; Clumsy, Offensive, Defensive y Expert no redefinen el método, por lo que las prioridades confirmadas de esos perfiles todavía no se ejecutan.
 - SessionParticipant.jump está vacío. El banco simula el salto en PresentationMovement; ese movimiento visual no usa el nivel jump ni el estado de aturdimiento del dominio. El impulso inicial visual es 121 unidades/s (110 anteriores, aumento del 10 %); la gravedad permanece en 180 unidades/s².
-- Stats inicia las cuatro claves en 1. speed se usa para el movimiento horizontal y kick para calcular daño; goal y jump pueden mejorarse, pero no tienen efecto conectado al flujo de juego actual.
+- Stats inicia `speed`, `jump`, `kick` y `survival` en 1. `speed` se usa para el movimiento horizontal; `kick` calcula el daño de patadas y tiros de poder; `survival` determina la vida máxima. `jump` todavía no tiene efecto conectado al flujo de juego actual.
 - SessionParticipant.applyStatusEffect reemplaza efectos anteriores del mismo tipo, pero conserva simultáneamente efectos de tipos distintos. Esto no cumple la regla confirmada de que un efecto nuevo reemplaza al anterior sin acumulación.
 - En la implementación actual, `PlayerVsPlayer` coloca al jugador 1 a la derecha y al jugador 2 a la izquierda. `PlayerVsBot` coloca al jugador humano a la derecha y al bot a la izquierda, tanto cuando el humano es el jugador 1 como cuando es el jugador 2; esto coincide con la regla confirmada.
 - `GameSession` instancia una subclase de `TypeOfMatch` mediante reflexión.
@@ -150,8 +150,7 @@
 
 ### Marcador, estadísticas y poderes
 
-- Confirmar si goal debe iniciar en 0 o en 1. El código y el registro anterior lo mantienen en 1; Pablo cuestionó ese valor posteriormente.
-- Definir el efecto de las mejoras goal y jump; hoy solo se incrementan sus niveles. speed multiplica el movimiento y kick aumenta el daño.
+- Definir el efecto de la mejora `jump`; hoy solo se incrementa su nivel. `speed` multiplica el movimiento, `kick` aumenta el daño y `survival` la vida máxima.
 
 ### Bots, reglas y persistencia
 
@@ -177,12 +176,13 @@
 | 2026-11-21 | En el banco de mecánicas, el balón apoyado sobre la cabeza acompaña al jugador durante el salto y vuelve a la física normal al aterrizar; aumentar 10 % la velocidad inicial visual del salto (de 110 a 121), sin cambiar la gravedad. | Pablo |
 | 2026-11-19 | `GameSession` comparte una única instancia entre todas sus clases hijas; la primera clase concreta creada permanece y las solicitudes posteriores la reutilizan. | Pablo |
 | 2026-11-19 | Reiniciar la sesión reinicia solo la ronda: balón al centro y participantes a sus posiciones; marcador, modalidad, tiempo y estado de finalización se conservan. | Pablo |
-| 2026-11-17 | Cada victoria humana otorga 5 puntos; mejorar `speed`, `goal`, `kick` o `jump` cuesta 5 y aumenta un nivel; `GameSession.improveStatistics(true, ...)` selecciona derecha/jugador 1 y `false` izquierda/jugador 2. Las excepciones explícitas de la aplicación son `GameException`. | Pablo |
+| 2026-11-17 | `GameSession.improveStatistics(true, ...)` selecciona derecha/jugador 1 y `false` izquierda/jugador 2. Las excepciones explícitas de la aplicación son `GameException`. | Pablo |
 | 2026-11-17 | Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`. | Pablo |
-| 2026-11-17 | La vida máxima/inicial es 100; la patada causa 10 de daño base y cada nivel adicional de `kick` suma 5; alcanzar cero activa un aturdimiento de 3 segundos con `StatusEffect` y recuperación de vida al expirar. | Pablo |
+| 2026-11-17 | Alcanzar cero activa un aturdimiento de 3 segundos con `StatusEffect` y recuperación de vida al expirar. | Pablo |
 | 2026-11-17 | Se reemplaza la respuesta de contacto participante-balón: al caminar, el jugador puede empujar balones quietos en pasos pequeños sin atravesarlos; el empuje no cambia su velocidad. El empuje se bloquea si causaría colisión con la cancha u otra entidad. | Pablo |
 | 2026-11-17 | Los balones rebotan contra participantes con restitución de `0.70`. Si el jugador cae sobre el balón, permanece encima y el balón adquiere movimiento hacia abajo, con mínimo de `0.5` unidades/s. | Pablo |
 | 2026-11-20 | `parametersRules` de `Game.startSession` ordena altura, anchura y parámetro propio de modalidad; `ByGoals` usa el tercero como límite de goles y `ByTime` como minutos. | Pablo |
 | 2026-11-20 | `SoccerField` conserva una única hitbox rectangular exterior; los cuatro límites se derivan de sus bordes. | Pablo |
 | 2026-11-21 | La resolución círculo-rectángulo conserva la geometría circular exacta, clasifica el eje con proyecciones AABB actuales y previas y corrige el círculo real sobre el eje elegido; las colisiones círculo-círculo y las excepciones de participantes conservan sus reglas actuales. | Pablo |
 | 2026-11-21 | Al caminar, el jugador puede desplazar en su dirección balones en contacto, incluso si están en movimiento, conservando su velocidad actual y respetando límites y otras entidades. | Pablo |
+| 2026-11-21 | Las estadísticas son `speed`, `jump`, `kick` y `survival`, inicializadas en 1 y limitadas a nivel 10; `survival` aumenta la vida máxima y actual 10 por nivel, y `kick` aplica un multiplicador de 10 % por nivel a patadas y tiros de poder. Cada partido da 100 puntos por victoria y 25 por derrota; el empate da 25 a cada jugador. Las mejoras cuestan 500 puntos al inicio y duplican su costo en cada compra del jugador. | Pablo |

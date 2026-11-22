@@ -143,7 +143,9 @@ public class DOPOSoccerGUI extends JFrame
         layout.show(getContentPane(), screen);
     }
 
-    /** Crea la sesión desde la configuración de presentación y alista el partido. */
+    /** Crea la sesión desde la configuración de presentación y alista el partido.
+     * @param configuration opciones de sesión seleccionadas en la presentación
+     */
     public void startMatch(MatchConfiguration configuration) {
         if (startedConfiguration != null && !startedConfiguration.equals(configuration)) {
             throw new IllegalStateException("La sesión única ya conserva otra configuración. "
@@ -172,6 +174,7 @@ public class DOPOSoccerGUI extends JFrame
 
     /**
      * Inicia la aplicación.
+     * @param args argumentos de línea de comandos; no se utilizan
      */
     public static void main(String[] args) 
     {
