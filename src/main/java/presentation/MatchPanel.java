@@ -13,6 +13,7 @@ import java.awt.geom.Rectangle2D;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
@@ -38,6 +39,7 @@ public class MatchPanel extends BasePanel {
 
     private final Game game;
     private final NavigationController navigationController;
+    private final Consumer<SessionView> matchFinishedHandler;
     private final Map<String, Image> characterImages = new HashMap<>();
 
     private JLabel leftScoreLabel;
@@ -49,8 +51,15 @@ public class MatchPanel extends BasePanel {
 
     /** Crea la vista conectada a la fachada y a la navegación de presentación. */
     public MatchPanel(Game game, NavigationController navigationController) {
+        this(game, navigationController, session -> { });
+    }
+
+    /** Crea la vista e instala la acción que se ejecuta cuando la sesión termina. */
+    public MatchPanel(Game game, NavigationController navigationController,
+            Consumer<SessionView> matchFinishedHandler) {
         this.game = game;
         this.navigationController = navigationController;
+        this.matchFinishedHandler = matchFinishedHandler;
         prepareView();
         prepareController();
     }
@@ -219,6 +228,9 @@ public class MatchPanel extends BasePanel {
         int elapsed = (int) session.elapsedSeconds();
         elapsedLabel.setText(String.format("%02d:%02d", elapsed / 60, elapsed % 60));
         courtView.setSession(session);
+        if (session.finished()) {
+            matchFinishedHandler.accept(session);
+        }
     }
 
     /** Carga un recurso de imagen del classpath o devuelve null si no existe. */

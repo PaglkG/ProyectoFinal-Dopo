@@ -12,6 +12,7 @@ public class NavigationController
     public static final String PREPARATION = "PREPARATION";
     public static final String MATCH = "MATCH";
     public static final String PAUSE = "PAUSE";
+    public static final String RESULTS = "RESULTS";
 
     private final DOPOSoccerGUI doposoccerGUI;
 

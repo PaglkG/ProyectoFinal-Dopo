@@ -28,6 +28,7 @@ public class DOPOSoccerGUI extends JFrame
     private PreparationPanel preparationPanel;
     private MatchPanel matchPanel;
     private PausePanel pausePanel;
+    private ResultsPanel resultsPanel;
  
     /**
      * Crea la ventana principal.
@@ -70,8 +71,12 @@ public class DOPOSoccerGUI extends JFrame
         personalizationPanel = new PersonalizationPanel(navigationController, game);
         storeImprovementPanel = new StoreImprovementPanel(navigationController);
         preparationPanel = new PreparationPanel(navigationController);
-        matchPanel = new MatchPanel(game, navigationController);
-        pausePanel = new PausePanel(navigationController);
+        resultsPanel = new ResultsPanel(navigationController);
+        matchPanel = new MatchPanel(game, navigationController, session -> {
+            resultsPanel.updateResult(session);
+            showScreen(NavigationController.RESULTS);
+        });
+        pausePanel = new PausePanel(navigationController, this::showResultsPreview);
     }
 
     /**
@@ -86,6 +91,7 @@ public class DOPOSoccerGUI extends JFrame
         addScreen(preparationPanel, NavigationController.PREPARATION);
         addScreen(matchPanel, NavigationController.MATCH);
         addScreen(pausePanel, NavigationController.PAUSE);
+        addScreen(resultsPanel, NavigationController.RESULTS);
     }
 
     /**
@@ -146,6 +152,7 @@ public class DOPOSoccerGUI extends JFrame
         game.startSession(configuration.parametersRules(), configuration.parametersPowers(),
                 configuration.typeGame(), configuration.typeMatch(), configuration.playerOne());
         startedConfiguration = configuration;
+        resultsPanel.setMatchConfiguration(configuration);
         preparationPanel.setCountryCodes(configuration.playerTwoCountryCode(),
                 configuration.playerOneCountryCode());
         preparationPanel.setReady();
@@ -155,6 +162,12 @@ public class DOPOSoccerGUI extends JFrame
         matchPanel.setAgainstBot(configuration.againstBot());
         matchPanel.refreshMatchView();
         showScreen(NavigationController.PREPARATION);
+    }
+
+    /** Muestra el estado actual para previsualizar la pantalla de resultados desde pausa. */
+    private void showResultsPreview() {
+        resultsPanel.updateResult(game.inspectSession());
+        showScreen(NavigationController.RESULTS);
     }
 
     /**
