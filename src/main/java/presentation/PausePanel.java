@@ -29,8 +29,9 @@ public class PausePanel extends BasePanel {
 
     /** Crea la pantalla de pausa conectada con la navegación principal.
      * @param navigationController controlador para mostrar otras pantallas
+     * @param resultsPreviewAction acción que actualiza y muestra la vista previa de resultados
      */
-    public PausePanel(NavigationController navigationController) {
+    public PausePanel(NavigationController navigationController, Runnable resultsPreviewAction) {
         this.navigationController = navigationController;
         this.resultsPreviewAction = resultsPreviewAction;
         prepareView();

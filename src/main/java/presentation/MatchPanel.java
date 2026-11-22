@@ -9,12 +9,15 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.geom.Ellipse2D;
-import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -24,28 +27,37 @@ import javax.swing.SwingConstants;
 
 import domain.BallView;
 import domain.Game;
-import domain.ParticipantView;
 import domain.RectangleView;
 import domain.SessionView;
 
 /** Vista del partido: HUD y dibujo de la cancha desde la instantánea de Game. */
 public class MatchPanel extends BasePanel {
     private static final String COURT_IMAGE = "/images/ui/court@4x-8.png";
+    private static final String BALL_IMAGE = "/images/ball/ball@4x-8.png";
     private static final String LEFT_STATUS_IMAGE = "/images/ui/jugador_izquierdo.png";
     private static final String RIGHT_STATUS_IMAGE = "/images/ui/jugador_derecho.png";
     private static final String SCOREBOARD_IMAGE = "/images/ui/scoreboard@4x-8.png";
     private static final String LOGO_IMAGE = "/images/ui/logo@4x-8.png";
     private static final int FIELD_MARGIN = 24;
+    private static final int HUD_HEIGHT = 144;
+    private static final double CHARACTER_HEAD_HEIGHT_RATIO = 0.16;
+    private static final double CHARACTER_BODY_HEIGHT_RATIO = 0.09;
+    private static final double CHARACTER_BODY_WIDTH_RATIO = 0.62;
+    private static final double CHARACTER_HEAD_BODY_OVERLAP_RATIO = 0.18;
+    private static final double CHARACTER_FLOOR_RATIO = 0.985;
+    private static final double PLAY_AREA_TOP_RATIO = 0.68;
+    private static final double PLAY_AREA_HEIGHT_RATIO = 0.31;
+    private static final double BALL_VISUAL_DIAMETER_RATIO = 0.075;
 
     private final Game game;
     private final NavigationController navigationController;
     private final Consumer<SessionView> matchFinishedHandler;
-    private final Map<String, Image> characterImages = new HashMap<>();
+    private final Map<String, CharacterSprite> characterSprites = new HashMap<>();
 
     private JLabel leftScoreLabel;
     private JLabel rightScoreLabel;
     private JLabel elapsedLabel;
-    private JLabel leftParticipantLabel;
+    private JLabel rightParticipantLabel;
     private JButton pauseButton;
     private CourtView courtView;
 
@@ -57,7 +69,11 @@ public class MatchPanel extends BasePanel {
         this(game, navigationController, session -> { });
     }
 
-    /** Crea la vista e instala la acción que se ejecuta cuando la sesión termina. */
+    /** Crea la vista e instala la acción que se ejecuta cuando la sesión termina.
+     * @param game fachada que entrega el estado del partido
+     * @param navigationController controlador para cambiar de pantalla
+     * @param matchFinishedHandler acción de presentación para mostrar el resultado final
+     */
     public MatchPanel(Game game, NavigationController navigationController,
             Consumer<SessionView> matchFinishedHandler) {
         this.game = game;
@@ -71,31 +87,31 @@ public class MatchPanel extends BasePanel {
     @Override
     public void prepareView() {
         setLayout(new BorderLayout(12, 10));
-        setBorder(BorderFactory.createEmptyBorder(12, 18, 14, 18));
+        setBorder(BorderFactory.createEmptyBorder(0, 18, 0, 18));
         setBackground(Theme.BACKGROUND);
-        prepareViewHud();
         prepareViewCourt();
     }
 
     /** Ubica marcador, tiempo y las barras de vida y poder de ambos lados. */
-    private void prepareViewHud() {
+    private JPanel prepareViewHud() {
         JPanel hud = new JPanel(new BorderLayout(10, 8));
         hud.setOpaque(false);
         hud.add(prepareViewPlayerStatus(true), BorderLayout.WEST);
         hud.add(prepareViewScore(), BorderLayout.CENTER);
         hud.add(prepareViewPlayerStatus(false), BorderLayout.EAST);
-        add(hud, BorderLayout.NORTH);
+        hud.setBorder(BorderFactory.createEmptyBorder(4, 8, 0, 8));
+        return hud;
     }
 
     /** Crea el grupo de barras correspondiente al lado indicado. */
     private JPanel prepareViewPlayerStatus(boolean left) {
         JPanel status = new JPanel(new BorderLayout(8, 2));
         status.setOpaque(false);
-        status.setPreferredSize(new Dimension(230, 156));
+        status.setPreferredSize(new Dimension(190, HUD_HEIGHT - 8));
 
-        JLabel animal = new JLabel(left ? "JUGADOR 2" : "JUGADOR 1", SwingConstants.CENTER);
-        if (left) {
-            leftParticipantLabel = animal;
+        JLabel animal = new JLabel(left ? "JUGADOR 1" : "JUGADOR 2", SwingConstants.CENTER);
+        if (!left) {
+            rightParticipantLabel = animal;
         }
         animal.setFont(new Font("SansSerif", Font.BOLD, 12));
         animal.setForeground(Theme.DARK_GREEN);
@@ -147,7 +163,7 @@ public class MatchPanel extends BasePanel {
         private ScoreboardArtwork() {
             setOpaque(false);
             setLayout(null);
-            setPreferredSize(new Dimension(300, 118));
+            setPreferredSize(new Dimension(300, 96));
         }
 
         @Override
@@ -172,7 +188,7 @@ public class MatchPanel extends BasePanel {
         }
     }
 
-    /** Presenta el arte del jugador y deja libres las zonas visuales de vida y poder. */
+    /** Presenta las ilustraciones decorativas de vida y poder del HUD. */
     private static final class StatusArtwork extends JPanel {
         private final Image image;
 
@@ -190,9 +206,10 @@ public class MatchPanel extends BasePanel {
         }
     }
 
-    /** Agrega la cancha, que pinta las posiciones y hitboxes consultadas a Game. */
+    /** Agrega la cancha y superpone el HUD en su franja superior. */
     private void prepareViewCourt() {
         courtView = new CourtView();
+        courtView.setHud(prepareViewHud());
         add(courtView, BorderLayout.CENTER);
     }
 
@@ -213,26 +230,26 @@ public class MatchPanel extends BasePanel {
      * @param rightImage ruta de la imagen para el lado derecho
      */
     public void setCharacterImages(String leftImage, String rightImage) {
-        characterImages.clear();
-        characterImages.put("left", loadImage(leftImage));
-        characterImages.put("right", loadImage(rightImage));
+        characterSprites.clear();
+        characterSprites.put("left", courtView.loadCharacterSprite(leftImage));
+        characterSprites.put("right", courtView.loadCharacterSprite(rightImage));
         if (courtView != null) {
             courtView.repaint();
         }
     }
 
-    /** Actualiza el nombre del lado izquierdo según la modalidad seleccionada.
+    /** Actualiza el nombre del lado derecho según la modalidad seleccionada.
      * @param againstBot indica si ese lado está controlado por un bot
      */
     public void setAgainstBot(boolean againstBot) {
-        leftParticipantLabel.setText(againstBot ? "MÁQUINA" : "JUGADOR 2");
+        rightParticipantLabel.setText(againstBot ? "MÁQUINA" : "JUGADOR 2");
     }
 
     /** Refresca marcador, tiempo y geometría una vez que Game tiene una sesión. */
     public void refreshMatchView() {
         SessionView session = game.inspectSession();
-        leftScoreLabel.setText(Integer.toString(session.goalsLeft()));
-        rightScoreLabel.setText(Integer.toString(session.goalsRight()));
+        leftScoreLabel.setText(Integer.toString(session.goalsRight()));
+        rightScoreLabel.setText(Integer.toString(session.goalsLeft()));
         int elapsed = (int) session.elapsedSeconds();
         elapsedLabel.setText(String.format("%02d:%02d", elapsed / 60, elapsed % 60));
         courtView.setSession(session);
@@ -259,20 +276,47 @@ public class MatchPanel extends BasePanel {
         return new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH));
     }
 
-    /** Dibuja cancha y entidades usando solamente los valores de SessionView. */
+    /** Agrupa las imágenes visuales recortadas de cabeza y cuerpo de un animal.
+     * @param head imagen visual recortada de la cabeza
+     * @param body imagen visual recortada de las patas o cuerpo
+     * @param bodyFacesRightAtSource indica si las patas originales apuntan a la derecha
+     */
+    private record CharacterSprite(BufferedImage head, BufferedImage body,
+            boolean bodyFacesRightAtSource) { }
+
+    /** Dibuja la cancha, los personajes decorativos y el balón de la instantánea. */
     private final class CourtView extends JPanel {
         private SessionView session;
+        private JPanel hud;
+        private final Map<String, BufferedImage> trimmedSprites = new HashMap<>();
         private final Image courtImage = loadImage(COURT_IMAGE);
+        private final Image ballImage = loadImage(BALL_IMAGE);
 
         private CourtView() {
             setBackground(new Color(0x29A8DB));
             setBorder(BorderFactory.createLineBorder(Theme.SAND_BORDER, 2));
             setMinimumSize(new Dimension(320, 220));
+            setLayout(null);
         }
 
         private void setSession(SessionView session) {
             this.session = session;
+            revalidate();
             repaint();
+        }
+
+        /** Agrega el HUD como componente superpuesto en la parte superior. */
+        private void setHud(JPanel hud) {
+            this.hud = hud;
+            add(hud);
+        }
+
+        @Override
+        public void doLayout() {
+            if (hud == null) {
+                return;
+            }
+            hud.setBounds(0, 0, getWidth(), Math.min(HUD_HEIGHT, getHeight()));
         }
 
         @Override
@@ -284,15 +328,14 @@ public class MatchPanel extends BasePanel {
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             RectangleView court = session.court();
-            double scale = Math.min((getWidth() - FIELD_MARGIN * 2.0) / court.width(),
-                    (getHeight() - FIELD_MARGIN * 2.0) / court.height());
+            double scale = courtScale(court);
             double drawWidth = court.width() * scale;
             double drawHeight = court.height() * scale;
             double offsetX = (getWidth() - drawWidth) / 2.0;
-            double offsetY = (getHeight() - drawHeight) / 2.0;
+            double offsetY = getHeight() - drawHeight;
 
             drawCourtImage(g, offsetX, offsetY, drawWidth, drawHeight);
-            drawPlayers(g, session, court, offsetX, offsetY, scale);
+            drawDecorativeCharacters(g, court, offsetX, offsetY, scale);
             drawBalls(g, session, court, offsetX, offsetY, scale);
             g.dispose();
         }
@@ -304,21 +347,135 @@ public class MatchPanel extends BasePanel {
             }
         }
 
-        /** Pinta cada sprite en la posición de su hitbox, sin mostrar el contorno. */
-        private void drawPlayers(Graphics2D g, SessionView state, RectangleView court,
+        /** Dibuja los animales como decoración, sin leer ni crear hitboxes. */
+        private void drawDecorativeCharacters(Graphics2D g, RectangleView court,
                 double offsetX, double offsetY, double scale) {
-            for (ParticipantView player : state.participants()) {
-                Rectangle2D box = worldRectangle(player.x(), player.y(), player.width(), player.height(),
-                        court, offsetX, offsetY, scale);
-                Image image = characterImages.get(player.side());
-                if (image != null) {
-                    double imageScale = Math.min(box.getWidth() / image.getWidth(this),
-                            box.getHeight() / image.getHeight(this));
-                    int imageWidth = Math.max(1, (int) (image.getWidth(this) * imageScale));
-                    int imageHeight = Math.max(1, (int) (image.getHeight(this) * imageScale));
-                    int imageX = (int) (box.getCenterX() - imageWidth / 2.0);
-                    g.drawImage(image, imageX, (int) box.getY(), imageWidth, imageHeight, this);
+            drawDecorativeCharacter(g, characterSprites.get("left"), court,
+                    offsetX, offsetY, scale, 0.25);
+            drawDecorativeCharacter(g, characterSprites.get("right"), court,
+                    offsetX, offsetY, scale, 0.75);
+        }
+
+        /** Compone la cabeza estandarizada y sus patas dentro del área visual del personaje. */
+        private void drawDecorativeCharacter(Graphics2D g, CharacterSprite sprite,
+                RectangleView court,
+                double offsetX, double offsetY, double scale, double horizontalRatio) {
+            if (sprite == null || sprite.head() == null || sprite.body() == null) {
+                return;
+            }
+
+            int headHeight = Math.max(1,
+                    (int) (court.height() * scale * CHARACTER_HEAD_HEIGHT_RATIO));
+            int headWidth = Math.max(1, (int) (headHeight
+                    * sprite.head().getWidth() / (double) sprite.head().getHeight()));
+            int bodyHeight = Math.max(1,
+                    (int) (court.height() * scale * CHARACTER_BODY_HEIGHT_RATIO));
+            int bodyWidth = Math.max(1, (int) (headWidth * CHARACTER_BODY_WIDTH_RATIO));
+            double centerX = offsetX + court.width() * horizontalRatio * scale;
+            double baselineY = offsetY + court.height() * scale * CHARACTER_FLOOR_RATIO;
+            int bodyX = (int) (centerX - bodyWidth / 2.0);
+            int bodyY = (int) (baselineY - bodyHeight);
+            int headX = (int) (centerX - headWidth / 2.0);
+            int headY = bodyY - headHeight
+                    + (int) (headHeight * CHARACTER_HEAD_BODY_OVERLAP_RATIO);
+            boolean onLeftSide = horizontalRatio < 0.5;
+            boolean flipBody = onLeftSide != sprite.bodyFacesRightAtSource();
+            boolean flipHead = horizontalRatio > 0.5;
+
+            drawCharacterPart(g, sprite.body(), bodyX, bodyY, bodyWidth, bodyHeight, flipBody);
+            drawCharacterPart(g, sprite.head(), headX, headY, headWidth, headHeight, flipHead);
+        }
+
+        /** Dibuja una parte del personaje y la refleja cuando mira hacia la izquierda.
+         * @param g contexto gráfico de la cancha
+         * @param image sprite recortado que se va a dibujar
+         * @param x coordenada horizontal de destino
+         * @param y coordenada vertical de destino
+         * @param width ancho de destino
+         * @param height alto de destino
+         * @param flipHorizontal indica si debe reflejarse horizontalmente
+         */
+        private void drawCharacterPart(Graphics2D g, BufferedImage image,
+                int x, int y, int width, int height, boolean flipHorizontal) {
+            if (!flipHorizontal) {
+                g.drawImage(image, x, y, width, height, this);
+                return;
+            }
+            Graphics2D flipped = (Graphics2D) g.create();
+            flipped.translate(x + width, y);
+            flipped.scale(-1, 1);
+            flipped.drawImage(image, 0, 0, width, height, this);
+            flipped.dispose();
+        }
+
+        /** Carga el par de sprites escalados según la especie indicada por la configuración. */
+        private CharacterSprite loadCharacterSprite(String configuredHeadPath) {
+            String name = configuredHeadPath == null ? ""
+                    : configuredHeadPath.substring(configuredHeadPath.lastIndexOf('/') + 1)
+                            .toLowerCase(Locale.ROOT);
+            String headPath;
+            String bodyPath;
+            if (name.contains("tiger")) {
+                headPath = "/images/outfits/heads/Heads Scaled/tiger_escalado.png";
+                bodyPath = "/images/outfits/shoes/tiger@4x-8.png";
+            } else if (name.contains("leopard")) {
+                headPath = "/images/outfits/heads/Heads Scaled/leopard_escalado.png";
+                bodyPath = "/images/outfits/shoes/leopard@4x-8.png";
+            } else if (name.contains("bear")) {
+                headPath = "/images/outfits/heads/Heads Scaled/bear_escalado.png";
+                bodyPath = "/images/outfits/shoes/bear@4x-8.png";
+            } else if (name.contains("wolf")) {
+                headPath = "/images/outfits/heads/Heads Scaled/wolf_referencia.png";
+                bodyPath = "/images/outfits/shoes/PATAWOLF.png";
+            } else {
+                return null;
+            }
+            boolean bodyFacesRightAtSource = name.contains("wolf");
+            return new CharacterSprite(loadTrimmedSprite(headPath), loadTrimmedSprite(bodyPath),
+                    bodyFacesRightAtSource);
+        }
+
+        /** Recorta solo el espacio transparente para alinear y escalar el sprite visual. */
+        private BufferedImage loadTrimmedSprite(String resourcePath) {
+            if (trimmedSprites.containsKey(resourcePath)) {
+                return trimmedSprites.get(resourcePath);
+            }
+            URL imageUrl = getClass().getResource(resourcePath);
+            if (imageUrl == null) {
+                trimmedSprites.put(resourcePath, null);
+                return null;
+            }
+            try {
+                BufferedImage source = ImageIO.read(imageUrl);
+                if (source == null) {
+                    trimmedSprites.put(resourcePath, null);
+                    return null;
                 }
+                int minX = source.getWidth();
+                int minY = source.getHeight();
+                int maxX = -1;
+                int maxY = -1;
+                for (int y = 0; y < source.getHeight(); y++) {
+                    for (int x = 0; x < source.getWidth(); x++) {
+                        if ((source.getRGB(x, y) >>> 24) != 0) {
+                            minX = Math.min(minX, x);
+                            minY = Math.min(minY, y);
+                            maxX = Math.max(maxX, x);
+                            maxY = Math.max(maxY, y);
+                        }
+                    }
+                }
+                if (maxX < minX || maxY < minY) {
+                    trimmedSprites.put(resourcePath, source);
+                    return source;
+                }
+                BufferedImage trimmed = source.getSubimage(minX, minY,
+                        maxX - minX + 1, maxY - minY + 1);
+                trimmedSprites.put(resourcePath, trimmed);
+                return trimmed;
+            } catch (IOException exception) {
+                trimmedSprites.put(resourcePath, null);
+                return null;
             }
         }
 
@@ -326,21 +483,29 @@ public class MatchPanel extends BasePanel {
         private void drawBalls(Graphics2D g, SessionView state, RectangleView court,
                 double offsetX, double offsetY, double scale) {
             for (BallView ball : state.balls()) {
-                double diameter = ball.radius() * 2 * scale;
-                double x = offsetX + (ball.x() - ball.radius() - court.x()) * scale;
-                double y = offsetY + (ball.y() - ball.radius() - court.y()) * scale;
-                g.setColor(Color.WHITE);
-                g.fill(new Ellipse2D.Double(x, y, diameter, diameter));
-                g.setColor(Theme.DARK_GREEN);
-                g.draw(new Ellipse2D.Double(x, y, diameter, diameter));
+                double diameter = Math.max(ball.radius() * 2 * scale,
+                        court.height() * scale * BALL_VISUAL_DIAMETER_RATIO);
+                double x = offsetX + (ball.x() - court.x()) * scale - diameter / 2.0;
+                double normalizedY = (ball.y() - court.y()) / court.height();
+                double visualYRatio = PLAY_AREA_TOP_RATIO
+                        + normalizedY * PLAY_AREA_HEIGHT_RATIO;
+                double y = offsetY + visualYRatio * court.height() * scale - diameter / 2.0;
+                if (ballImage != null) {
+                    g.drawImage(ballImage, (int) x, (int) y, (int) diameter, (int) diameter, this);
+                } else {
+                    g.setColor(Color.WHITE);
+                    g.fill(new Ellipse2D.Double(x, y, diameter, diameter));
+                    g.setColor(Theme.DARK_GREEN);
+                    g.draw(new Ellipse2D.Double(x, y, diameter, diameter));
+                }
             }
         }
 
-        /** Convierte un rectángulo del mundo del juego a coordenadas de pantalla. */
-        private Rectangle2D worldRectangle(double x, double y, double width, double height,
-                RectangleView court, double offsetX, double offsetY, double scale) {
-            return new Rectangle2D.Double(offsetX + (x - court.x()) * scale,
-                    offsetY + (y - court.y()) * scale, width * scale, height * scale);
+        /** Calcula la escala que mantiene la proporción del campo en el área disponible. */
+        private double courtScale(RectangleView court) {
+            return Math.min((getWidth() - FIELD_MARGIN * 2.0) / court.width(),
+                    getHeight() / court.height());
         }
+
     }
 }
