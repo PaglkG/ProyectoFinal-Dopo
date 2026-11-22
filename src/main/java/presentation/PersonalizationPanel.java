@@ -16,8 +16,10 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JList;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -27,6 +29,8 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
+import domain.Game;
+
 /**
  * Pantalla para personalizar la partida: modalidad, perfil de la máquina,
  * tipo de partido, tamaño de la cancha y personaje de cada jugador.
@@ -34,9 +38,6 @@ import javax.swing.SwingConstants;
 public class PersonalizationPanel extends BasePanel 
 {
     // Opciones de cada lista desplegable
-    private static final String[] MODES = {"Jugador vs Bot", "Jugador vs Jugador"};
-    private static final String[] BOT_PROFILES = {"Torpe", "Ofensiva", "Defensiva", "Experta"};
-    private static final String[] MATCH_TYPES = {"Partido por tiempo", "Partido por goles"};
     private static final String[] FIELD_SIZES = {"800 x 450", "1024 x 576", "1280 x 720"};
     private static final CharacterProfile[] CHARACTER_PROFILES = {
         new CharacterProfile("Corea del Sur", "KR", "Tigre", "tiger@4x-8.png", "tiger_escalado.png",
@@ -97,6 +98,7 @@ public class PersonalizationPanel extends BasePanel
     private static final int BOTTOM_BUTTONS_GAP = 20;
 
     private NavigationController navigationController;
+    private final Game game;
     private JComboBox<String> modeComboBox;
     private JComboBox<String> botProfileComboBox;
     private JComboBox<String> matchTypeComboBox;
@@ -120,9 +122,10 @@ public class PersonalizationPanel extends BasePanel
      *
      * @param navigationController controlador que cambia de pantalla
      */
-    public PersonalizationPanel(NavigationController navigationController) 
+    public PersonalizationPanel(NavigationController navigationController, Game game)
     {
         this.navigationController = navigationController;
+        this.game = game;
         prepareView();
         prepareController();
     }
@@ -203,8 +206,10 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareViewModeOptions(JPanel content) 
     {
-        modeComboBox = new JComboBox<>(MODES);
-        botProfileComboBox = new JComboBox<>(BOT_PROFILES);
+        modeComboBox = createGameOptionsComboBox(game.getSessionTypes());
+        modeComboBox.setSelectedItem("PlayerVsBot");
+        botProfileComboBox = createGameOptionsComboBox(game.getBotTypes());
+        botProfileComboBox.setSelectedItem("Clumsy");
 
         JPanel row = new JPanel(new GridLayout(1, 2, GRID_HGAP, 0));
         row.setOpaque(false);
@@ -223,7 +228,8 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareViewMatchOptions(JPanel content) 
     {
-        matchTypeComboBox = new JComboBox<>(MATCH_TYPES);
+        matchTypeComboBox = createGameOptionsComboBox(game.getMatchTypes());
+        matchTypeComboBox.setSelectedItem("ByTime");
         fieldSizeComboBox = new JComboBox<>(FIELD_SIZES);
         prepareViewMatchLimit();
 
@@ -235,6 +241,33 @@ public class PersonalizationPanel extends BasePanel
         limitHeight(row);
         content.add(row);
         content.add(Box.createVerticalStrut(SECTION_GAP));
+    }
+
+    /** Crea un selector con opciones recibidas desde la fachada Game. */
+    private JComboBox<String> createGameOptionsComboBox(java.util.List<String> options) {
+        JComboBox<String> comboBox = new JComboBox<>(options.toArray(String[]::new));
+        comboBox.setRenderer(new GameOptionRenderer());
+        return comboBox;
+    }
+
+    /** Traduce los nombres de clase conocidos para mostrarlos en español. */
+    private static final class GameOptionRenderer extends DefaultListCellRenderer {
+        @Override
+        public java.awt.Component getListCellRendererComponent(JList<?> list, Object value,
+                int index, boolean selected, boolean focus) {
+            String displayValue = switch (String.valueOf(value)) {
+                case "PlayerVsBot" -> "Jugador vs Bot";
+                case "PlayerVsPlayer" -> "Jugador vs Jugador";
+                case "ByTime" -> "Partido por tiempo";
+                case "ByGoals" -> "Partido por goles";
+                case "Clumsy" -> "Torpe";
+                case "Offensive" -> "Ofensiva";
+                case "Defensive" -> "Defensiva";
+                case "Expert" -> "Experta";
+                default -> String.valueOf(value);
+            };
+            return super.getListCellRendererComponent(list, displayValue, index, selected, focus);
+        }
     }
 
     /**
@@ -528,7 +561,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private void updateMode() 
     {
-        boolean againstBot = modeComboBox.getSelectedIndex() == 0;
+        boolean againstBot = "PlayerVsBot".equals(modeComboBox.getSelectedItem());
         botProfileComboBox.setEnabled(againstBot);
         player2TitleLabel.setText(againstBot ? "PAÍS DE LA MÁQUINA" : "PAÍS JUGADOR 2");
     }
@@ -539,7 +572,7 @@ public class PersonalizationPanel extends BasePanel
     private void updateMatchType() 
     {
         CardLayout layout = (CardLayout) matchLimitPanel.getLayout();
-        boolean byTime = matchTypeComboBox.getSelectedIndex() == 0;
+        boolean byTime = "ByTime".equals(matchTypeComboBox.getSelectedItem());
         layout.show(matchLimitPanel, byTime ? TIME_CARD : GOALS_CARD);
     }
 
@@ -590,16 +623,16 @@ public class PersonalizationPanel extends BasePanel
     private MatchConfiguration createMatchConfiguration() {
         CharacterProfile playerOneProfile = selectedProfile(player1CountryComboBox);
         CharacterProfile playerTwoProfile = selectedProfile(player2CountryComboBox);
-        int limit = Integer.parseInt((matchTypeComboBox.getSelectedIndex() == 0
+        boolean byTime = "ByTime".equals(matchTypeComboBox.getSelectedItem());
+        int limit = Integer.parseInt((byTime
                 ? minutesTextField : goalsTextField).getText().trim());
         String[] size = ((String) fieldSizeComboBox.getSelectedItem()).split("\\s*x\\s*");
         String height = size[1];
         String width = size[0];
-        String typeMatch = matchTypeComboBox.getSelectedIndex() == 0
-                ? "domain.ByTime" : "domain.ByGoals";
+        String typeMatch = "domain." + matchTypeComboBox.getSelectedItem();
         boolean playerOne = true;
-        boolean againstBot = modeComboBox.getSelectedIndex() == 0;
-        String typeGame = againstBot ? "domain.PlayerVsBot" : "domain.PlayerVsPlayer";
+        boolean againstBot = "PlayerVsBot".equals(modeComboBox.getSelectedItem());
+        String typeGame = "domain." + modeComboBox.getSelectedItem();
         java.util.List<String> powers = new java.util.ArrayList<>();
         powers.add(playerOneProfile.powerClassName());
         powers.add(playerTwoProfile.powerClassName());
@@ -613,12 +646,7 @@ public class PersonalizationPanel extends BasePanel
 
     /** Traduce el perfil visible al identificador que recibe la sesión de bot. */
     private String selectedBotProfileClass() {
-        return switch (botProfileComboBox.getSelectedIndex()) {
-            case 0 -> "Clumsy";
-            case 1 -> "Offensive";
-            case 2 -> "Defensive";
-            default -> "Expert";
-        };
+        return (String) botProfileComboBox.getSelectedItem();
     }
 
     /** Obtiene los metadatos del personaje elegido en un desplegable. */
@@ -638,7 +666,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private boolean isMatchLimitValid() 
     {
-        boolean byTime = matchTypeComboBox.getSelectedIndex() == 0;
+        boolean byTime = "ByTime".equals(matchTypeComboBox.getSelectedItem());
         JTextField field = byTime ? minutesTextField : goalsTextField;
         String name = byTime ? "minutos" : "goles";
         try 

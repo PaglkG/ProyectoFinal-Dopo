@@ -26,15 +26,16 @@ import javax.swing.SwingConstants;
 public class PreparationPanel extends BasePanel {
     private static final String LOADING_BACKGROUND = "/images/ui/FONDO DE CARGA.png";
     private static final String BALL_IMAGE = "/images/ball/ball@4x-8.png";
-    private static final int COUNTRY_CODE_FONT_SIZE = 30;
+    private static final String COUNTRY_FLAGS_DIRECTORY = "/images/characters/countries/";
+    private static final int COUNTRY_FLAG_SIZE = 58;
     private static final int COUNTRY_CARD_WIDTH = 350;
     private static final int COUNTRY_CARD_HEIGHT = 94;
     private static final int PROGRESS_BAR_HEIGHT = 28;
 
     private final NavigationController navigationController;
 
-    private JLabel leftCountryCodeLabel;
-    private JLabel rightCountryCodeLabel;
+    private JLabel leftCountryFlagLabel;
+    private JLabel rightCountryFlagLabel;
     private JLabel statusLabel;
     private JLabel progressHintLabel;
     private JProgressBar progressBar;
@@ -104,7 +105,7 @@ public class PreparationPanel extends BasePanel {
         add(body, BorderLayout.CENTER);
     }
 
-    /** Muestra los dos códigos de país alrededor del balón. */
+    /** Muestra las banderas de los países alrededor del balón. */
     private void prepareViewCountryCard(JPanel body) {
         RoundedPanel card = new RoundedPanel(Theme.INNER_BACKGROUND, 26);
         card.setLayout(new BorderLayout());
@@ -125,24 +126,23 @@ public class PreparationPanel extends BasePanel {
         body.add(card);
     }
 
-    /** Inicializa las etiquetas de códigos que después se actualizan desde el menú. */
+    /** Inicializa las banderas que después se actualizan desde el menú. */
     private void prepareViewCountryCodes(JPanel codes) {
-        leftCountryCodeLabel = createCountryCodeLabel("KR");
-        rightCountryCodeLabel = createCountryCodeLabel("NG");
+        leftCountryFlagLabel = createCountryFlagLabel("KR");
+        rightCountryFlagLabel = createCountryFlagLabel("NG");
         JLabel ball = new JLabel(createBallIcon(34));
         ball.setHorizontalAlignment(SwingConstants.CENTER);
 
-        codes.add(leftCountryCodeLabel, BorderLayout.WEST);
+        codes.add(leftCountryFlagLabel, BorderLayout.WEST);
         codes.add(ball, BorderLayout.CENTER);
-        codes.add(rightCountryCodeLabel, BorderLayout.EAST);
+        codes.add(rightCountryFlagLabel, BorderLayout.EAST);
     }
 
-    /** Crea una etiqueta destacada para un código de país. */
-    private JLabel createCountryCodeLabel(String code) {
-        JLabel label = new JLabel(code, SwingConstants.CENTER);
-        label.setFont(new Font("SansSerif", Font.BOLD, COUNTRY_CODE_FONT_SIZE));
-        label.setForeground(new Color(0xE8783D));
-        label.setPreferredSize(new Dimension(90, 42));
+    /** Crea una etiqueta para la bandera de un país. */
+    private JLabel createCountryFlagLabel(String code) {
+        JLabel label = new JLabel("", SwingConstants.CENTER);
+        label.setPreferredSize(new Dimension(90, 64));
+        setCountryFlag(label, code);
         return label;
     }
 
@@ -199,14 +199,48 @@ public class PreparationPanel extends BasePanel {
     }
 
     /**
-     * Actualiza los códigos cuando se reciben los países seleccionados.
+     * Actualiza las banderas cuando se reciben los países seleccionados.
      *
      * @param leftCode código del país del jugador 1
      * @param rightCode código del país del jugador 2 o de la máquina
      */
     public void setCountryCodes(String leftCode, String rightCode) {
-        leftCountryCodeLabel.setText(normalizeCountryCode(leftCode));
-        rightCountryCodeLabel.setText(normalizeCountryCode(rightCode));
+        setCountryFlag(leftCountryFlagLabel, leftCode);
+        setCountryFlag(rightCountryFlagLabel, rightCode);
+    }
+
+    /** Carga la bandera asociada al código; conserva el código si no hay recurso. */
+    private void setCountryFlag(JLabel label, String code) {
+        String normalizedCode = normalizeCountryCode(code);
+        String fileName = countryFlagFileName(normalizedCode);
+        URL imageUrl = fileName == null ? null
+                : getClass().getResource(COUNTRY_FLAGS_DIRECTORY + fileName);
+
+        if (imageUrl == null) {
+            label.setIcon(null);
+            label.setText(normalizedCode);
+            label.setFont(new Font("SansSerif", Font.BOLD, 18));
+            label.setForeground(new Color(0xE8783D));
+            label.setToolTipText(null);
+            return;
+        }
+
+        Image image = new ImageIcon(imageUrl).getImage()
+                .getScaledInstance(COUNTRY_FLAG_SIZE, COUNTRY_FLAG_SIZE, Image.SCALE_SMOOTH);
+        label.setText("");
+        label.setIcon(new ImageIcon(image));
+        label.setToolTipText(normalizedCode);
+    }
+
+    /** Relaciona cada código usado por la personalización con su recurso visual. */
+    private String countryFlagFileName(String countryCode) {
+        return switch (countryCode) {
+            case "KR" -> "corea-del-sur@4x-8.png";
+            case "CM" -> "camerun@4x-8.png";
+            case "NG" -> "nigeria@4x-8.png";
+            case "US" -> "estados-unidos@4x-8.png";
+            default -> null;
+        };
     }
 
     /** Marca el progreso real como completo después de crear la sesión en Game. */
