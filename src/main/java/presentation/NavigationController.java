@@ -19,6 +19,7 @@ public class NavigationController
     public static final String MATCH = "MATCH";
     /** Identificador de la pantalla de pausa. */
     public static final String PAUSE = "PAUSE";
+    public static final String RESULTS = "RESULTS";
 
     private final DOPOSoccerGUI doposoccerGUI;
 

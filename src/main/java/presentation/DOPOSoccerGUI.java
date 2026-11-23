@@ -2,6 +2,7 @@ package presentation;
 
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
 
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
@@ -17,6 +18,8 @@ public class DOPOSoccerGUI extends JFrame
     private static final String TITLE = "DOPO SOCCER";
     private static final int WINDOW_WIDTH = 800;
     private static final int WINDOW_HEIGHT = 600;
+    private static final int COURT_WINDOW_WIDTH_MARGIN = 40;
+    private static final int COURT_WINDOW_HEIGHT_MARGIN = 140;
 
     private final NavigationController navigationController;
     private final Game game;
@@ -28,6 +31,7 @@ public class DOPOSoccerGUI extends JFrame
     private PreparationPanel preparationPanel;
     private MatchPanel matchPanel;
     private PausePanel pausePanel;
+    private ResultsPanel resultsPanel;
  
     /**
      * Crea la ventana principal.
@@ -70,8 +74,12 @@ public class DOPOSoccerGUI extends JFrame
         personalizationPanel = new PersonalizationPanel(navigationController, game);
         storeImprovementPanel = new StoreImprovementPanel(navigationController);
         preparationPanel = new PreparationPanel(navigationController);
-        matchPanel = new MatchPanel(game, navigationController);
-        pausePanel = new PausePanel(navigationController);
+        resultsPanel = new ResultsPanel(navigationController);
+        matchPanel = new MatchPanel(game, navigationController, session -> {
+            resultsPanel.updateResult(session);
+            showScreen(NavigationController.RESULTS);
+        });
+        pausePanel = new PausePanel(navigationController, this::showResultsPreview);
     }
 
     /**
@@ -86,6 +94,7 @@ public class DOPOSoccerGUI extends JFrame
         addScreen(preparationPanel, NavigationController.PREPARATION);
         addScreen(matchPanel, NavigationController.MATCH);
         addScreen(pausePanel, NavigationController.PAUSE);
+        addScreen(resultsPanel, NavigationController.RESULTS);
     }
 
     /**
@@ -133,8 +142,48 @@ public class DOPOSoccerGUI extends JFrame
      */
     public void showScreen(String screen) 
     {
+        resizeWindowForScreen(screen);
         CardLayout layout = (CardLayout) getContentPane().getLayout();
         layout.show(getContentPane(), screen);
+    }
+
+    /** Ajusta la ventana al tamaño configurado mientras se muestran pantallas del partido.
+     * @param screen identificador de la pantalla que se va a mostrar
+     */
+    private void resizeWindowForScreen(String screen) {
+        boolean showCourt = isCourtRelatedScreen(screen);
+        Dimension targetSize = showCourt && startedConfiguration != null
+                ? courtWindowSize(startedConfiguration)
+                : new Dimension(WINDOW_WIDTH, WINDOW_HEIGHT);
+        if (!getSize().equals(targetSize)) {
+            setSize(targetSize);
+            setLocationRelativeTo(null);
+        }
+    }
+
+    /** Indica si la pantalla forma parte del flujo de una partida ya configurada.
+     * @param screen identificador de pantalla
+     * @return {@code true} si debe conservar el tamaño de ventana de la cancha
+     */
+    private boolean isCourtRelatedScreen(String screen) {
+        return NavigationController.PREPARATION.equals(screen)
+                || NavigationController.MATCH.equals(screen)
+                || NavigationController.PAUSE.equals(screen)
+                || NavigationController.RESULTS.equals(screen);
+    }
+
+    /** Calcula el tamaño de ventana según las dimensiones elegidas y el área visible.
+     * @param configuration configuración que contiene alto y ancho de la cancha
+     * @return tamaño de ventana limitado al área útil de pantalla
+     */
+    private Dimension courtWindowSize(MatchConfiguration configuration) {
+        int courtHeight = Integer.parseInt(configuration.parametersRules().get(0));
+        int courtWidth = Integer.parseInt(configuration.parametersRules().get(1));
+        Dimension usableScreen = GraphicsEnvironment.getLocalGraphicsEnvironment()
+                .getMaximumWindowBounds().getSize();
+        int windowWidth = Math.min(courtWidth + COURT_WINDOW_WIDTH_MARGIN, usableScreen.width);
+        int windowHeight = Math.min(courtHeight + COURT_WINDOW_HEIGHT_MARGIN, usableScreen.height);
+        return new Dimension(windowWidth, windowHeight);
     }
 
     /** Crea la sesión desde la configuración de presentación y alista el partido.
@@ -148,15 +197,22 @@ public class DOPOSoccerGUI extends JFrame
         game.startSession(configuration.parametersRules(), configuration.parametersPowers(),
                 configuration.typeGame(), configuration.typeMatch(), configuration.playerOne());
         startedConfiguration = configuration;
+        resultsPanel.setMatchConfiguration(configuration);
         preparationPanel.setCountryCodes(configuration.playerTwoCountryCode(),
                 configuration.playerOneCountryCode());
         preparationPanel.setReady();
         matchPanel.setCharacterImages(
-                "/images/outfits/heads/" + configuration.playerTwoHeadImage(),
-                "/images/outfits/heads/" + configuration.playerOneHeadImage());
+                "/images/outfits/heads/" + configuration.playerOneHeadImage(),
+                "/images/outfits/heads/" + configuration.playerTwoHeadImage());
         matchPanel.setAgainstBot(configuration.againstBot());
         matchPanel.refreshMatchView();
         showScreen(NavigationController.PREPARATION);
+    }
+
+    /** Muestra el estado actual para previsualizar la pantalla de resultados desde pausa. */
+    private void showResultsPreview() {
+        resultsPanel.updateResult(game.inspectSession());
+        showScreen(NavigationController.RESULTS);
     }
 
     /**

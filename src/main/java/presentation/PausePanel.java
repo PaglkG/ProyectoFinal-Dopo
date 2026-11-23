@@ -22,14 +22,18 @@ public class PausePanel extends BasePanel {
     private static final int LOGO_SIZE = 64;
 
     private final NavigationController navigationController;
+    private final Runnable resultsPreviewAction;
     private JButton resumeButton;
+    private JButton resultsButton;
     private JButton mainMenuButton;
 
     /** Crea la pantalla de pausa conectada con la navegación principal.
      * @param navigationController controlador para mostrar otras pantallas
+     * @param resultsPreviewAction acción que actualiza y muestra la vista previa de resultados
      */
-    public PausePanel(NavigationController navigationController) {
+    public PausePanel(NavigationController navigationController, Runnable resultsPreviewAction) {
         this.navigationController = navigationController;
+        this.resultsPreviewAction = resultsPreviewAction;
         prepareView();
         prepareController();
     }
@@ -92,6 +96,13 @@ public class PausePanel extends BasePanel {
         card.add(saveButton);
         card.add(javax.swing.Box.createVerticalStrut(8));
 
+        resultsButton = new RoundedButton("Ver resultados", Theme.SAND,
+                Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
+        resultsButton.setAlignmentX(CENTER_ALIGNMENT);
+        resultsButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        card.add(resultsButton);
+        card.add(javax.swing.Box.createVerticalStrut(8));
+
         mainMenuButton = new RoundedButton("Volver al menú principal",
                 Theme.SAND, Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
         mainMenuButton.setAlignmentX(CENTER_ALIGNMENT);
@@ -100,11 +111,12 @@ public class PausePanel extends BasePanel {
         return card;
     }
 
-    /** Conecta reanudar y volver al menú; reiniciar y guardar siguen sin acción. */
+    /** Conecta reanudar, vista previa y retorno; reiniciar y guardar siguen sin acción. */
     @Override
     public void prepareController() {
         resumeButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MATCH));
+        resultsButton.addActionListener(event -> resultsPreviewAction.run());
         mainMenuButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MAIN_MENU));
     }
