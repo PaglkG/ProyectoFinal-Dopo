@@ -1,11 +1,14 @@
 package domain;
 
+import java.io.Serializable;
 /**
  * Poder que puede reaparecer en una posición de la cancha.
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public abstract class Power {
+public abstract class Power implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private int chargePower;
 

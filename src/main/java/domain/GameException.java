@@ -48,6 +48,12 @@ public class GameException extends IllegalArgumentException {
     public static final String INVALID_RULE_PARAMETERS = "los parámetros de la regla no son válidos";
     /** Mensaje para parámetros inválidos de marcador. */
     public static final String INVALID_SCORE_PARAMETERS = "los parámetros del marcador no son válidos";
+    /** Archivo de guardado nulo, inexistente o con contenido inválido. */
+    public static final String INVALID_SAVE_FILE = "el archivo de partida guardada no es válido";
+    /** Error de escritura al guardar una partida. */
+    public static final String SAVE_FAILED = "no se pudo guardar la partida";
+    /** Error de lectura al abrir una partida. */
+    public static final String OPEN_FAILED = "no se pudo abrir la partida guardada";
 
     /**
      * Crea una excepción propia del dominio con el mensaje indicado.

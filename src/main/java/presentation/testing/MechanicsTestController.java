@@ -4,6 +4,7 @@ import domain.ParticipantView;
 import domain.RectangleView;
 import domain.SessionView;
 
+import java.io.File;
 import java.util.List;
 
 import domain.Game;
@@ -109,6 +110,21 @@ public final class MechanicsTestController {
     /** Reinicia el balón y las posiciones en la sesión única ya creada. */
     public void restartConfiguredSession() {
         game.resetSession();
+        movement.reset(game);
+    }
+
+    /** Guarda el estado actual de la sesión en el archivo indicado.
+     * @param file destino del guardado
+     */
+    public void save(File file) {
+        game.save(file);
+    }
+
+    /** Abre una sesión serializada y vuelve a asociar el movimiento visual.
+     * @param file archivo con la partida guardada
+     */
+    public void open(File file) {
+        game.open(file);
         movement.reset(game);
     }
 

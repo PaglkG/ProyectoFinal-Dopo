@@ -1,5 +1,6 @@
 package domain;
 
+import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +14,9 @@ import domain.TypeOfMatch;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public abstract class GameSession {
+public abstract class GameSession implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private static GameSession instance;
 
@@ -26,6 +29,17 @@ public abstract class GameSession {
             throw new GameException(GameException.NO_FOUND_SESSION);
         }
         return instance;
+    }
+
+    /**
+     * Reemplaza la sesión singleton administrada al abrir una partida guardada.
+     *
+     * @param restoredSession sesión deserializada que debe pasar a ser única
+     * @throws GameException si la sesión restaurada es nula
+     */
+    public static void restoreInstance(GameSession restoredSession) throws GameException {
+        if (restoredSession == null) throw new GameException(GameException.NO_FOUND_SESSION);
+        instance = restoredSession;
     }
 
     /**

@@ -1,4 +1,5 @@
 package domain;
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -6,7 +7,9 @@ import java.util.List;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public abstract class TypeOfMatch {
+public abstract class TypeOfMatch implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /** Crea el tipo base de modalidad de partido. */
     public TypeOfMatch() {

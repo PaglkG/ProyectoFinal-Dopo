@@ -155,7 +155,9 @@
 ### Bots, reglas y persistencia
 
 - ¿Qué reglas genéricas se pueden agregar/quitar y en qué orden se aplican?
-- ¿Qué datos guarda `save` y restaura `open`; cuál es el formato y qué errores deben reportarse?
+- `save()` guarda la sesión administrada en `dopo-saved-game.ser`; `save(File)` permite elegir el destino.
+- `open(File)` deserializa una partida guardada y reemplaza la sesión única administrada.
+- El guardado conserva la sesión completa: modalidad, marcador, tiempo, cancha, participantes, balones, estadísticas y objetos asociados. Los errores de archivo se reportan mediante `GameException` con los códigos `INVALID_SAVE_FILE`, `SAVE_FAILED` o `OPEN_FAILED`.
 
 ## Registro de decisiones
 

@@ -1,5 +1,6 @@
 package domain;
 
+import java.io.Serializable;
 /**
  * Representa una hitbox rectangular mediante la esquina superior izquierda
  * {@code (x, y)} y sus dimensiones {@code width × height}.
@@ -7,7 +8,9 @@ package domain;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class RectangularHitbox implements Hitbox {
+public class RectangularHitbox implements Hitbox, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private double x;
     private double y;

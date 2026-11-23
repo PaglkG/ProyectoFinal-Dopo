@@ -1,5 +1,6 @@
 package domain;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -9,7 +10,9 @@ import java.util.Map;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class Stats {
+public class Stats implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /** Crea las estadísticas con habilidades en nivel inicial y sin puntos. */
     public Stats() { }

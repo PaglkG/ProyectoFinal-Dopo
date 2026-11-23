@@ -10,10 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import domain.GameException;
 import domain.ByGoals;
@@ -21,6 +23,8 @@ import domain.ByTime;
 class GameTest {
 
     private Game game;
+    @TempDir
+    private Path tempDir;
 
     @BeforeEach
     void setUp() throws ReflectiveOperationException {
@@ -323,6 +327,41 @@ class GameTest {
         game.updateGame();
 
         assertEquals(1.0 / 60, game.inspectSession().elapsedSeconds(), 1e-9);
+    }
+
+    @Test
+    void saveWritesTheManagedSessionAndOpenRestoresItsObservableState() throws Exception {
+        game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        managedSession(game).goal("right");
+        game.setBallPosition(0, 180, 60);
+        game.applyBallImpulse(0, 7, -3);
+
+        Path saveFile = tempDir.resolve("partida.ser");
+        game.save(saveFile.toFile());
+
+        game.closeSession();
+        Game restored = new Game();
+        restored.open(saveFile.toFile());
+
+        assertEquals(1, restored.getGoalsRight());
+        assertEquals(180, restored.getBallX(0), 1e-9);
+        assertEquals(60, restored.getBallY(0), 1e-9);
+        assertEquals(7, restored.getBallVelocityX(0), 1e-9);
+        assertEquals(-3, restored.getBallVelocityY(0), 1e-9);
+    }
+
+    @Test
+    void openRejectsAFileThatDoesNotContainASession() throws Exception {
+        Path invalidFile = tempDir.resolve("texto.ser");
+        java.nio.file.Files.writeString(invalidFile, "contenido inválido");
+
+        GameException exception = assertThrows(
+                GameException.class, () -> game.open(invalidFile.toFile()));
+
+        assertEquals(GameException.OPEN_FAILED, exception.getMessage());
+        java.nio.file.Files.deleteIfExists(invalidFile);
     }
 
     private static GameSession managedSession(Game game) throws ReflectiveOperationException {

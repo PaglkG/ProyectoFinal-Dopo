@@ -1,5 +1,6 @@
 package domain;
 
+import java.io.Serializable;
 import domain.CircularHitbox;
 import domain.Hitbox;
 import domain.HitboxContact;
@@ -11,7 +12,9 @@ import domain.HitboxIntersections;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class Ball implements Hitbox {
+public class Ball implements Hitbox, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private boolean physical;
     private double velocityX;

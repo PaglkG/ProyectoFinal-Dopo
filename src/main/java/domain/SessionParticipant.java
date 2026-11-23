@@ -1,5 +1,6 @@
 package domain;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -16,7 +17,9 @@ import domain.GameException;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public abstract class SessionParticipant implements Hitbox {
+public abstract class SessionParticipant implements Hitbox, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private double x;
     private double y;

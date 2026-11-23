@@ -1,5 +1,6 @@
 package domain;
 
+import java.io.Serializable;
 /**
  * Representa una hitbox circular definida por el centro {@code (x, y)} y un
  * radio. Se utiliza para aproximar objetos redondos, como el balón.
@@ -7,7 +8,9 @@ package domain;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class CircularHitbox implements Hitbox {
+public class CircularHitbox implements Hitbox, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private double x;
     private double y;

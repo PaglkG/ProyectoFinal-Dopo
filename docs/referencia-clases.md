@@ -27,8 +27,8 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `setPlayerPosition(playerOne, ...)`, `setBallPosition(...)`, `applyBallImpulse(...)` | Preparan coordenadas e impulsos para escenarios visuales mediante la fachada. |
 | `powerPlayer(player)` | Está vacío; no activa poderes. |
 | `improveStatistics(player, stats)` | Delega en la sesión única para mejorar la habilidad seleccionada; `true` selecciona derecha/jugador 1. |
-| `save()` | Está vacío; no persiste datos. |
-| `open(file)` | Está vacío; no lee ni restaura datos. |
+| `save()`, `save(file)` | Serializan la sesión administrada en `dopo-saved-game.ser` o en el archivo indicado. |
+| `open(file)` | Deserializan una sesión y la convierten en la única instancia administrada por `Game`. |
 
 **Records anidados de la fachada:** `SessionView` contiene copias inmutables del rectángulo de cancha, límites, arcos, participantes, balones, marcador, tiempo y estado final. `ParticipantView`, `BallView` y `RectangleView` son datos de solo lectura para la presentación.
 
@@ -539,4 +539,4 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 
 ## Estado de las implementaciones
 
-Los métodos vacíos y los campos no inicializados se describen como tales porque esta referencia documenta el código actual, no las funciones previstas. En especial, las pantallas de presentación, los poderes, efectos, salto del dominio y persistencia tienen partes aún no implementadas; el banco simula visualmente el salto y permite aterrizar sobre los balones.
+Los métodos vacíos y los campos no inicializados se describen como tales porque esta referencia documenta el código actual, no las funciones previstas. En especial, las pantallas de presentación, los poderes, efectos y salto del dominio tienen partes aún no implementadas; la persistencia guarda la sesión serializable y el banco simula visualmente el salto y permite aterrizar sobre los balones.

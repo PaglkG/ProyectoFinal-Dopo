@@ -21,7 +21,7 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 | `Game` | `startSession` solicita `GameSession.getInstance`; registra la referencia solo una vez. | Las llamadas posteriores reutilizan la primera sesión, aun si solicitan otra subclase; la primera modalidad concreta permanece activa. |
 | `Game.closeSession` | Limpia la referencia `session` de `Game`. | No destruye la instancia singleton; una llamada posterior a `startSession` vuelve a guardar esa misma instancia. |
 | `Game.movePlayer` | Delega en la sesión para participantes registrados en una partida activa; el participante se desplaza 150 × `speed` / 60 unidades, en la dirección confirmada. | Implementado en esta revisión conforme a dirección y fórmula confirmadas. |
-| `Game.resetSession` | Delega `restartRound` en la sesión única administrada; también permite resolverla por índice. | Reinicia balones y posiciones sin reemplazar la instancia ni cambiar el marcador, tiempo o estado final. `powerPlayer`, `save` y `open` siguen vacíos. |
+| `Game.resetSession` | Delega `restartRound` en la sesión única administrada; también permite resolverla por índice. | Reinicia balones y posiciones sin reemplazar la instancia ni cambiar el marcador, tiempo o estado final. `powerPlayer` sigue vacío; `save` y `open` serializan la sesión única. |
 powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el código actual.
 | `PlayerVsBot` | Crea el jugador humano a la derecha y el perfil bot solicitado a la izquierda; asocia los dos poderes elegidos. | Coincide con el orden confirmado de participantes, poderes y dificultad. Los tipos de bot se crean reflectivamente y sus decisiones siguen pendientes. |
 | `PlayerVsPlayer` | Crea jugador 1 a la derecha y jugador 2 a la izquierda; asocia el poder de cada lado según la lista recibida. | Coincide con posiciones fijas y orden confirmado de parámetros. |
@@ -56,7 +56,7 @@ powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el cód
 3. Extender el movimiento si se confirman límites de cancha, colisiones u otras restricciones adicionales.
 4. Implementar salto y poder a través de `Game`, `GameSession`, participante y `Power` una vez definidos sus efectos y límites.
 5. Completar estadísticas, estados temporales y ejecución de disparos/efectos de poderes, además de las decisiones de perfiles de bot.
-6. Implementar `save`/`open`; sus páginas de secuencia no muestran interacciones que permitan derivar el formato o el contrato.
+6. Mantener cobertura de persistencia para la serialización de sesiones y sus objetos asociados.
 7. Definir si se agregará un flujo de registro de participantes; actualmente las modalidades construyen automáticamente sus participantes.
 
 ## Páginas sin flujo utilizable

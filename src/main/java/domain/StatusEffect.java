@@ -1,5 +1,6 @@
 package domain;
 
+import java.io.Serializable;
 import domain.GameException;
 
 /**
@@ -7,7 +8,9 @@ import domain.GameException;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class StatusEffect {
+public class StatusEffect implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /** Identificador del efecto de aturdimiento. */
     public static final String STUNNED = "stunned";

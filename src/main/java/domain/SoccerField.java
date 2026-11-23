@@ -1,5 +1,8 @@
 package domain;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import domain.Hitbox;
 import domain.HitboxContact;
@@ -14,7 +17,9 @@ import domain.GameException;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class SoccerField implements Hitbox {
+public class SoccerField implements Hitbox, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final double courtHeight;
     private final double courtWidth;
@@ -23,7 +28,7 @@ public class SoccerField implements Hitbox {
     private RectangularHitbox RightGoalHitbox;
     private RectangularHitbox fieldHitbox;
     private Ball[] balls;
-    private CollisionFacade collisions;
+    private transient CollisionFacade collisions;
 
     /**
      * Crea una cancha provisional de 450 por 150 unidades y un balón de radio 10.
@@ -45,6 +50,16 @@ public class SoccerField implements Hitbox {
         this.courtWidth = width;
         balls = new Ball[] {new Ball(width, height, 10)};
         reposition(0, 0);
+        collisions = new CollisionFacade(this);
+    }
+
+    /** Reconstruye la fachada de colisiones que no se serializa con la cancha.
+     * @param input flujo desde el que se restauran los campos serializados
+     * @throws IOException si falla la lectura del objeto
+     * @throws ClassNotFoundException si falta una clase almacenada
+     */
+    private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+        input.defaultReadObject();
         collisions = new CollisionFacade(this);
     }
 

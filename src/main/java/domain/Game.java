@@ -1,6 +1,11 @@
 package domain;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,6 +18,9 @@ import java.util.List;
  * @author Samuel Ahumada Florez
  */
 public class Game {
+
+    /** Nombre predeterminado del archivo usado por {@link #save()}. */
+    public static final String DEFAULT_SAVE_FILE = "dopo-saved-game.ser";
 
     private GameSession session;
     /**
@@ -385,17 +393,50 @@ public class Game {
         if (session != null) session.improveStatistics(player, stats);
     }
 
-    /** Punto de extensión para guardar sesiones; actualmente no escribe datos. */
+    /**
+     * Guarda la sesión administrada en el archivo predeterminado.
+     *
+     * @throws GameException si no hay una sesión o no puede escribirse el archivo
+     */
     public void save() {
+        save(new File(DEFAULT_SAVE_FILE));
     }
 
     /**
-     * Punto de extensión para abrir el estado de una partida. Actualmente no
-     * lee el archivo ni modifica las sesiones.
+     * Guarda la sesión administrada como objeto serializado.
      *
      * @param file archivo que contiene el estado guardado
+     * @throws GameException si no hay sesión, el archivo es nulo o no puede escribirse
+     */
+    public void save(File file) {
+        GameSession active = requireSession();
+        if (file == null) throw new GameException(GameException.INVALID_SAVE_FILE);
+        try (ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(file))) {
+            output.writeObject(active);
+        } catch (IOException exception) {
+            throw new GameException(GameException.SAVE_FAILED, exception);
+        }
+    }
+
+    /**
+     * Abre una partida guardada y reemplaza la sesión única administrada.
+     *
+     * @param file archivo que contiene el estado serializado
+     * @throws GameException si el archivo no puede validarse o deserializarse
      */
     public void open(File file) {
+        if (file == null || !file.isFile()) throw new GameException(GameException.INVALID_SAVE_FILE);
+        try (FileInputStream fileInput = new FileInputStream(file);
+                ObjectInputStream input = new ObjectInputStream(fileInput)) {
+            Object restored = input.readObject();
+            if (!(restored instanceof GameSession restoredSession)) {
+                throw new GameException(GameException.INVALID_SAVE_FILE);
+            }
+            GameSession.restoreInstance(restoredSession);
+            session = restoredSession;
+        } catch (IOException | ClassNotFoundException exception) {
+            throw new GameException(GameException.OPEN_FAILED, exception);
+        }
     }
 
     /** Avanza un paso fijo de la sesión singleton administrada, si está iniciada. */

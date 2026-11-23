@@ -24,7 +24,9 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
@@ -109,7 +111,54 @@ public final class MechanicsTestPanel extends JPanel {
         settings.add(showHitboxes);
         runButton.addActionListener(event -> toggleSimulation());
         settings.add(runButton);
+        JButton save = new JButton("Guardar partida");
+        save.addActionListener(event -> saveGame());
+        settings.add(save);
+        JButton open = new JButton("Abrir partida");
+        open.addActionListener(event -> openGame());
+        settings.add(open);
         return settings;
+    }
+
+    /** Solicita un archivo y guarda el estado actual de la sesión probada. */
+    private void saveGame() {
+        JFileChooser chooser = new JFileChooser();
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            try {
+                controller.save(ensureSaveExtension(chooser.getSelectedFile()));
+                status.setText("Partida guardada.");
+            } catch (RuntimeException exception) {
+                status.setText("No se pudo guardar: " + exception.getMessage());
+            } finally {
+                refreshView();
+            }
+        }
+    }
+
+    /** Solicita un archivo y restaura su sesión en el banco de pruebas. */
+    private void openGame() {
+        JFileChooser chooser = new JFileChooser();
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            try {
+                timer.stop();
+                runButton.setText("Iniciar simulación");
+                controller.open(chooser.getSelectedFile());
+                status.setText("Partida abierta.");
+            } catch (RuntimeException exception) {
+                status.setText("No se pudo abrir: " + exception.getMessage());
+                JOptionPane.showMessageDialog(this, exception.getMessage(),
+                        "Error al abrir la partida", JOptionPane.ERROR_MESSAGE);
+            } finally {
+                refreshView();
+            }
+        }
+    }
+
+    /** Conserva una extensión .ser visible al guardar desde el banco. */
+    private java.io.File ensureSaveExtension(java.io.File file) {
+        String name = file.getName();
+        return name.toLowerCase().endsWith(".ser")
+                ? file : new java.io.File(file.getAbsoluteFile().getParentFile(), name + ".ser");
     }
 
     /** Construye la lista desplazable de patadas y escenarios manuales disponibles. */
