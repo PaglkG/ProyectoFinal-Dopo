@@ -33,15 +33,15 @@ public class RectangularHitbox implements Hitbox, Serializable {
     }
 
     /**
-     * Comprueba la intersección con otra hitbox.
+     * Comprueba la intersección con otra entidad o forma.
      *
-     * @param hitbox hitbox con la que se comprobará la intersección
+     * @param target entidad o forma con la que se comprobará la intersección
      * @return entidad y hitbox asociada que hacen contacto, o nombre vacío si
      *         no hay una entidad de dominio identificable en contacto
      */
     @Override
-    public HitboxContact intersects(Hitbox hitbox) {
-        return HitboxIntersections.intersects(this, hitbox);
+    public HitboxContact intersects(Object target) {
+        return HitboxIntersections.intersects(this, target);
     }
 
     /**

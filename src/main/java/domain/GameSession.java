@@ -5,7 +5,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import domain.GameException;
-import domain.Hitbox;
 import domain.TypeOfMatch;
 
 /**

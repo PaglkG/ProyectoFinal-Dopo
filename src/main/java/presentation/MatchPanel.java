@@ -13,9 +13,9 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
@@ -28,7 +28,6 @@ import javax.swing.SwingConstants;
 import domain.BallView;
 import domain.Game;
 import domain.RectangleView;
-import domain.SessionView;
 
 /** Vista del partido: HUD y dibujo de la cancha desde la instantánea de Game. */
 public class MatchPanel extends BasePanel {
@@ -51,7 +50,7 @@ public class MatchPanel extends BasePanel {
 
     private final Game game;
     private final NavigationController navigationController;
-    private final Consumer<SessionView> matchFinishedHandler;
+    private final Runnable matchFinishedHandler;
     private final Map<String, CharacterSprite> characterSprites = new HashMap<>();
 
     private JLabel leftScoreLabel;
@@ -66,7 +65,7 @@ public class MatchPanel extends BasePanel {
      * @param navigationController controlador para cambiar de pantalla
      */
     public MatchPanel(Game game, NavigationController navigationController) {
-        this(game, navigationController, session -> { });
+        this(game, navigationController, () -> { });
     }
 
     /** Crea la vista e instala la acción que se ejecuta cuando la sesión termina.
@@ -75,7 +74,7 @@ public class MatchPanel extends BasePanel {
      * @param matchFinishedHandler acción de presentación para mostrar el resultado final
      */
     public MatchPanel(Game game, NavigationController navigationController,
-            Consumer<SessionView> matchFinishedHandler) {
+            Runnable matchFinishedHandler) {
         this.game = game;
         this.navigationController = navigationController;
         this.matchFinishedHandler = matchFinishedHandler;
@@ -247,14 +246,13 @@ public class MatchPanel extends BasePanel {
 
     /** Refresca marcador, tiempo y geometría una vez que Game tiene una sesión. */
     public void refreshMatchView() {
-        SessionView session = game.inspectSession();
-        leftScoreLabel.setText(Integer.toString(session.goalsRight()));
-        rightScoreLabel.setText(Integer.toString(session.goalsLeft()));
-        int elapsed = (int) session.elapsedSeconds();
+        leftScoreLabel.setText(Integer.toString(game.getGoalsRight()));
+        rightScoreLabel.setText(Integer.toString(game.getGoalsLeft()));
+        int elapsed = (int) game.getElapsedSeconds();
         elapsedLabel.setText(String.format("%02d:%02d", elapsed / 60, elapsed % 60));
-        courtView.setSession(session);
-        if (session.finished()) {
-            matchFinishedHandler.accept(session);
+        courtView.setSession(game.getCourtView(), game.getBallViews());
+        if (game.isFinished()) {
+            matchFinishedHandler.run();
         }
     }
 
@@ -286,7 +284,8 @@ public class MatchPanel extends BasePanel {
 
     /** Dibuja la cancha, los personajes decorativos y el balón de la instantánea. */
     private final class CourtView extends JPanel {
-        private SessionView session;
+        private RectangleView court;
+        private List<BallView> balls;
         private JPanel hud;
         private final Map<String, BufferedImage> trimmedSprites = new HashMap<>();
         private final Image courtImage = loadImage(COURT_IMAGE);
@@ -299,8 +298,9 @@ public class MatchPanel extends BasePanel {
             setLayout(null);
         }
 
-        private void setSession(SessionView session) {
-            this.session = session;
+        private void setSession(RectangleView court, List<BallView> balls) {
+            this.court = court;
+            this.balls = balls;
             revalidate();
             repaint();
         }
@@ -322,12 +322,11 @@ public class MatchPanel extends BasePanel {
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
-            if (session == null) {
+            if (court == null || balls == null) {
                 return;
             }
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            RectangleView court = session.court();
             double scale = courtScale(court);
             double drawWidth = court.width() * scale;
             double drawHeight = court.height() * scale;
@@ -336,7 +335,7 @@ public class MatchPanel extends BasePanel {
 
             drawCourtImage(g, offsetX, offsetY, drawWidth, drawHeight);
             drawDecorativeCharacters(g, court, offsetX, offsetY, scale);
-            drawBalls(g, session, court, offsetX, offsetY, scale);
+            drawBalls(g, balls, court, offsetX, offsetY, scale);
             g.dispose();
         }
 
@@ -480,9 +479,9 @@ public class MatchPanel extends BasePanel {
         }
 
         /** Dibuja cada balón en las coordenadas y con el radio reportados por Game. */
-        private void drawBalls(Graphics2D g, SessionView state, RectangleView court,
+        private void drawBalls(Graphics2D g, List<BallView> balls, RectangleView court,
                 double offsetX, double offsetY, double scale) {
-            for (BallView ball : state.balls()) {
+            for (BallView ball : balls) {
                 double diameter = Math.max(ball.radius() * 2 * scale,
                         court.height() * scale * BALL_VISUAL_DIAMETER_RATIO);
                 double x = offsetX + (ball.x() - court.x()) * scale - diameter / 2.0;

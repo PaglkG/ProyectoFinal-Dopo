@@ -8,18 +8,18 @@ package domain;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public interface Hitbox {
+public interface Hitbox extends CollisionShape {
 
     /**
-     * Comprueba si esta hitbox se toca o se solapa con la indicada. El contacto
-     * entre bordes cuenta como intersección. Las implementaciones que delegan
-     * en formas no soportadas por el paquete pueden devolver {@code false}.
+     * Comprueba si esta hitbox se toca o se solapa con la entidad o forma
+     * indicada. El contacto entre bordes cuenta como intersección; si el tipo
+     * no está soportado, devuelve un resultado sin contacto.
      *
-     * @param hitbox hitbox con la que se comprobará la intersección
+     * @param target entidad o hitbox con la que se comprobará la intersección
      * @return nombre de la entidad contactada y su hitbox; si no hay contacto,
      *         el nombre es vacío y la hitbox es {@code null}
      */
-    HitboxContact intersects(Hitbox hitbox);
+    HitboxContact intersects(Object target);
 
     /**
      * Reposiciona esta hitbox conservando sus dimensiones o radio.
@@ -29,5 +29,6 @@ public interface Hitbox {
      * @param y nueva coordenada vertical del punto de referencia; es el centro
      *          para círculos y la esquina superior izquierda para rectángulos
      */
+    @Override
     void reposition(double x, double y);
 }

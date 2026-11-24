@@ -2,6 +2,7 @@ package domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -15,6 +16,16 @@ import domain.SoccerField;
 
 /** Pruebas de contacto entre entidades y reposicionamiento de sus hitboxes. */
 class HitboxTest {
+
+    @Test
+    void collisionEntitiesOwnShapesWithoutImplementingHitbox() {
+        assertFalse(Hitbox.class.isAssignableFrom(Ball.class));
+        assertFalse(Hitbox.class.isAssignableFrom(SessionParticipant.class));
+        assertFalse(Hitbox.class.isAssignableFrom(SoccerField.class));
+        assertInstanceOf(CircularHitbox.class, new Ball(0, 0, 2).getHitbox());
+        assertInstanceOf(RectangularHitbox.class, new TestParticipant().getHitbox());
+        assertInstanceOf(RectangularHitbox.class, new SoccerField().getFieldHitbox());
+    }
 
     @Test
     void ballsReportTheOtherBallForOverlappingTouchingAndSeparatedCircles() {
@@ -66,7 +77,17 @@ class HitboxTest {
         CircularHitbox circle = new CircularHitbox(0, 0, 1);
         Hitbox unsupported = new Hitbox() {
             @Override
-            public HitboxContact intersects(Hitbox hitbox) {
+            public double getX() {
+                return 0;
+            }
+
+            @Override
+            public double getY() {
+                return 0;
+            }
+
+            @Override
+            public HitboxContact intersects(Object target) {
                 return HitboxContact.none();
             }
 

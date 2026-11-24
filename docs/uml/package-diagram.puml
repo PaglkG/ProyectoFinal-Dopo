@@ -19,9 +19,13 @@ package "domain" {
   class Game
   class GameSession
   class SessionParticipant
+  class Ball
   class TypeOfMatch
   package "hitbox" {
     interface Hitbox
+    class CircularHitbox
+    class RectangularHitbox
+    class HitboxIntersections
   }
   class StatusEffect
   abstract class Power
@@ -47,13 +51,15 @@ GameController ..> GameSession
 GameController ..> SessionParticipant
 Game ..> GameSession
 GameSession ..> TypeOfMatch
-GameSession ..> Hitbox
 GameSession ..> SoccerField
 SoccerField ..> CollisionFacade
 CollisionFacade ..> CourtGeometry
 CollisionFacade ..> BallCollisionResolver
 CollisionFacade ..> BallParticipantCollisionResolver
-SessionParticipant ..> Hitbox
+Ball ..> CircularHitbox
+SessionParticipant ..> RectangularHitbox
+SoccerField ..> RectangularHitbox
+HitboxIntersections ..> Hitbox
 SessionParticipant ..> StatusEffect
 SessionParticipant ..> Power
 PowerFactory ..> Power
@@ -84,11 +90,10 @@ note bottom of GameSession
   SoccerField delega la física en CollisionFacade dentro de domain.
 end note
 note bottom of Hitbox
-  Representa una entidad que puede
-  participar en una intersección.
-  hitbox concentra geometría y contacto;
-  sus resultados ayudan al dominio
-  a decidir la respuesta.
+  Las formas geométricas implementan Hitbox.
+  Ball, SessionParticipant y SoccerField
+  contienen formas asociadas sin implementar
+  la interfaz.
 end note
 note right of MechanicsTestController
   Controla el banco de pruebas a través

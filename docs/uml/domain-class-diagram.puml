@@ -150,7 +150,7 @@ package "domain" {
     ~ repositionForCollision(x: double, y: double): void
     + resizeHitbox(width: double, height: double): void
     + improveStatistics(stats: String): void
-    + intersects(hitbox: Hitbox): HitboxContact
+    + intersects(target: Object): HitboxContact
   }
   class Player {
     - user: int
@@ -191,8 +191,8 @@ package "domain" {
     + getHitboxes(): Hitbox[]
     + getBalls(): Ball[]
     + getGoalHitboxes(): RectangularHitbox[]
-    + contactingPart(other: Hitbox): HitboxContact
-    + intersects(hitbox: Hitbox): HitboxContact
+    + contactingPart(other: Object): HitboxContact
+    + intersects(target: Object): HitboxContact
     + goalSideFor(ball: Ball): String
     + isOutside(ball: Ball): boolean
     + isOutside(participant: SessionParticipant): boolean
@@ -269,7 +269,7 @@ package "domain" {
     + bounceAt(centerY: double, retention: double, minimumSpeed: double): void
     + bounceHorizontallyAt(centerX: double, retention: double): void
     + bounceVerticallyAt(centerY: double, retention: double): void
-    + intersects(hitbox: Hitbox): HitboxContact
+    + intersects(target: Object): HitboxContact
   }
   class Stats {
     + Stats()
@@ -351,7 +351,7 @@ package "domain" {
   Power <|-- Illusion
 
   interface Hitbox {
-    + intersects(hitbox: Hitbox): HitboxContact
+    + intersects(target: Object): HitboxContact
     + reposition(x: double, y: double): void
   }
   class HitboxContact {
@@ -361,14 +361,14 @@ package "domain" {
     + isContact(): boolean
   }
   class HitboxIntersections <<utility>> {
-    + intersects(first: Hitbox, second: Hitbox): HitboxContact {static}
+    + intersects(first: Object, second: Object): HitboxContact {static}
   }
   class CircularHitbox {
-    + intersects(hitbox: Hitbox): HitboxContact
+    + intersects(target: Object): HitboxContact
     + reposition(x: double, y: double): void
   }
   class RectangularHitbox {
-    + intersects(hitbox: Hitbox): HitboxContact
+    + intersects(target: Object): HitboxContact
     + reposition(x: double, y: double): void
   }
 }
@@ -519,9 +519,6 @@ SessionParticipant --> Power : specialPower
 SessionParticipant ..> Action
 Hitbox <|.. CircularHitbox
 Hitbox <|.. RectangularHitbox
-Hitbox <|.. Ball
-Hitbox <|.. SoccerField
-Hitbox <|.. SessionParticipant
 HitboxContact --> Hitbox : hitbox
 HitboxIntersections ..> HitboxContact
 HitboxIntersections ..> Hitbox
@@ -552,6 +549,8 @@ PresentationMovement --> Game
 MechanicsTestPanel ..> Control
 
 note bottom of Hitbox
+  Solo las formas geométricas implementan Hitbox.
+  Las entidades contienen y exponen hitboxes asociadas.
   intersects() devuelve entidad y hitbox contactadas.
   Sin contacto: nombre vacío y hitbox nula.
   La geometría incluye contacto de bordes.

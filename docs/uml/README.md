@@ -14,6 +14,7 @@ Las fuentes PlantUML y las capturas se conservan para contrastar el diseño reci
 - Banco de pruebas: MechanicsTestApp abre MechanicsTestSetupPanel. MechanicsTestController, MechanicsTestPanel y PresentationMovement usan Game y sus instantáneas; el salto se simula en la presentación.
 - Partida: Game crea y administra sesiones. GameSession mantiene cancha, participantes, marcador y modalidad; SoccerField contiene los balones y delega la física a CollisionFacade, que coordina CourtGeometry y los resolvers de colisión.
 - Paquetes: las clases de dominio están en domain, salvo las hitboxes en domain.
+- Geometría: `Ball`, `SessionParticipant` y `SoccerField` contienen hitboxes asociadas; solo las formas geométricas (`CircularHitbox` y `RectangularHitbox`) implementan `Hitbox`. Las relaciones se reflejan en el diagrama de clases.
 - Modalidad: TypeOfMatch define la comprobación; ByGoals compara el límite de goles y ByTime controla el límite de tiempo y la muerte súbita.
 
 Las reglas acordadas y las discrepancias entre ellas y la implementación están en docs/logica-proyecto.md.

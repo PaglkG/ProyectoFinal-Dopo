@@ -17,7 +17,7 @@ import domain.GameException;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class SoccerField implements Hitbox, Serializable {
+public class SoccerField implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -122,10 +122,10 @@ public class SoccerField implements Hitbox, Serializable {
     }
 
     /**
-     * Reúne en un arreglo los límites, los dos arcos y cada balón de la cancha.
-     * El orden es límites, arco izquierdo, arco derecho y balones.
+     * Reúne en un arreglo las formas de los límites, los dos arcos y cada balón.
+     * El orden es límites, arco izquierdo, arco derecho y formas circulares de balones.
      *
-     * @return arreglo de objetos que exponen hitboxes
+     * @return arreglo de hitboxes geométricas
      */
     public Hitbox[] getHitboxes() {
         Hitbox[] hitbox = new Hitbox[4 + 2 + balls.length];
@@ -133,7 +133,7 @@ public class SoccerField implements Hitbox, Serializable {
         hitbox[4] = LeftGoalHitbox;
         hitbox[5] = RightGoalHitbox;
         for (int i = 0; i < balls.length; i++) {
-            hitbox[6 + i] = balls[i];
+            hitbox[6 + i] = balls[i].getHitbox();
         }
         return hitbox;
     }
@@ -334,31 +334,30 @@ public class SoccerField implements Hitbox, Serializable {
      * Busca el primer objeto de dominio que toca cualquiera de las partes de
      * esta cancha. El resultado identifica el objeto recibido y su hitbox.
      *
-     * @param hitbox objeto cuya hitbox se comparará con la cancha
+     * @param target entidad o forma cuya geometría se comparará con la cancha
      * @return información de la entidad contactada, o un resultado con nombre
      *         vacío si no hay contacto
      */
-    @Override
-    public HitboxContact intersects(Hitbox hitbox) {
-        if (hitbox == null) {
+    public HitboxContact intersects(Object target) {
+        if (target == null) {
             return HitboxContact.none();
         }
         for (RectangularHitbox boundary : getHitboxField()) {
-            HitboxContact contact = boundary.intersects(hitbox);
+            HitboxContact contact = boundary.intersects(target);
             if (contact.isContact()) {
                 return contact;
             }
         }
-        HitboxContact leftGoalContact = LeftGoalHitbox.intersects(hitbox);
+        HitboxContact leftGoalContact = LeftGoalHitbox.intersects(target);
         if (leftGoalContact.isContact()) {
             return leftGoalContact;
         }
-        HitboxContact rightGoalContact = RightGoalHitbox.intersects(hitbox);
+        HitboxContact rightGoalContact = RightGoalHitbox.intersects(target);
         if (rightGoalContact.isContact()) {
             return rightGoalContact;
         }
         for (Ball ball : balls) {
-            HitboxContact contact = ball.intersects(hitbox);
+            HitboxContact contact = ball.intersects(target);
             if (contact.isContact()) {
                 return contact;
             }
@@ -371,11 +370,11 @@ public class SoccerField implements Hitbox, Serializable {
      * cuando la cancha es el objeto contactado, de modo que el resultado puede
      * señalar un límite/arco o un balón contenido.
      *
-     * @param other objeto que toca la cancha
+     * @param other entidad o forma que toca la cancha
      * @return cancha y la hitbox concreta tocada, o balón y su hitbox si toca
      *         uno contenido; resultado vacío si no hay contacto
      */
-    public HitboxContact contactingPart(Hitbox other) {
+    public HitboxContact contactingPart(Object other) {
         if (other == null) {
             return HitboxContact.none();
         }
@@ -406,7 +405,6 @@ public class SoccerField implements Hitbox, Serializable {
      * @param x nueva coordenada horizontal de la esquina superior izquierda
      * @param y nueva coordenada vertical de la esquina superior izquierda
      */
-    @Override
     public void reposition(double x, double y) {
         double width = courtWidth;
         double height = courtHeight;

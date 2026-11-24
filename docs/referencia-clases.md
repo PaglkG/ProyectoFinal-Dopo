@@ -21,7 +21,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `startSession(parametersRules, parametersPowers, typeGame, typeMatche, player)` | Obtiene o crea la sesión singleton con sus reglas, poderes y, en modo contra bot, perfil; guarda su referencia única y la devuelve. |
 | `closeSession()` | Limpia la referencia administrada; no destruye el singleton. |
 | `resetSession()` | Reinicia la ronda de la sesión administrada sin cambiar el marcador, tiempo, modalidad ni estado final. |
-| `inspectSession()` | Devuelve una instantánea inmutable de cancha, hitboxes, participantes, balón, marcador, tiempo y estado de término. |
+| `getCourtView()`, `getBoundaryViews()`, `getGoalViews()`, `getParticipantViews()`, `getBallViews()` | Devuelven vistas inmutables independientes de la geometría y entidades para la presentación. Marcador, tiempo y término se consultan con `getGoalsLeft()`, `getGoalsRight()`, `getElapsedSeconds()` e `isFinished()`. |
 | `movePlayer(playerOne, direction)` / `kickPlayer(playerOne)` | Ejecutan movimiento o patada; `true` selecciona al jugador 1 y `false` al jugador 2. |
 | `updateGame()` | Avanza la única sesión administrada un paso fijo. |
 | `setPlayerPosition(playerOne, ...)`, `setBallPosition(...)`, `applyBallImpulse(...)` | Preparan coordenadas e impulsos para escenarios visuales mediante la fachada. |
@@ -30,7 +30,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `save()`, `save(file)` | Serializan la sesión administrada en `dopo-saved-game.ser` o en el archivo indicado. |
 | `open(file)` | Deserializan una sesión y la convierten en la única instancia administrada por `Game`. |
 
-**Records anidados de la fachada:** `SessionView` contiene copias inmutables del rectángulo de cancha, límites, arcos, participantes, balones, marcador, tiempo y estado final. `ParticipantView`, `BallView` y `RectangleView` son datos de solo lectura para la presentación.
+**Vistas de la fachada:** `ParticipantView`, `BallView` y `RectangleView` son datos de solo lectura devueltos individualmente por getters de `Game`. `SessionView` permanece como agregado usado por la herramienta `presentation.testing`; `Game` ya no lo devuelve.
 
 ### `GameSession` (abstracta)
 
@@ -119,7 +119,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `addBall(ball)` | Agrega un balón conservando su estado inicial; rechaza nulos y la misma instancia duplicada con `GameException`. Permite a una sesión extendida componer varios balones. |
 | `resolveBallCollisions(restitution)`, `resolveBallParticipantCollisions(...)`, `resolveWalkingContact(...)` | Delegan a `CollisionFacade` la resolución de colisiones entre balones, participantes y empujes al caminar. |
 | `keepBallInsideCourt(ball, retention)`, `bounceBallAtWallsAndGoalFrames(...)`, `bounceBallAtGround(...)` | Delegan en la fachada la respuesta geométrica frente a límites, arcos y suelo. |
-| `getHitboxes()` | Devuelve un arreglo nuevo con límites, arcos y balones como objetos `Hitbox`. |
+| `getHitboxes()` | Devuelve un arreglo nuevo con las formas hitbox de límites, arcos y balones. |
 | `resetBall(x, y)` | Reinicia cada balón con centro en `(x, y)` y velocidad cero. |
 | `getHitboxField()` | Devuelve el arreglo interno de límites. |
 | `getHitboxBalls()` | Devuelve un arreglo nuevo con las hitboxes circulares de los balones. |
@@ -138,7 +138,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `touchesGround(ball)` | Comprueba contacto entre balón y límite inferior. |
 | `groundCenterY(ball)` | Calcula el centro vertical del balón cuando su borde toca el suelo. |
 | `positionParticipants(left, right)` | Ajusta hitboxes y coloca a los participantes a cuartos y tres cuartos del ancho, apoyados en el suelo. |
-| `intersects(hitbox)` | Busca si el objeto recibido toca límites, arcos o alguno de los balones. |
+| `intersects(target)` | Busca si la entidad o forma recibida toca límites, arcos o alguno de los balones. |
 | `contactingPart(other)` | Devuelve qué parte de la cancha o qué balón contenido toca al objeto recibido. |
 | `reposition(x, y)` | Reposiciona límites y arcos y traslada los balones para conservar su posición relativa. |
 
@@ -227,12 +227,12 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `bounceAt(centerY, retention, minimumSpeed)` | Acceso de paquete: fija la altura de contacto y refleja/reduce la velocidad vertical si el balón baja; la detiene si queda bajo el umbral. |
 | `bounceHorizontallyAt(centerX, retention)` | Acceso de paquete: fija la coordenada horizontal de contacto e invierte la velocidad horizontal con retención. |
 | `bounceVerticallyAt(centerY, retention)` | Acceso de paquete: fija la coordenada vertical de contacto e invierte la velocidad vertical con retención. |
-| `intersects(hitbox)` | Delega la detección geométrica a `HitboxIntersections`. |
+| `intersects(target)` | Delega la detección geométrica a `HitboxIntersections`. |
 | `reposition(x, y)` | Mueve el centro de la hitbox circular. |
 
 ### `SessionParticipant` (abstracta)
 
-**Responsabilidad:** definir el estado y las operaciones compartidas por un jugador humano y un bot, y representar su hitbox rectangular.
+**Responsabilidad:** definir el estado y las operaciones compartidas por un jugador humano y un bot; contiene una hitbox rectangular y no implementa `Hitbox`.
 
 **Atributos:**
 
@@ -263,7 +263,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `improveStatistics(stats)` | Delega en `Stats` la mejora de un nivel hasta el nivel 10, con el precio vigente del jugador. |
 | `getHitbox()` | Devuelve la hitbox rectangular. |
 | `resizeHitbox(width, height)` | Público: cambia sus dimensiones sin moverla. |
-| `intersects(hitbox)` | Delega la detección geométrica a `HitboxIntersections`. |
+| `intersects(target)` | Delega la detección geométrica a `HitboxIntersections`. |
 | `reposition(x, y)` | Actualiza `x`, `y` y la esquina superior izquierda de la hitbox. |
 
 ### `Player`
@@ -368,11 +368,11 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 ### `Hitbox` (interfaz)
 
-**Responsabilidad:** unificar detección de intersecciones y reposicionamiento de formas o entidades geométricas.
+**Responsabilidad:** unificar detección de intersecciones y reposicionamiento de formas geométricas. Las entidades que colisionan contienen estas formas; solo las formas implementan `Hitbox`.
 
 **Atributos:** ninguno.
 
-**Métodos:** `intersects(hitbox)` devuelve el contacto detectado; `reposition(x, y)` reposiciona la forma preservando tamaño. Para círculos `(x,y)` es el centro; para rectángulos, la esquina superior izquierda.
+**Métodos:** `intersects(target)` devuelve el contacto detectado; `reposition(x, y)` reposiciona la forma preservando tamaño. Para círculos `(x,y)` es el centro; para rectángulos, la esquina superior izquierda.
 
 ### `HitboxContact` (clase final)
 
@@ -388,7 +388,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Atributos:** ninguno; clase utilitaria no instanciable.
 
-**Métodos:** `HitboxIntersections()` es privado; `intersects(first, second)` resuelve entidades y formas; `shapeOf(hitbox)` extrae la forma; `shapesIntersect(first, second)` selecciona el cálculo por par de formas; `contactFor(target)` construye la respuesta para la entidad objetivo; `circlesIntersect(first, second)` compara distancia entre centros con suma de radios; `rectanglesIntersect(first, second)` compara intervalos normalizados; `circleIntersectsRectangle(circle, rectangle)` compara el círculo con el punto más cercano del rectángulo.
+**Métodos:** `HitboxIntersections()` es privado; `intersects(first, second)` resuelve entidades y formas; `shapeOf(subject)` extrae la forma; `shapesIntersect(first, second)` selecciona el cálculo por par de formas; `contactFor(target)` construye la respuesta para la entidad objetivo; `circlesIntersect(first, second)` compara distancia entre centros con suma de radios; `rectanglesIntersect(first, second)` compara intervalos normalizados; `circleIntersectsRectangle(circle, rectangle)` compara el círculo con el punto más cercano del rectángulo.
 
 ### `CircularHitbox`
 
@@ -396,7 +396,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Atributos:** `x`, `y: double` centro; `radius: double` radio.
 
-**Métodos:** `CircularHitbox(x, y, radius)` inicializa la forma; `intersects(hitbox)` delega el cálculo; `reposition(x, y)` cambia el centro sin cambiar el radio; `getX()`, `getY()` y `getRadius()` consultan sus valores.
+**Métodos:** `CircularHitbox(x, y, radius)` inicializa la forma; `intersects(target)` delega el cálculo; `reposition(x, y)` cambia el centro sin cambiar el radio; `getX()`, `getY()` y `getRadius()` consultan sus valores.
 
 ### `RectangularHitbox`
 
@@ -404,7 +404,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Atributos:** `x`, `y: double` esquina superior izquierda; `width`, `height: double` dimensiones.
 
-**Métodos:** `RectangularHitbox(x, y, width, height)` inicializa la forma; `intersects(hitbox)` delega el cálculo; `reposition(x, y)` cambia la esquina sin cambiar dimensiones; `getX()`, `getY()`, `getWidth()`, `getHeight()` consultan valores; `resize(width, height)` cambia dimensiones sin mover la esquina.
+**Métodos:** `RectangularHitbox(x, y, width, height)` inicializa la forma; `intersects(target)` delega el cálculo; `reposition(x, y)` cambia la esquina sin cambiar dimensiones; `getX()`, `getY()`, `getWidth()`, `getHeight()` consultan valores; `resize(width, height)` cambia dimensiones sin mover la esquina.
 
 ### Action (enumeración de domain)
 

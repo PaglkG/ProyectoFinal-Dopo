@@ -219,13 +219,13 @@ class GameTest {
 
         game.resetSession();
 
-        SessionView view = game.inspectSession();
-        assertEquals(1, view.goalsRight());
-        assertEquals(225, view.balls().get(0).x());
-        assertEquals(75, view.balls().get(0).y());
-        assertEquals(0, view.balls().get(0).velocityX());
-        assertEquals(0, view.balls().get(0).velocityY());
-        assertEquals(326.25, view.participants().get(1).x());
+        BallView ball = game.getBallViews().get(0);
+        assertEquals(1, game.getGoalsRight());
+        assertEquals(225, ball.x());
+        assertEquals(75, ball.y());
+        assertEquals(0, ball.velocityX());
+        assertEquals(0, ball.velocityY());
+        assertEquals(326.25, game.getParticipantViews().get(1).x());
     }
 
     @Test
@@ -258,19 +258,20 @@ class GameTest {
     }
 
     @Test
-    void sessionViewExposesImmutableRenderingStateWithoutSessionObjects() throws Exception {
+    void gameGettersExposeImmutableRenderingStateWithoutSessionObjects() throws Exception {
         game.startSession(
                 List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
 
-        SessionView view = game.inspectSession();
-
-        assertEquals(450, view.court().width());
-        assertEquals(150, view.court().height());
+        assertEquals(450, game.getCourtView().width());
+        assertEquals(150, game.getCourtView().height());
+        assertEquals(4, game.getBoundaryViews().size());
+        assertEquals(2, game.getGoalViews().size());
         assertEquals(List.of("left", "right"),
-                view.participants().stream().map(ParticipantView::side).toList());
-        assertEquals(1, view.balls().size());
-        assertThrows(UnsupportedOperationException.class, () -> view.balls().clear());
+                game.getParticipantViews().stream().map(ParticipantView::side).toList());
+        assertEquals(1, game.getBallViews().size());
+        assertThrows(UnsupportedOperationException.class, () -> game.getBallViews().clear());
+        assertThrows(UnsupportedOperationException.class, () -> game.getBoundaryViews().clear());
     }
 
     @Test
@@ -282,7 +283,7 @@ class GameTest {
 
         game.movePlayer(true, true);
 
-        ParticipantView participant = game.inspectSession().participants().get(1);
+        ParticipantView participant = game.getParticipantViews().get(1);
         assertEquals(102.5, participant.x(), 1e-9);
         assertEquals(20, participant.y(), 1e-9);
     }
@@ -292,12 +293,12 @@ class GameTest {
         game.startSession(
                 List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
-        ParticipantView right = game.inspectSession().participants().get(1);
+        ParticipantView right = game.getParticipantViews().get(1);
         game.setBallPosition(0, right.x() + right.width() / 2, right.y() + right.height() / 2);
 
         assertTrue(game.kickPlayer(true));
 
-        BallView ball = game.inspectSession().balls().get(0);
+        BallView ball = game.getBallViews().get(0);
         assertEquals(-150, ball.velocityX());
         assertEquals(-50, ball.velocityY());
     }
@@ -311,7 +312,7 @@ class GameTest {
 
         game.applyBallImpulse(0, 6, -2);
 
-        BallView ball = game.inspectSession().balls().get(0);
+        BallView ball = game.getBallViews().get(0);
         assertEquals(80, ball.x());
         assertEquals(50, ball.y());
         assertEquals(6, ball.velocityX());
@@ -326,7 +327,7 @@ class GameTest {
 
         game.updateGame();
 
-        assertEquals(1.0 / 60, game.inspectSession().elapsedSeconds(), 1e-9);
+        assertEquals(1.0 / 60, game.getElapsedSeconds(), 1e-9);
     }
 
     @Test

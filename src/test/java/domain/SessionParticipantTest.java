@@ -15,24 +15,24 @@ import domain.RectangularHitbox;
 class SessionParticipantTest {
 
     @Test
-    void resetPositionSetsBothCoordinates() throws ReflectiveOperationException {
+    void resetPositionSetsBothCoordinates() {
         TestParticipant participant = new TestParticipant();
 
         participant.resetPosition(12.5, 48.25);
 
-        assertEquals(12.5, readCoordinate(participant, "x"));
-        assertEquals(48.25, readCoordinate(participant, "y"));
+        assertEquals(12.5, participant.getHitbox().getX());
+        assertEquals(48.25, participant.getHitbox().getY());
     }
 
     @Test
-    void resetPositionReplacesThePreviousCoordinates() throws ReflectiveOperationException {
+    void resetPositionReplacesThePreviousCoordinates() {
         TestParticipant participant = new TestParticipant();
         participant.resetPosition(10.0, 20.0);
 
         participant.resetPosition(30.5, 40.5);
 
-        assertEquals(30.5, readCoordinate(participant, "x"));
-        assertEquals(40.5, readCoordinate(participant, "y"));
+        assertEquals(30.5, participant.getHitbox().getX());
+        assertEquals(40.5, participant.getHitbox().getY());
     }
 
     @Test
@@ -124,13 +124,6 @@ class SessionParticipantTest {
         Field actionField = Stats.class.getDeclaredField("action");
         actionField.setAccessible(true);
         ((java.util.Map<String, Integer>) actionField.get(stats)).put("speed", speed);
-    }
-
-    private static double readCoordinate(SessionParticipant participant, String fieldName)
-            throws ReflectiveOperationException {
-        Field field = SessionParticipant.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return field.getDouble(participant);
     }
 
     private static double readCoordinate(RectangularHitbox hitbox, String fieldName)

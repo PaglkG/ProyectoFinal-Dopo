@@ -17,7 +17,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
-import domain.SessionView;
+import domain.Game;
 
 /** Presenta el marcador final y datos disponibles de la partida terminada. */
 public class ResultsPanel extends BasePanel {
@@ -255,10 +255,12 @@ public class ResultsPanel extends BasePanel {
         }
     }
 
-    /** Actualiza la vista con el estado final expuesto por la fachada Game. */
-    public void updateResult(SessionView session) {
-        int leftGoals = session.goalsLeft();
-        int rightGoals = session.goalsRight();
+    /** Actualiza la vista con el marcador y el tiempo expuestos por Game.
+     * @param game fachada que entrega el estado de la sesión
+     */
+    public void updateResult(Game game) {
+        int leftGoals = game.getGoalsLeft();
+        int rightGoals = game.getGoalsRight();
         leftScoreLabel.setText(Integer.toString(leftGoals));
         rightScoreLabel.setText(Integer.toString(rightGoals));
         finalScoreLabel.setText("Marcador final: " + leftGoals + " - " + rightGoals);
@@ -271,7 +273,7 @@ public class ResultsPanel extends BasePanel {
                     : rightWinnerText);
         }
 
-        int elapsedSeconds = (int) session.elapsedSeconds();
+        int elapsedSeconds = (int) game.getElapsedSeconds();
         durationValueLabel.setText(String.format("%02d:%02d",
                 elapsedSeconds / 60, elapsedSeconds % 60));
     }

@@ -17,12 +17,10 @@ import domain.GameException;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public abstract class SessionParticipant implements Hitbox, Serializable {
+public abstract class SessionParticipant implements Serializable, Collidable {
 
     private static final long serialVersionUID = 1L;
 
-    private double x;
-    private double y;
     private double previousX;
     private double previousY;
     private RectangularHitbox UserHitbox;
@@ -35,7 +33,7 @@ public abstract class SessionParticipant implements Hitbox, Serializable {
     public SessionParticipant() {
         stats = new Stats();
         status = new ArrayList<>();
-        UserHitbox = new RectangularHitbox(x, y, 450.0 / 20, 150.0 / 3);
+        UserHitbox = new RectangularHitbox(0, 0, 450.0 / 20, 150.0 / 3);
     }
 
     /**
@@ -48,7 +46,7 @@ public abstract class SessionParticipant implements Hitbox, Serializable {
         if (blocksMovement()) return;
         double direction = dir ? 1 : -1;
         double distance = direction * 150.0 * stats.getSpeed() / 60.0;
-        reposition(x + distance, y);
+        reposition(UserHitbox.getX() + distance, UserHitbox.getY());
     }
 
     /** Devuelve las estadísticas asociadas a este participante.
@@ -184,14 +182,20 @@ public abstract class SessionParticipant implements Hitbox, Serializable {
         return UserHitbox;
     }
 
+    /** @return hitbox rectangular usada para detectar contactos */
+    @Override
+    public CollisionShape getCollisionShape() {
+        return UserHitbox;
+    }
+
     double getPreviousX() { return previousX; }
 
     double getPreviousY() { return previousY; }
 
     /** Marca la posición vigente como base para el siguiente paso de simulación. */
     void rememberCurrentPosition() {
-        previousX = x;
-        previousY = y;
+        previousX = UserHitbox.getX();
+        previousY = UserHitbox.getY();
     }
 
     /** Corrige la posición sin reemplazar el origen del movimiento del frame. */
@@ -210,35 +214,29 @@ public abstract class SessionParticipant implements Hitbox, Serializable {
     }
 
     /**
-     * Comprueba la intersección con otra hitbox.
+     * Comprueba el contacto con otra entidad o hitbox mediante la geometría centralizada.
      *
-     * @param hitbox hitbox con la que se comprobará la intersección
+     * @param target entidad o hitbox que se comparará
      * @return nombre de la entidad contactada y su hitbox; si no hay contacto,
      *         un resultado con nombre vacío
      */
-    @Override
-    public HitboxContact intersects(Hitbox hitbox) {
-        return HitboxIntersections.intersects(this, hitbox);
+    public HitboxContact intersects(Object target) {
+        return HitboxIntersections.intersects(this, target);
     }
 
     /**
-     * Reposiciona al participante y su hitbox rectangular.
+     * Reposiciona al participante y la esquina superior izquierda de su hitbox rectangular.
      *
      * @param x nueva coordenada horizontal de la esquina superior izquierda
      * @param y nueva coordenada vertical de la esquina superior izquierda
      */
-    @Override
     public void reposition(double x, double y) {
-        previousX = this.x;
-        previousY = this.y;
+        previousX = UserHitbox.getX();
+        previousY = UserHitbox.getY();
         setPosition(x, y);
     }
 
     private void setPosition(double x, double y) {
-        this.x = x;
-        this.y = y;
-        if (UserHitbox != null) {
-            UserHitbox.reposition(x, y);
-        }
+        UserHitbox.reposition(x, y);
     }
 }

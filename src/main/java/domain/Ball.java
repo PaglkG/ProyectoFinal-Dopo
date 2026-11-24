@@ -2,7 +2,6 @@ package domain;
 
 import java.io.Serializable;
 import domain.CircularHitbox;
-import domain.Hitbox;
 import domain.HitboxContact;
 import domain.HitboxIntersections;
 
@@ -12,7 +11,7 @@ import domain.HitboxIntersections;
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
-public class Ball implements Hitbox, Serializable {
+public class Ball implements Serializable, Collidable {
 
     private static final long serialVersionUID = 1L;
 
@@ -54,6 +53,12 @@ public class Ball implements Hitbox, Serializable {
      * @return hitbox circular asociada
      */
     public CircularHitbox getHitbox() {
+        return BallHitbox;
+    }
+
+    /** @return hitbox circular usada para detectar contactos */
+    @Override
+    public CollisionShape getCollisionShape() {
         return BallHitbox;
     }
 
@@ -181,24 +186,22 @@ public class Ball implements Hitbox, Serializable {
     }
 
     /**
-     * Comprueba la intersección con otra hitbox.
+     * Comprueba el contacto con otra entidad o hitbox mediante la geometría centralizada.
      *
-     * @param hitbox hitbox con la que se comprobará la intersección
+     * @param target entidad o hitbox que se comparará
      * @return nombre de la entidad contactada y su hitbox; si no hay contacto,
      *         un resultado con nombre vacío
      */
-    @Override
-    public HitboxContact intersects(Hitbox hitbox) {
-        return HitboxIntersections.intersects(this, hitbox);
+    public HitboxContact intersects(Object target) {
+        return HitboxIntersections.intersects(this, target);
     }
 
     /**
-     * Reposiciona el centro de la hitbox circular del balón.
+     * Reposiciona el balón y el centro de su hitbox circular.
      *
      * @param x nueva coordenada horizontal del centro
      * @param y nueva coordenada vertical del centro
      */
-    @Override
     public void reposition(double x, double y) {
         BallHitbox.reposition(x, y);
     }

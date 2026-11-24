@@ -75,8 +75,8 @@ public class DOPOSoccerGUI extends JFrame
         storeImprovementPanel = new StoreImprovementPanel(navigationController);
         preparationPanel = new PreparationPanel(navigationController);
         resultsPanel = new ResultsPanel(navigationController);
-        matchPanel = new MatchPanel(game, navigationController, session -> {
-            resultsPanel.updateResult(session);
+        matchPanel = new MatchPanel(game, navigationController, () -> {
+            resultsPanel.updateResult(game);
             showScreen(NavigationController.RESULTS);
         });
         pausePanel = new PausePanel(navigationController, this::showResultsPreview);
@@ -211,7 +211,7 @@ public class DOPOSoccerGUI extends JFrame
 
     /** Muestra el estado actual para previsualizar la pantalla de resultados desde pausa. */
     private void showResultsPreview() {
-        resultsPanel.updateResult(game.inspectSession());
+        resultsPanel.updateResult(game);
         showScreen(NavigationController.RESULTS);
     }
 

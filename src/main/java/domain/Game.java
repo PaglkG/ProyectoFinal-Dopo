@@ -212,6 +212,67 @@ public class Game {
      */
     public boolean isFinished() { return requireSession().isFinished(); }
 
+    /** Devuelve una instantánea inmutable de la geometría exterior de la cancha.
+     * @return rectángulo de la cancha
+     * @throws GameException si no hay una sesión iniciada
+     */
+    public RectangleView getCourtView() {
+        return new RectangleView(getCourtX(), getCourtY(), getCourtWidth(), getCourtHeight());
+    }
+
+    /** Devuelve instantáneas inmutables de los límites en orden superior, inferior, izquierdo y derecho.
+     * @return lista inmutable de límites
+     * @throws GameException si no hay una sesión iniciada
+     */
+    public List<RectangleView> getBoundaryViews() {
+        List<RectangleView> views = new ArrayList<>();
+        for (int index = 0; index < 4; index++) {
+            views.add(new RectangleView(getBoundaryX(index), getBoundaryY(index),
+                    getBoundaryWidth(index), getBoundaryHeight(index)));
+        }
+        return List.copyOf(views);
+    }
+
+    /** Devuelve instantáneas inmutables de los arcos en orden izquierdo y derecho.
+     * @return lista inmutable de arcos
+     * @throws GameException si no hay una sesión iniciada
+     */
+    public List<RectangleView> getGoalViews() {
+        List<RectangleView> views = new ArrayList<>();
+        for (int index = 0; index < 2; index++) {
+            views.add(new RectangleView(getGoalX(index), getGoalY(index),
+                    getGoalWidth(index), getGoalHeight(index)));
+        }
+        return List.copyOf(views);
+    }
+
+    /** Devuelve instantáneas inmutables de los participantes por lado.
+     * @return participantes del lado izquierdo, seguidos por los del lado derecho
+     * @throws GameException si no hay una sesión iniciada
+     */
+    public List<ParticipantView> getParticipantViews() {
+        GameSession active = requireSession();
+        List<ParticipantView> views = new ArrayList<>();
+        addParticipantViews(views, "left", active.getParticipantsLeft());
+        addParticipantViews(views, "right", active.getParticipantsRight());
+        return List.copyOf(views);
+    }
+
+    /** Devuelve instantáneas inmutables de los balones en el orden de la sesión.
+     * @return lista inmutable de balones
+     * @throws GameException si no hay una sesión iniciada
+     */
+    public List<BallView> getBallViews() {
+        Ball[] sessionBalls = requireSession().getField().getBalls();
+        List<BallView> views = new ArrayList<>();
+        for (int index = 0; index < sessionBalls.length; index++) {
+            Ball ball = sessionBalls[index];
+            views.add(new BallView(index, ball.getX(), ball.getY(), ball.getRadius(),
+                    ball.getVelocityX(), ball.getVelocityY()));
+        }
+        return List.copyOf(views);
+    }
+
     /** Devuelve marcador y datos de tiempo en el formato de la regla activa.
      * @return goles izquierdo y derecho; {@code ByTime} agrega minutos y muerte súbita
      */
@@ -255,39 +316,6 @@ public class Game {
             if (playerOne != humanIsPlayerOne) return bot;
         }
         throw new GameException(GameException.INVALID_PARTICIPANT_ID);
-    }
-
-    /** Devuelve una instantánea sin referencias mutables a clases internas del dominio.
-     * @return estado inmutable de cancha, participantes, balones y marcador
-     */
-    public SessionView inspectSession() {
-        GameSession session = requireSession();
-        SoccerField field = session.getField();
-        var boundaries = java.util.Arrays.stream(field.getHitboxField())
-                .map(box -> new RectangleView(box.getX(), box.getY(), box.getWidth(), box.getHeight()))
-                .toList();
-        var goals = java.util.Arrays.stream(field.getGoalHitboxes())
-                .map(box -> new RectangleView(box.getX(), box.getY(), box.getWidth(), box.getHeight()))
-                .toList();
-        var participants = new ArrayList<ParticipantView>();
-        addParticipantViews(participants, "left", session.getParticipantsLeft());
-        addParticipantViews(participants, "right", session.getParticipantsRight());
-        var balls = new ArrayList<BallView>();
-        Ball[] sessionBalls = field.getBalls();
-        for (int index = 0; index < sessionBalls.length; index++) {
-            Ball ball = sessionBalls[index];
-            balls.add(new BallView(index, ball.getX(), ball.getY(), ball.getRadius(),
-                    ball.getVelocityX(), ball.getVelocityY()));
-        }
-        RectangleView top = boundaries.get(0);
-        RectangleView bottom = boundaries.get(1);
-        RectangleView left = boundaries.get(2);
-        RectangleView right = boundaries.get(3);
-        RectangleView court = new RectangleView(top.x(), top.y(),
-                right.x() + right.width() - left.x(),
-                bottom.y() + bottom.height() - top.y());
-        return new SessionView(court, boundaries, goals, participants, balls,
-                session.getGoalsLeft(), session.getGoalsRight(), session.getElapsedSeconds(), session.isFinished());
     }
 
     /** Devuelve el nombre simple de la clase concreta de la sesión administrada.
