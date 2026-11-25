@@ -1,7 +1,6 @@
 package domain;
 
 import java.util.Set;
-import domain.Action;
 
 /**
  * Define el comportamiento común de los perfiles controlados por la máquina.
@@ -18,9 +17,9 @@ public class BotPlayer extends SessionParticipant {
      * Punto de extensión para elegir acciones a partir de la cancha. Actualmente
      * no evalúa el estado y devuelve {@code null}.
      * @param field cancha actual
-     * @return conjunto de acciones
+     * @return conjunto de nombres de acción, o {@code null} mientras la decisión no esté implementada
      */
-    public Set<Action> decideAction(SoccerField field) {
+    public Set<String> decideAction(SoccerField field) {
         return null;
     }
 }

@@ -7,76 +7,30 @@ package "domain" {
   class Game {
     - session: GameSession
     + startSession(parametersRules: List<String> [height, width, modeParameter], parametersPowers: List<String>, typeGame: String, typeMatche: String, player: boolean): GameSession
-    + closeSession(): void
     + movePlayer(playerOne: boolean, direction: boolean): void
     + kickPlayer(playerOne: boolean): boolean
-    + inspectSession(): SessionView
-    + setPlayerPosition(playerOne: boolean, x: double, y: double): void
-    + setBallPosition(ballIndex: int, x: double, y: double): void
-    + applyBallImpulse(ballIndex: int, deltaX: double, deltaY: double): void
+    + getPlayerX(player: boolean): double
+    + getPlayerY(player: boolean): double
+    + getPlayerWidth(player: boolean): double
+    + getPlayerHeight(player: boolean): double
+    + getBallX(index: int): double
+    + getBallY(index: int): double
+    + getBallRadius(index: int): double
+    + getBallVelocityX(index: int): double
+    + getBallVelocityY(index: int): double
+    + getBallCount(): int
+    + getGoalX(index: int): double
+    + getGoalY(index: int): double
+    + getGoalWidth(index: int): double
+    + getGoalHeight(index: int): double
+    + getCourtX(): double
+    + getCourtY(): double
+    + getCourtWidth(): double
+    + getCourtHeight(): double
     + updateGame(): void
     + improveStatistics(player: boolean, stats: String): void
-    + save(): void
+    + save(file: File): void
     + open(file: File): void
-  }
-  class SessionView {
-    - court: RectangleView
-    - boundaries: List<RectangleView>
-    - goals: List<RectangleView>
-    - participants: List<ParticipantView>
-    - balls: List<BallView>
-    - goalsLeft: int
-    - goalsRight: int
-    - elapsedSeconds: double
-    - finished: boolean
-    + SessionView(court: RectangleView, boundaries: List<RectangleView>, goals: List<RectangleView>, participants: List<ParticipantView>, balls: List<BallView>, goalsLeft: int, goalsRight: int, elapsedSeconds: double, finished: boolean)
-    + court(): RectangleView
-    + boundaries(): List<RectangleView>
-    + goals(): List<RectangleView>
-    + participants(): List<ParticipantView>
-    + balls(): List<BallView>
-    + goalsLeft(): int
-    + goalsRight(): int
-    + elapsedSeconds(): double
-    + finished(): boolean
-  }
-  class ParticipantView {
-    - side: String
-    - x: double
-    - y: double
-    - width: double
-    - height: double
-    - speed: int
-    + side(): String
-    + x(): double
-    + y(): double
-    + width(): double
-    + height(): double
-    + speed(): int
-  }
-  class BallView {
-    - index: int
-    - x: double
-    - y: double
-    - radius: double
-    - velocityX: double
-    - velocityY: double
-    + index(): int
-    + x(): double
-    + y(): double
-    + radius(): double
-    + velocityX(): double
-    + velocityY(): double
-  }
-  class RectangleView {
-    - x: double
-    - y: double
-    - width: double
-    - height: double
-    + x(): double
-    + y(): double
-    + width(): double
-    + height(): double
   }
   abstract class GameSession {
     {static} - instance: GameSession
@@ -387,84 +341,32 @@ package "presentation.testing" {
   class MechanicsTestApp {
     + main(args: String[]): void {static}
   }
-  class MechanicsTestSetupPanel {
-    - onStart: Consumer<MechanicsTestConfiguration>
-    + MechanicsTestSetupPanel(onStart: Consumer<MechanicsTestConfiguration>)
-  }
-  class MechanicsTestConfiguration {
-    + sessionMode: SessionMode
-    + matchMode: MatchMode
-    + limit: int
-    + sessionClass: String
-    + matchClass: String
-    + ruleParameters: List<String>
-    + rightPowerClass: String
-    + leftPowerClass: String
-    + botProfile: String
-    + playerOne: boolean
-    + defaults(): MechanicsTestConfiguration {static}
-  }
   class MechanicsTestPanel {
     - controller: MechanicsTestController
     + MechanicsTestPanel()
-    + MechanicsTestPanel(configuration: MechanicsTestConfiguration)
-    + stopSimulation(): void
+    + addScenario(label: String, action: Runnable): void
+    + start(): void
+    + stop(): void
   }
   class MechanicsTestController {
     - game: Game
     - movement: PresentationMovement
-    - configuration: MechanicsTestConfiguration
     + MechanicsTestController()
-    + MechanicsTestController(configuration: MechanicsTestConfiguration)
-    + startNewSession(sessionMode: SessionMode, matchMode: MatchMode, limit: int): void
-    + restartConfiguredSession(): void
-    + step(): void
-    + setMovementControl(control: Control, pressed: boolean): void
-    + kickLeft(): boolean
-    + kickRight(): boolean
-    + runScenario(scenario: Scenario): void
-    + getSessionView(): SessionView
-  }
-  enum Scenario {
-    LEFT_GOAL
-    RIGHT_GOAL
-    PLAYER_BALL_CONTACT
-    GROUND_BOUNCE
-    SAFE_FIELD_CONTACT
-    BALL_SIDE_REBOUND
-    BALL_BALL_COLLISION
-    KICK_OPPONENT
-    PARTICIPANT_OUTSIDE
-    PARTICIPANT_TOUCHES_SIDE
-    PARTICIPANTS_OVERLAP
-    SUDDEN_DEATH_WIN
-  }
-  enum MatchMode {
-    GOALS
-    TIME
-  }
-  enum SessionMode {
-    PLAYER_VS_PLAYER
-    PLAYER_VS_BOT
+    + update(): void
+    + reset(): void
+    + move(rightSide: boolean, toRight: boolean): void
+    + kick(rightSide: boolean): boolean
+    + setBallState(x: double, y: double, velocityX: double, velocityY: double): void
+    + prepareKick(): void
   }
   class PresentationMovement <<presentation-only>> {
     - held: EnumSet<Control>
     - jumpRequested: EnumSet<Control>
     - verticalSpeeds: Map<String, Double>
     - carriedBallIndexes: Map<String, Integer>
-    - activeGame: Game
-    - JUMP_SPEED: double = 121
-    - GRAVITY: double = 180
     + setControl(control: Control, pressed: boolean): void
-    + clearInputs(): void
-    + reset(game: Game): void
-    + resetAfterRound(game: Game): void
-    + update(game: Game, mode: SessionMode): void
-    - updateActor(game: Game, actor: ParticipantView, opponent: ParticipantView, leftControl: Control, rightControl: Control, jumpControl: Control): void
-    - ballOnHead(balls: List<BallView>, x: double, y: double, width: double): BallView
-    - supportedByBall(balls: List<BallView>, x: double, y: double, width: double, height: double): boolean
-    - resolveBallVerticalContact(balls: List<BallView>, x: double, oldY: double, nextY: double, width: double, height: double, verticalSpeed: double): double
-    - overlapsHorizontally(x: double, width: double, ball: BallView): boolean
+    + reset(): void
+    + update(game: Game): void
   }
   enum Control {
     LEFT_LEFT
@@ -476,10 +378,6 @@ package "presentation.testing" {
   }
 }
 
-Game *-- SessionView
-SessionView *-- RectangleView
-SessionView *-- ParticipantView
-SessionView *-- BallView
 
 Game "1" --> "0..1" GameSession : active session reference
 GameSession <|-- PlayerVsBot
@@ -537,16 +435,11 @@ TypeOfMatch <|-- ByTime
 GameController --> Game
 GameController --> GameSession
 MechanicsTestApp ..> MechanicsTestPanel
-MechanicsTestApp ..> MechanicsTestSetupPanel
-MechanicsTestSetupPanel ..> MechanicsTestConfiguration
-MechanicsTestPanel ..> MechanicsTestConfiguration
 MechanicsTestPanel --> MechanicsTestController
 MechanicsTestController --> Game
-MechanicsTestController ..> Scenario
 MechanicsTestController --> PresentationMovement
-MechanicsTestPanel ..> Game : SessionView
 PresentationMovement --> Game
-MechanicsTestPanel ..> Control
+MechanicsTestPanel ..> Game : getters escalares y capas visuales
 
 note bottom of Hitbox
   Solo las formas geométricas implementan Hitbox.

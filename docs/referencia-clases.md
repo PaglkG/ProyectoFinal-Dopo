@@ -1,37 +1,16 @@
 # Referencia de clases, atributos y métodos
 
-Este documento describe los tipos declarados en `src/main/java` según su implementación actual. Incluye clases, interfaces, enumeraciones, records y la clase interna `FieldView`; no repite los métodos heredados de Java, Swing o de una superclase. Cuando un método está vacío, se indica como punto de extensión y no como una función ya disponible.
+Este documento describe los tipos declarados en `src/main/java` según su implementación actual. Incluye clases e interfaces, además de las clases internas `FieldView` y `GameCanvas`; no repite los métodos heredados de Java, Swing o de una superclase. Cuando un método está vacío, se indica como punto de extensión y no como una función ya disponible.
 
 ## Dominio (`domain`)
 
 ### `Game`
 
-**Responsabilidad:** administrar la única sesión compartida y servir como punto de entrada sin exigir que las operaciones reciban una sesión.
+**Responsabilidad:** administrar la sesión única y servir de fachada escalar a presentación.
 
-**Atributos:**
+**Atributos:** `session: GameSession` conserva la sesión administrada; `DEFAULT_SAVE_FILE` es el nombre inicial propuesto para guardar.
 
-| Atributo | Representa |
-|---|---|
-| `session: GameSession` | Referencia a la sesión singleton administrada; queda nula tras `closeSession()`. |
-
-**Métodos:**
-
-| Método | Qué hace |
-|---|---|
-| `startSession(parametersRules, parametersPowers, typeGame, typeMatche, player)` | Obtiene o crea la sesión singleton con sus reglas, poderes y, en modo contra bot, perfil; guarda su referencia única y la devuelve. |
-| `closeSession()` | Limpia la referencia administrada; no destruye el singleton. |
-| `resetSession()` | Reinicia la ronda de la sesión administrada sin cambiar el marcador, tiempo, modalidad ni estado final. |
-| `getCourtView()`, `getBoundaryViews()`, `getGoalViews()`, `getParticipantViews()`, `getBallViews()` | Devuelven vistas inmutables independientes de la geometría y entidades para la presentación. Marcador, tiempo y término se consultan con `getGoalsLeft()`, `getGoalsRight()`, `getElapsedSeconds()` e `isFinished()`. |
-| `movePlayer(playerOne, direction)` / `kickPlayer(playerOne)` | Ejecutan movimiento o patada; `true` selecciona al jugador 1 y `false` al jugador 2. |
-| `updateGame()` | Avanza la única sesión administrada un paso fijo. |
-| `setPlayerPosition(playerOne, ...)`, `setBallPosition(...)`, `applyBallImpulse(...)` | Preparan coordenadas e impulsos para escenarios visuales mediante la fachada. |
-| `powerPlayer(player)` | Está vacío; no activa poderes. |
-| `improveStatistics(player, stats)` | Delega en la sesión única para mejorar la habilidad seleccionada; `true` selecciona derecha/jugador 1. |
-| `save()`, `save(file)` | Serializan la sesión administrada en `dopo-saved-game.ser` o en el archivo indicado. |
-| `open(file)` | Deserializan una sesión y la convierten en la única instancia administrada por `Game`. |
-
-**Vistas de la fachada:** `ParticipantView`, `BallView` y `RectangleView` son datos de solo lectura devueltos individualmente por getters de `Game`. `SessionView` permanece como agregado usado por la herramienta `presentation.testing`; `Game` ya no lo devuelve.
-
+**Métodos:** `startSession(...)` inicia o reutiliza la sesión; `resetSession()` reinicia la ronda; `movePlayer(...)` y `kickPlayer(...)` delegan movimiento y patada por identidad; los getters `getPlayerX/Y/Width/Height/Speed`, `getBallX/Y/Radius/VelocityX/VelocityY/Count`, `getGoalX/Y/Width/Height`, `getCourtX/Y/Width/Height`, `getGoalsLeft/Right`, `getElapsedSeconds`, `isFinished` y `getMatchState` exponen datos escalares a la presentación. `getSessionType`, `getSessionTypes`, `getMatchTypes` y `getBotTypes` describen sesiones/reglas disponibles; `powerPlayer` es un punto de extensión vacío; `improveStatistics`, `save(File)`, `open(File)` y `updateGame()` modifican la sesión administrada.
 ### `GameSession` (abstracta)
 
 **Responsabilidad:** mantener el estado de una partida concreta y coordinar participantes, cancha, marcador, movimiento, colisiones, goles y condición de término.
@@ -283,7 +262,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 **Métodos:**
 
 - `BotPlayer()`: constructor sin estado de decisión adicional.
-- `decideAction(field)`: punto de extensión; actualmente devuelve `null` y no decide acciones.
+- `decideAction(field)`: punto de extensión con retorno `Set<String>` para nombres de acciones; actualmente devuelve `null` y no decide acciones.
 
 **Perfiles derivados:** `Clumsy`, `Offensive`, `Defensive` y `Expert` representan perfiles diferenciados por nombre. No declaran atributos, constructores ni métodos propios; heredan el constructor implícito y el comportamiento de `BotPlayer`. Los perfiles aún no implementan estrategias distintas.
 
@@ -406,12 +385,6 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Métodos:** `RectangularHitbox(x, y, width, height)` inicializa la forma; `intersects(target)` delega el cálculo; `reposition(x, y)` cambia la esquina sin cambiar dimensiones; `getX()`, `getY()`, `getWidth()`, `getHeight()` consultan valores; `resize(width, height)` cambia dimensiones sin mover la esquina.
 
-### Action (enumeración de domain)
-
-**Responsabilidad:** enumerar las acciones previstas para un participante controlado por el programa.
-
-**Valores:** `LEFT`, `RIGHT`, `JUMP`, `POWER`. No declara atributos ni métodos propios.
-
 ## Presentación (presentation)
 
 La aplicación principal usa Swing y todavía no está conectada a una sesión del dominio.
@@ -429,114 +402,46 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 
 ### `MechanicsTestApp`
 
-**Responsabilidad:** iniciar la ventana independiente del banco manual de mecánicas.
+**Responsabilidad:** iniciar la ventana independiente del banco de pruebas visual.
 
-**Atributos:** ninguno.
-
-**Métodos:** constructor privado impide crear instancias; `main(args)` presenta la configuración inicial; `showMechanicsWindow(configuration)` abre el banco con las opciones escogidas; el manejador `windowClosed(event)` detiene el temporizador del panel al cerrar.
-
-### `MechanicsTestConfiguration`
-
-**Responsabilidad:** conservar los nombres completos de clases y parámetros elegidos para crear o reiniciar una sesión del banco.
-
-**Componentes:** `sessionMode` y `matchMode` indican los modos seleccionados; `limit` contiene el límite visible; `sessionClass` y `matchClass` guardan los nombres completos de clase; `ruleParameters` conserva sus argumentos; `rightPowerClass` y `leftPowerClass` identifican los poderes; `botProfile` especifica el perfil del bot; `playerOne` selecciona la identidad humana.
-
-**Métodos:** constructor compacto copia la lista de parámetros para hacerla inmutable; `defaults()` produce la configuración estándar PVP por goles.
-
-### `MechanicsTestSetupPanel`
-
-**Responsabilidad:** recoger la configuración extensible antes de abrir la ventana de simulación.
-
-**Atributos:** `onStart: Consumer<MechanicsTestConfiguration>` recibe la configuración; selectores para modo de sesión/modalidad; campos de texto para nombres de clase, límite, parámetros, poderes y perfil de bot; `playerOne` marca la identidad seleccionada.
-
-**Métodos:** `MechanicsTestSetupPanel(onStart)` arma el formulario; `addField(panel, label, field)` privado agrega una fila; `start()` privado valida el límite, convierte los parámetros separados por coma en lista y entrega la configuración al consumidor, mostrando errores en un diálogo.
+**Métodos:** el constructor privado evita instancias; `main(args)` crea y muestra `MechanicsTestPanel` en el hilo de eventos de Swing, configura el tamaño de ventana e inicia la actualización periódica.
 
 ### `MechanicsTestController`
 
-**Responsabilidad:** preparar sesiones y escenarios para inspección manual comunicándose solo con `Game`.
+**Responsabilidad:** adaptar las acciones de la pantalla a la fachada `Game`, sin acceder directamente a otras clases del dominio; coordina también el movimiento visual.
 
-**Enumeraciones anidadas:**
+**Atributos:** `game: Game` es la única puerta al dominio.
 
-- `MatchMode`: `GOALS` y `TIME`, con atributo `label`; constructor asigna etiqueta y `toString()` la devuelve para la interfaz.
-- `SessionMode`: `PLAYER_VS_PLAYER` y `PLAYER_VS_BOT`, con atributo `label`; constructor asigna etiqueta y `toString()` devuelve texto legible.
-- `Scenario`: enumera gol izquierdo/derecho, contacto, rebotes, colisión entre dos balones, participante fuera/límite, superposición, patada y victoria en muerte súbita; no declara campos ni métodos.
-
-**Atributos:** `game: Game` única puerta al dominio; la sesión se obtiene por la fachada única `Game`; `selectedSessionMode`, `selectedMatchMode` y `selectedLimit` opciones seleccionadas; `configuration: MechanicsTestConfiguration` clases y parámetros elegidos; `movement: PresentationMovement` entrada visual.
-
-**Métodos:**
-
-| Método | Qué hace |
-|---|---|
-| `MechanicsTestController()` | Inicia el banco con la configuración predeterminada. |
-| `MechanicsTestController(configuration)` | Crea la sesión usando la configuración recibida y únicamente la fachada `Game`. |
-| `startNewSession(sessionMode, matchMode, limit)` | Guarda opciones y crea una sesión estándar nueva. |
-| `restartConfiguredSession()` | Vuelve a crear la sesión con la configuración elegida. |
-| `createConfiguredSession()` | Privado: ordena parámetros de regla y poderes, crea `Game` e inicia o reutiliza la sesión mediante `startSession`, ignorando el objeto que devuelve. |
-| `step()` | Consulta si la sesión sigue activa, actualiza controles visuales y avanza el dominio mediante `Game`; limpia movimiento tras un gol. |
-| `setMovementControl(control, pressed)` | Paquete: reenvía el estado de tecla a `PresentationMovement`. |
-| `kickLeft()` | Paquete: intenta patear con el primer jugador izquierdo; no aplica en modo contra bot. |
-| `kickRight()` | Paquete: intenta patear con el primer participante derecho. |
-| `runScenario(scenario)` | Crea sesión limpia, prepara el escenario mediante `Game` y ejecuta el dominio; la colisión entre balones necesita al menos dos. |
-| `getSessionView()` | Devuelve una instantánea `SessionView` para que la interfaz la dibuje. |
-
-### `MechanicsTestPanel`
-
-**Responsabilidad:** exponer la configuración seleccionada, simular, patear y activar escenarios, además de dibujar la instantánea proporcionada por el controlador.
-
-**Atributos:** `controller: MechanicsTestController` coordina el dominio; `sessionMode`, `matchMode` y `limit` muestran opciones de solo lectura elegidas al inicio; `status`, `score`, `controlHelp: JLabel` muestran mensajes, marcador e instrucciones; `fieldView: FieldView` dibuja la cancha; `timer: Timer` avanza pasos visuales; `runButton`, `kickLeftButton`, `kickRightButton: JButton` son botones de control; `kickKeysDown: Set<Integer>` evita repetir patadas por mantener una tecla pulsada.
-
-**Métodos:**
-
-| Método | Qué hace |
-|---|---|
-| `MechanicsTestPanel()` | Construye y organiza controles, escenarios, campo, teclado y sesión inicial. |
-| `MechanicsTestPanel(configuration)` | Construye la ventana de simulación con las opciones elegidas al inicio. |
-| `stopSimulation()` | Detiene el temporizador Swing. |
-| `buildSettings()` | Privado: crea selectores y controles de nueva sesión, paso y simulación. |
-| `buildScenarios()` | Privado: crea acciones de patada y lista desplazable de escenarios. |
-| `wrapScenarioScroll(scroll)` | Privado: coloca la lista desplazable en un contenedor. |
-| `addScenario(panel, title, scenario)` | Privado: añade un botón que ejecuta el escenario, muestra errores y refresca. |
-| `buildFooter()` | Privado: compone marcador, estado e instrucciones. |
-| `configureMovementKeys()` | Privado: conecta teclas de dirección, salto y patada. |
-| `bindKey(keyCode, name, control)` | Privado: conecta pulsación/liberación con un control lógico. |
-| `bindKickKey(keyCode, name, leftPlayer)` | Privado: conecta patada y limita la acción a una por pulsación. |
-| `performKick(leftPlayer)` | Privado: intenta patear, escribe el resultado y refresca el dibujo. |
-| `label(text)` | Privado: crea una etiqueta de texto con el estilo común. |
-| `startSession()` | Privado: detiene la sesión anterior, reinicia la configuración elegida e inicia la simulación. |
-| `toggleSimulation()` | Privado: pausa o reanuda el temporizador. |
-| `advanceOneStep(showStepStatus)` | Privado: avanza el controlador; detiene por término/error y refresca el panel. |
-| `refreshView()` | Privado: actualiza el texto de marcador/tiempo/velocidad y solicita repintado. |
-| `focusGameField()` | Privado: solicita foco al área gráfica en el hilo Swing. |
-
-**Clase interna `FieldView`:** panel gráfico interno sin atributos propios. `FieldView()` configura tamaño/fondo/foco; `paintComponent(graphics)` dibuja cancha, arcos, participantes y balones; `drawStadium(g)` pinta el fondo decorativo; `drawGoal(g, x, y, width, height)` pinta marco y red; `drawVelocityIndicator(g, x, y, velocityY)` representa la velocidad vertical; `drawParticipants(...)` escala y dibuja los participantes según sus hitboxes.
+**Métodos:** `MechanicsTestController()` crea o reutiliza una sesión estándar jugador contra jugador por goles; `game()` devuelve la fachada; `update()` avanza el movimiento visual y la sesión; `reset()` reinicia la ronda y los controles; `setMovementControl(control, pressed)` registra las teclas mantenidas; `kick(rightSide)` intenta una patada; `setBallState(x, y, velocityX, velocityY)` prepara posición y velocidad del balón; `prepareKick()` acerca a los participantes y al balón para observar la patada.
 
 ### `PresentationMovement`
 
-**Responsabilidad:** pasar movimientos horizontales a `Game` y conservar una simulación visual del salto.
+**Responsabilidad:** repetir movimiento mientras se mantiene una tecla y simular saltos visuales a través de `Game`.
 
-**Constantes:** `STEP_SECONDS = 1/60` duración de paso; `JUMP_SPEED = 110` y `GRAVITY = 180` parámetros del salto visual; `EDGE_GAP = 0.02` separación de seguridad respecto a límites.
+**Controles:** `A/D` desplazan al participante izquierdo; `W` lo hace saltar; flechas izquierda/derecha mueven al participante derecho y flecha arriba lo hace saltar. El salto visual usa impulso de 121 unidades/s y gravedad de 180 unidades/s², limita la posición a la cancha, permite apoyarse en el balón y mueve con el jugador un balón que parte apoyado sobre su cabeza.
 
-**Enumeración `Control`:** `LEFT_LEFT`, `LEFT_RIGHT`, `LEFT_JUMP`, `RIGHT_LEFT`, `RIGHT_RIGHT`, `RIGHT_JUMP`; identifican controles lógicos de cada lado.
+### `MechanicsTestPanel`
 
-**Atributos:** `held` teclas mantenidas; `jumpRequested` solicitudes de salto del flanco inicial; `verticalSpeeds` velocidades verticales por id de participante; `activeGame` identifica la fachada `Game` que consulta.
+**Responsabilidad:** presentar la cancha y un menú configurable de pruebas y capas visuales.
+
+**Elementos visibles:** usa recursos gráficos incluidos en el proyecto para cancha, balón y pares de cabeza/pata del lobo y el tigre; compone los personajes y los orienta según su lado. El menú de capas activa hitbox exterior de cancha, hitboxes de arcos, participantes y balones, vector del balón, animación de patada, marcador/tiempo y secciones de vida y poder. Estas dos últimas indican que sus datos no están disponibles: `Game` no expone vida y el poder todavía no está implementado.
 
 **Métodos:**
 
 | Método | Qué hace |
 |---|---|
-| `setControl(control, pressed)` | Registra/libera tecla y registra una solicitud de salto solo al primer key-down. |
-| `clearInputs()` | Limpia teclas mantenidas y saltos pendientes. |
-| `reset(game)` | Limpia controles y velocidades y establece la sesión activa. |
-| `resetAfterRound(game)` | Limpia solicitudes de salto/velocidades tras gol y conserva la sesión activa. |
-| `update(game, mode)` | Consulta una instantánea, envía movimiento horizontal por `Game` y actualiza el salto visual. |
-| `updateActor(game, actor, opponent, controls...)` | Privado: delega el movimiento horizontal a `Game`, calcula el salto visual y limita el cruce vertical del balón; puede saltar desde la cara superior. |
-| `supportedByBall(balls, x, y, width, height)` | Privado: identifica si un balón sostiene al participante para permitir un nuevo salto. |
-| `resolveBallVerticalContact(balls, x, oldY, nextY, width, height, verticalSpeed)` | Privado: detiene el desplazamiento vertical en la cara superior al caer o en la inferior al ascender. |
-| `overlapsHorizontally(x, width, ball)` | Privado: comprueba que el participante esté horizontalmente sobre el círculo del balón. |
-| `touches(x, y, width, height, other)` | Privado: comprueba el solapamiento geométrico de dos vistas de participante. |
-| `isJump(control)` | Privado: indica si el control representa salto. |
-| `clamp(value, minimum, maximum)` | Privado: restringe el valor al intervalo indicado. |
+| `MechanicsTestPanel()` | Registra opciones iniciales, crea controles, enlaza teclas y prepara la sesión. |
+| `addScenario(label, action)` | Agrega una acción al selector de escenarios, punto de extensión para nuevos tipos de prueba. |
+| `start()` / `stop()` | Inicia o detiene el temporizador de actualización. |
+| `registerDefaultScenarios()` | Registra partida libre, vector, patada y goles. |
+| `registerDefaultLayers()` | Registra las capas iniciales que se muestran como casillas activables. |
+| `runSelectedScenario()` | Ejecuta el escenario seleccionado y refresca el estado visual. |
+| `bindKeys()` | Enlaza A/D, W, flechas, F y Enter con movimiento, saltos y patadas. |
+| `tick()` | Avanza la sesión, actualiza la animación de la pata y solicita redibujo. |
+
+**Clases internas:** `GameCanvas` escala la cancha según las dimensiones de `Game`, pinta recursos, hitboxes, vectores y HUD; `Layer` identifica las capas; `LayerOption` conserva su estado visible; `TestScenario` conserva la etiqueta y acción de cada opción del menú.
 
 ## Estado de las implementaciones
 
-Los métodos vacíos y los campos no inicializados se describen como tales porque esta referencia documenta el código actual, no las funciones previstas. En especial, las pantallas de presentación, los poderes, efectos y salto del dominio tienen partes aún no implementadas; la persistencia guarda la sesión serializable y el banco simula visualmente el salto y permite aterrizar sobre los balones.
+
+Los métodos vacíos y los campos no inicializados se describen como tales porque esta referencia documenta el código actual, no las funciones previstas. En especial, los poderes, efectos y salto del dominio tienen partes aún no implementadas; la persistencia guarda la sesión serializable y el banco muestra hitboxes/vector, compone sprites de personajes, mantiene el movimiento mientras se presiona una tecla y simula el salto fuera del dominio.

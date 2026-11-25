@@ -5,7 +5,7 @@ import domain.SessionParticipant;
 import domain.SoccerField;
 import domain.RectangularHitbox;
 
-/** Consultas y respuestas de contacto determinadas por la geometría de cancha. */
+/** Valida posiciones y resuelve rebotes contra el contorno fijo de la cancha y sus arcos. */
 public final class CourtGeometry {
     private final SoccerField field;
 
@@ -59,17 +59,14 @@ public final class CourtGeometry {
      * @param retention fracción de velocidad normal conservada tras el rebote
      */
     public void bounceBallAtWallsAndGoalFrames(Ball ball, double retention) {
-        RectangularHitbox[] walls = field.getHitboxField();
-        for (int index : new int[] {0, 2, 3}) {
-            RectangularHitbox wall = walls[index];
-            CircleRectangleCollisionResolver.resolve(ball, wall,
-                    ball.getPreviousX(), ball.getPreviousY(), wall.getX(), wall.getY(), retention);
-        }
+        RectangularHitbox[] borders = field.getHitboxField();
+        CircleRectangleCollisionResolver.resolveAgainstFixedRectangle(ball, borders[0], retention);
+        CircleRectangleCollisionResolver.resolveAgainstFixedRectangle(ball, borders[2], retention);
+        CircleRectangleCollisionResolver.resolveAgainstFixedRectangle(ball, borders[3], retention);
         for (RectangularHitbox goal : field.getGoalHitboxes()) {
             // La franja vertical del arco es una boca abierta para permitir el gol.
             if (ball.getY() >= goal.getY() && ball.getY() <= goal.getY() + goal.getHeight()) continue;
-            CircleRectangleCollisionResolver.resolve(ball, goal,
-                    ball.getPreviousX(), ball.getPreviousY(), goal.getX(), goal.getY(), retention);
+            CircleRectangleCollisionResolver.resolveAgainstFixedRectangle(ball, goal, retention);
         }
     }
 
@@ -80,10 +77,9 @@ public final class CourtGeometry {
      */
     public void bounceBallAtGround(Ball ball, double retention, double minimumSpeed) {
         RectangularHitbox ground = field.getHitboxField()[1];
-        CircleRectangleCollisionResolver.Resolution result = CircleRectangleCollisionResolver.resolve(
-                ball, ground, ball.getPreviousX(), ball.getPreviousY(),
-                ground.getX(), ground.getY(), retention);
-        if (result != null && result.axis() == CollisionAxisResolver.Axis.VERTICAL
+        CircleRectangleCollisionResolver.Resolution result =
+                CircleRectangleCollisionResolver.resolveAgainstFixedRectangle(ball, ground, retention);
+        if (result != null && !result.isHorizontal()
                 && result.side() < 0 && result.bounced()
                 && Math.abs(ball.getVelocityY()) < minimumSpeed) {
             ball.applyImpulse(0, -ball.getVelocityY());

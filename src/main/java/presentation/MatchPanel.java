@@ -13,7 +13,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -25,9 +24,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
-import domain.BallView;
 import domain.Game;
-import domain.RectangleView;
 
 /** Vista del partido: HUD y dibujo de la cancha desde la instantánea de Game. */
 public class MatchPanel extends BasePanel {
@@ -250,7 +247,7 @@ public class MatchPanel extends BasePanel {
         rightScoreLabel.setText(Integer.toString(game.getGoalsLeft()));
         int elapsed = (int) game.getElapsedSeconds();
         elapsedLabel.setText(String.format("%02d:%02d", elapsed / 60, elapsed % 60));
-        courtView.setSession(game.getCourtView(), game.getBallViews());
+        courtView.setGame(game);
         if (game.isFinished()) {
             matchFinishedHandler.run();
         }
@@ -279,13 +276,25 @@ public class MatchPanel extends BasePanel {
      * @param body imagen visual recortada de las patas o cuerpo
      * @param bodyFacesRightAtSource indica si las patas originales apuntan a la derecha
      */
-    private record CharacterSprite(BufferedImage head, BufferedImage body,
-            boolean bodyFacesRightAtSource) { }
+    private static final class CharacterSprite {
+        private final BufferedImage head;
+        private final BufferedImage body;
+        private final boolean bodyFacesRightAtSource;
+
+        private CharacterSprite(BufferedImage head, BufferedImage body, boolean bodyFacesRightAtSource) {
+            this.head = head;
+            this.body = body;
+            this.bodyFacesRightAtSource = bodyFacesRightAtSource;
+        }
+
+        private BufferedImage head() { return head; }
+        private BufferedImage body() { return body; }
+        private boolean bodyFacesRightAtSource() { return bodyFacesRightAtSource; }
+    }
 
     /** Dibuja la cancha, los personajes decorativos y el balón de la instantánea. */
     private final class CourtView extends JPanel {
-        private RectangleView court;
-        private List<BallView> balls;
+        private Game game;
         private JPanel hud;
         private final Map<String, BufferedImage> trimmedSprites = new HashMap<>();
         private final Image courtImage = loadImage(COURT_IMAGE);
@@ -298,9 +307,8 @@ public class MatchPanel extends BasePanel {
             setLayout(null);
         }
 
-        private void setSession(RectangleView court, List<BallView> balls) {
-            this.court = court;
-            this.balls = balls;
+        private void setGame(Game game) {
+            this.game = game;
             revalidate();
             repaint();
         }
@@ -322,20 +330,23 @@ public class MatchPanel extends BasePanel {
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
-            if (court == null || balls == null) {
+            if (game == null) {
                 return;
             }
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            double scale = courtScale(court);
-            double drawWidth = court.width() * scale;
-            double drawHeight = court.height() * scale;
+            double courtX = game.getCourtX(), courtY = game.getCourtY();
+            double courtWidth = game.getCourtWidth(), courtHeight = game.getCourtHeight();
+            double scale = courtScale(courtWidth, courtHeight);
+            double drawWidth = courtWidth * scale;
+            double drawHeight = courtHeight * scale;
             double offsetX = (getWidth() - drawWidth) / 2.0;
             double offsetY = getHeight() - drawHeight;
 
             drawCourtImage(g, offsetX, offsetY, drawWidth, drawHeight);
-            drawDecorativeCharacters(g, court, offsetX, offsetY, scale);
-            drawBalls(g, balls, court, offsetX, offsetY, scale);
+            drawGoals(g, courtX, courtY, offsetX, offsetY, scale);
+            drawDecorativeCharacters(g, courtHeight, courtWidth, offsetX, offsetY, scale);
+            drawBalls(g, courtX, courtY, offsetX, offsetY, scale);
             g.dispose();
         }
 
@@ -346,32 +357,52 @@ public class MatchPanel extends BasePanel {
             }
         }
 
-        /** Dibuja los animales como decoración, sin leer ni crear hitboxes. */
-        private void drawDecorativeCharacters(Graphics2D g, RectangleView court,
+        /** Dibuja los arcos en las posiciones entregadas por la fachada Game.
+         * @param g contexto gráfico de la cancha
+         * @param goals geometría de los arcos
+         * @param court rectángulo exterior de la cancha
+         * @param offsetX desplazamiento horizontal del campo dibujado
+         * @param offsetY desplazamiento vertical del campo dibujado
+         * @param scale escala aplicada a las coordenadas del dominio
+         */
+        private void drawGoals(Graphics2D g, double courtX, double courtY,
                 double offsetX, double offsetY, double scale) {
-            drawDecorativeCharacter(g, characterSprites.get("left"), court,
+            g.setColor(new Color(255, 211, 67, 190));
+            for (int index = 0; index < 2; index++) {
+                int x = (int) (offsetX + (game.getGoalX(index) - courtX) * scale);
+                int y = (int) (offsetY + (game.getGoalY(index) - courtY) * scale);
+                int width = (int) (game.getGoalWidth(index) * scale);
+                int height = (int) (game.getGoalHeight(index) * scale);
+                g.drawRect(x, y, width, height);
+            }
+        }
+
+        /** Dibuja los animales como decoración, sin leer ni crear hitboxes. */
+        private void drawDecorativeCharacters(Graphics2D g, double courtHeight, double courtWidth,
+                double offsetX, double offsetY, double scale) {
+            drawDecorativeCharacter(g, characterSprites.get("left"), courtHeight, courtWidth,
                     offsetX, offsetY, scale, 0.25);
-            drawDecorativeCharacter(g, characterSprites.get("right"), court,
+            drawDecorativeCharacter(g, characterSprites.get("right"), courtHeight, courtWidth,
                     offsetX, offsetY, scale, 0.75);
         }
 
         /** Compone la cabeza estandarizada y sus patas dentro del área visual del personaje. */
         private void drawDecorativeCharacter(Graphics2D g, CharacterSprite sprite,
-                RectangleView court,
+                double courtHeight, double courtWidth,
                 double offsetX, double offsetY, double scale, double horizontalRatio) {
             if (sprite == null || sprite.head() == null || sprite.body() == null) {
                 return;
             }
 
             int headHeight = Math.max(1,
-                    (int) (court.height() * scale * CHARACTER_HEAD_HEIGHT_RATIO));
+                    (int) (courtHeight * scale * CHARACTER_HEAD_HEIGHT_RATIO));
             int headWidth = Math.max(1, (int) (headHeight
                     * sprite.head().getWidth() / (double) sprite.head().getHeight()));
             int bodyHeight = Math.max(1,
-                    (int) (court.height() * scale * CHARACTER_BODY_HEIGHT_RATIO));
+                    (int) (courtHeight * scale * CHARACTER_BODY_HEIGHT_RATIO));
             int bodyWidth = Math.max(1, (int) (headWidth * CHARACTER_BODY_WIDTH_RATIO));
-            double centerX = offsetX + court.width() * horizontalRatio * scale;
-            double baselineY = offsetY + court.height() * scale * CHARACTER_FLOOR_RATIO;
+            double centerX = offsetX + courtWidth * horizontalRatio * scale;
+            double baselineY = offsetY + courtHeight * scale * CHARACTER_FLOOR_RATIO;
             int bodyX = (int) (centerX - bodyWidth / 2.0);
             int bodyY = (int) (baselineY - bodyHeight);
             int headX = (int) (centerX - headWidth / 2.0);
@@ -479,16 +510,18 @@ public class MatchPanel extends BasePanel {
         }
 
         /** Dibuja cada balón en las coordenadas y con el radio reportados por Game. */
-        private void drawBalls(Graphics2D g, List<BallView> balls, RectangleView court,
+        private void drawBalls(Graphics2D g, double courtX, double courtY,
                 double offsetX, double offsetY, double scale) {
-            for (BallView ball : balls) {
-                double diameter = Math.max(ball.radius() * 2 * scale,
-                        court.height() * scale * BALL_VISUAL_DIAMETER_RATIO);
-                double x = offsetX + (ball.x() - court.x()) * scale - diameter / 2.0;
-                double normalizedY = (ball.y() - court.y()) / court.height();
+            double courtHeight = game.getCourtHeight();
+            for (int index = 0; index < game.getBallCount(); index++) {
+                double radius = game.getBallRadius(index);
+                double diameter = Math.max(radius * 2 * scale,
+                        courtHeight * scale * BALL_VISUAL_DIAMETER_RATIO);
+                double x = offsetX + (game.getBallX(index) - courtX) * scale - diameter / 2.0;
+                double normalizedY = (game.getBallY(index) - courtY) / courtHeight;
                 double visualYRatio = PLAY_AREA_TOP_RATIO
                         + normalizedY * PLAY_AREA_HEIGHT_RATIO;
-                double y = offsetY + visualYRatio * court.height() * scale - diameter / 2.0;
+                double y = offsetY + visualYRatio * courtHeight * scale - diameter / 2.0;
                 if (ballImage != null) {
                     g.drawImage(ballImage, (int) x, (int) y, (int) diameter, (int) diameter, this);
                 } else {
@@ -501,9 +534,9 @@ public class MatchPanel extends BasePanel {
         }
 
         /** Calcula la escala que mantiene la proporción del campo en el área disponible. */
-        private double courtScale(RectangleView court) {
-            return Math.min((getWidth() - FIELD_MARGIN * 2.0) / court.width(),
-                    getHeight() / court.height());
+        private double courtScale(double courtWidth, double courtHeight) {
+            return Math.min((getWidth() - FIELD_MARGIN * 2.0) / courtWidth,
+                    getHeight() / courtHeight);
         }
 
     }

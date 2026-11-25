@@ -4,7 +4,7 @@ import domain.Ball;
 import domain.SessionParticipant;
 import domain.RectangularHitbox;
 
-/** Resuelve la penetración y el rebote de balones contra hitboxes de participantes. */
+/** Corrige la penetración y aplica el rebote de los balones contra los participantes. */
 public final class BallParticipantCollisionResolver {
     /** Crea el resolutor de contactos entre balones y participantes. */
     public BallParticipantCollisionResolver() { }
@@ -19,9 +19,7 @@ public final class BallParticipantCollisionResolver {
             double restitution, double minimumLandingSpeed) {
         for (Ball ball : balls) {
             for (SessionParticipant participant : participants) {
-                resolve(ball, participant, ball.getPreviousX(), ball.getPreviousY(),
-                        participant.getPreviousX(), participant.getPreviousY(),
-                        restitution, minimumLandingSpeed);
+                resolve(ball, participant, restitution, minimumLandingSpeed);
             }
         }
     }
@@ -39,10 +37,7 @@ public final class BallParticipantCollisionResolver {
                 restitution, minimumLandingSpeed);
     }
 
-    /**
-     * Resuelve un contacto surgido al caminar. Las posiciones recibidas son
-     * las del instante inmediatamente anterior al movimiento del participante.
-     */
+    /** Usa las posiciones anteriores de ambas entidades para elegir el eje del rebote. */
     void resolve(Ball ball, SessionParticipant participant,
             double previousBallX, double previousBallY,
             double previousParticipantX, double previousParticipantY,
@@ -51,7 +46,7 @@ public final class BallParticipantCollisionResolver {
         CircleRectangleCollisionResolver.Resolution result = CircleRectangleCollisionResolver.resolve(
                 ball, box, previousBallX, previousBallY,
                 previousParticipantX, previousParticipantY, restitution);
-        if (result == null || result.axis() != CollisionAxisResolver.Axis.VERTICAL
+        if (result == null || result.isHorizontal()
                 || result.side() >= 0 || !result.bounced()) {
             return;
         }

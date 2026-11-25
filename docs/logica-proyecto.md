@@ -14,9 +14,13 @@
 ### Arquitectura
 
 - La capa de presentación solo puede comunicarse con la clase `Game`; no debe comunicarse directamente con otras clases del dominio.
-- `GameSession` y todas sus clases hijas comparten una sola instancia. La primera creación determina la clase concreta y configura modalidad, reglas, participantes y poderes; las solicitudes posteriores reutilizan esa sesión e ignoran nuevos parámetros. `Game` mantiene una única referencia nullable; `closeSession` la limpia sin destruir el singleton y una llamada posterior a `startSession` puede volver a registrarlo.
+- `GameSession` y todas sus clases hijas comparten una sola instancia. La primera creación determina la clase concreta y configura modalidad, reglas, participantes y poderes; las solicitudes posteriores reutilizan esa sesión e ignoran nuevos parámetros. `Game` mantiene una referencia a esa sesión compartida una vez iniciada.
 - Las operaciones de `Game` sobre la partida única no reciben un objeto `GameSession` ni un índice de sesión: la fachada usa internamente la instancia administrada.
 - `Game.resetSession` reinicia la ronda de la instancia administrada: centra y detiene los balones y recoloca los participantes. Conserva marcador, modalidad, tiempo transcurrido y estado de finalización.
+
+### Persistencia
+
+- `Game.save(File)` guarda la sesión administrada en el archivo indicado. El selector del banco propone inicialmente `partida.dat`.
 
 ### Identidad y lado de juego
 
@@ -67,6 +71,7 @@
 ### Actualización, contactos y goles
 
 - `GameSession.updateGame()` avanza en pasos fijos de `1/60` segundo. En cada paso, el balón suma `40 × paso` a su velocidad vertical y luego se desplaza usando las velocidades resultantes.
+- El contacto normal del balón con un participante solo produce la respuesta física. Una patada que deja al rival con cero de vida activa el aturdimiento. La implementación del tiro de poder sigue pendiente.
 - Al tocar el suelo, el balón se coloca con su parte inferior sobre el suelo, invierte la velocidad vertical y conserva el 70 % de su magnitud. Si la nueva magnitud es menor que `0.5`, la velocidad vertical queda en cero. La velocidad horizontal se conserva.
 - Los balones son sólidos entre sí. Al tocarse, la cancha corrige la penetración y aplica una colisión de masas iguales con coeficiente de restitución `0.70` sobre la normal del contacto; la componente tangencial se conserva. Si ya se separan, solo se corrige la penetración y no se aplica un segundo impulso.
 - Un participante no puede atravesar el balón al desplazarse: al caminar empuja en la misma dirección cualquier balón en contacto, esté quieto o en movimiento, en pasos pequeños y sin superposición. El empuje no cambia la velocidad del balón. Se detiene si sacaría el balón de la cancha o lo superpondría con otro balón o participante. Un participante que ya está en contacto puede alejarse sin mover el balón.
@@ -110,9 +115,9 @@
 
 ## Estado actual del código (no equivale a una regla confirmada)
 
-- Los tipos del dominio están en domain, salvo las formas de hitbox en domain. Action, las modalidades, los poderes, StatusEffect y GameException también están directamente en domain desde el aplanado de paquetes.
-- La presentación principal consulta y modifica el juego a través de la fachada `Game`, que entrega instantáneas inmutables para dibujar. La subcapa `presentation.testing` también usa `Game` para consultar y preparar escenarios.
-- `Game` expone instantáneas mediante `getCourtView`, `getBoundaryViews`, `getGoalViews`, `getParticipantViews` y `getBallViews`; marcador, tiempo y estado final se consultan con sus getters. `inspectSession` fue retirado. `movePlayer`, `kickPlayer` y `setPlayerPosition` seleccionan identidad con booleano (`true`: jugador 1; `false`: jugador 2). La presentación no conserva referencias mutables a sesión, participante, cancha o balón. El salto de `PresentationMovement` es visual, pero la posición resultante participa en las colisiones y permite aterrizar encima de un balón. Si el balón está apoyado sobre la cabeza al iniciar el salto, el banco lo desplaza junto al jugador durante el salto; al aterrizar se libera para que continúe la física normal. La velocidad inicial visual del salto es 121 unidades/s y la gravedad es 180 unidades/s².
+- Las modalidades, los poderes, StatusEffect y GameException están directamente en domain desde el aplanado de paquetes.
+- La presentación principal consulta y modifica el juego a través de la fachada `Game`, que expone getters escalares para dibujar. La subcapa `presentation.testing` también usa `Game` para consultar el estado, reiniciar, mover y patear participantes; no puede establecer posiciones ni velocidades directamente.
+- La presentación consulta `Game` mediante getters escalares para posición, dimensiones, marcador y tiempo; la cancha se dibuja como un solo rectángulo. `movePlayer` y `kickPlayer` seleccionan identidad con booleano (`true`: jugador 1; `false`: jugador 2). El banco repite el movimiento horizontal mientras se mantiene la tecla y anima visualmente la pata al patear. Vida y carga de poder no se exponen a presentación por `Game`.
 - `Game.getSessionTypes()`, `getMatchTypes()` y `getBotTypes()` devuelven nombres simples de las clases concretas disponibles; `getSessionType()` devuelve el nombre simple de la sesión activa.
 - `DOPOSoccerGUI.startMatch` también lanza `IllegalStateException` si se intenta iniciar otra configuración tras fijar la sesión singleton. Esto es una excepción explícita de presentación que no coincide con la regla confirmada de usar `GameException` para las excepciones explícitas de la aplicación.
 - `Game.movePlayer` delega en `GameSession`; la sesión solo delega el movimiento si el participante pertenece a ella y no está terminada. `SessionParticipant` actualiza su posición y su hitbox con `150 × speed / 60`; `speed` inicia en 1.
@@ -120,17 +125,20 @@
 - `PlayerVsBot` construye un jugador humano y un bot; `PlayerVsPlayer` construye dos jugadores humanos.
 - PlayerVsPlayer y PlayerVsBot asocian los poderes elegidos mediante nombres completos de clase (domain.BlueAura, etc.); PlayerVsBot también crea el perfil indicado. Power.usePower, SessionParticipant.power y las clases concretas no activan ni disparan poderes; la carga, el aura, el daño y los efectos de poder siguen sin implementarse.
 - BotPlayer.decideAction devuelve null; Clumsy, Offensive, Defensive y Expert no redefinen el método, por lo que las prioridades confirmadas de esos perfiles todavía no se ejecutan.
-- SessionParticipant.jump está vacío. El banco simula el salto en PresentationMovement; ese movimiento visual no usa el nivel jump ni el estado de aturdimiento del dominio. El impulso inicial visual es 121 unidades/s (110 anteriores, aumento del 10 %); la gravedad permanece en 180 unidades/s².
+- SessionParticipant.jump está vacío; el nivel `jump` aún no tiene efecto conectado al flujo de juego. El banco no presenta salto mientras el dominio no tenga una operación para esa mecánica.
 - Stats inicia `speed`, `jump`, `kick` y `survival` en 1. `speed` se usa para el movimiento horizontal; `kick` calcula el daño de patadas y tiros de poder; `survival` determina la vida máxima. `jump` todavía no tiene efecto conectado al flujo de juego actual.
 - SessionParticipant.applyStatusEffect reemplaza efectos anteriores del mismo tipo, pero conserva simultáneamente efectos de tipos distintos. Esto no cumple la regla confirmada de que un efecto nuevo reemplaza al anterior sin acumulación.
 - En la implementación actual, `PlayerVsPlayer` coloca al jugador 1 a la derecha y al jugador 2 a la izquierda. `PlayerVsBot` coloca al jugador humano a la derecha y al bot a la izquierda, tanto cuando el humano es el jugador 1 como cuando es el jugador 2; esto coincide con la regla confirmada.
 - `GameSession` instancia una subclase de `TypeOfMatch` mediante reflexión.
-- `Game` registra cero o una referencia a la sesión singleton. Los niveles y puntos siguen asociados a los `SessionParticipant` de esa instancia, que persisten cuando `closeSession` retira y `startSession` vuelve a registrar la misma sesión; `Game` no mantiene un mapa duplicado de estadísticas.
+- `Game` registra la referencia a la sesión singleton al iniciarla. Los niveles y puntos siguen asociados a los `SessionParticipant` de esa instancia; `Game` no mantiene un mapa duplicado de estadísticas.
 - `Game.startSession` recibe en `parametersRules` la altura como primer parámetro, la anchura como segundo y el parámetro propio de la modalidad como tercero. `ByGoals` usa el tercero como límite de goles; `ByTime` lo usa como minutos del partido. `ByTime.check` recibe los marcadores en las posiciones 0 y 1 y el tiempo transcurrido en la posición 2.
 - `ByTime.suddenDeath` se activa cuando se agota el tiempo con empate; en ese caso `check` devuelve `true` y, si un marcador queda desigual, se apaga al terminar.
-- En el código actual no existen Scoreboard, Outfit, Head, Shoe, Rule ni Side en el dominio. Action está en domain y aparece en el tipo de retorno de BotPlayer.decideAction.
+- En el código actual no existen Scoreboard, Outfit, Head, Shoe, Rule ni Side en el dominio. `BotPlayer.decideAction` conserva su tipo de retorno `Set<String>` para nombres de acciones, pero todavía devuelve `null` y no ejecuta decisiones.
 - Se conservan los parámetros de jugador y reglas en los constructores de `GameSession`, `PlayerVsBot` y `PlayerVsPlayer`, y la lista de parámetros en las fábricas reflectivas. `TypeOfMatch.check` conserva su contrato `boolean` con parámetros, de acuerdo con la regla de continuidad confirmada.
 - `GameSession` coordina el paso de juego, el movimiento, las validaciones de participantes y los goles. `SoccerField` contiene y avanza los balones y delega las colisiones en `CollisionFacade`; esta coordina `CourtGeometry`, `BallCollisionResolver` y `BallParticipantCollisionResolver`. `Ball` conserva el estado físico y ejecuta las operaciones delegadas. `GameSession` no depende directamente de la fachada.
+- En cada paso, la sesión actualiza los efectos de los participantes y avanza los balones. Comprueba que los participantes estén dentro del área permitida y que no hagan contacto entre sí. Luego comprueba si hay gol. Si hubo gol, reinicia la ronda y termina la fase de colisiones de ese paso. En otro caso, resuelve primero los rebotes entre balones, después el contacto entre balones y participantes y, finalmente, los rebotes contra los laterales, el techo, los marcos y el suelo. La última corrección mantiene cada balón dentro del área jugable. El empuje al caminar se procesa al mover al participante.
+- Un solo detector geométrico calcula el contacto de círculos y rectángulos. El contorno de la cancha y los marcos de los arcos se resuelven como geometría fija durante el paso.
+- El participante delega el movimiento y el permiso para patear según su estado normal o aturdido. Cuando el daño deja su vida en cero, el estado aturdido inicia o renueva el efecto. Al vencer, el participante recupera su vida máxima. El estado se obtiene de sus efectos activos, que ya forman parte de la partida guardada.
 - En el código actual, `Ball`, `SessionParticipant` y `SoccerField` no implementan `Hitbox`; cada uno conserva su forma o formas asociadas. Solo `CircularHitbox` y `RectangularHitbox` implementan esa interfaz. Las entidades delegan la detección y la matemática geométrica permanece en los colaboradores de colisión.
 - `Ball` conserva su centro anterior antes de cada avance, y `SessionParticipant` conserva su posición anterior antes de moverse o reposicionarse. `resetPosition` y la ubicación simétrica sincronizan la posición previa con la nueva coordenada para que un reinicio no se interprete como movimiento. `CircleRectangleCollisionResolver` detecta el contacto círculo-rectángulo con el círculo real, usa las proyecciones AABB actuales/previas para clasificar el eje y separa el círculo hasta el contacto; los resolutores aplican después la respuesta física correspondiente.
 - `GameSession.kickPlayer` permite la patada a participantes registrados en sesiones activas, si no están aturdidos. Prioriza dañar al rival si está dentro de 8 unidades entre hitboxes; sin rival al alcance, permite patear el balón cuando su superficie está a 8 unidades o menos del borde de la hitbox. El dominio aplica al balón un impulso horizontal de 150 unidades/s hacia el arco contrario y uno vertical de -50 unidades/s.
@@ -156,7 +164,6 @@
 ### Bots, reglas y persistencia
 
 - ¿Qué reglas genéricas se pueden agregar/quitar y en qué orden se aplican?
-- `save()` guarda la sesión administrada en `dopo-saved-game.ser`; `save(File)` permite elegir el destino.
 - `open(File)` deserializa una partida guardada y reemplaza la sesión única administrada.
 - El guardado conserva la sesión completa: modalidad, marcador, tiempo, cancha, participantes, balones, estadísticas y objetos asociados. Los errores de archivo se reportan mediante `GameException` con los códigos `INVALID_SAVE_FILE`, `SAVE_FAILED` o `OPEN_FAILED`.
 
@@ -189,3 +196,5 @@
 | 2026-11-21 | La resolución círculo-rectángulo conserva la geometría circular exacta, clasifica el eje con proyecciones AABB actuales y previas y corrige el círculo real sobre el eje elegido; las colisiones círculo-círculo y las excepciones de participantes conservan sus reglas actuales. | Pablo |
 | 2026-11-21 | Al caminar, el jugador puede desplazar en su dirección balones en contacto, incluso si están en movimiento, conservando su velocidad actual y respetando límites y otras entidades. | Pablo |
 | 2026-11-21 | Las estadísticas son `speed`, `jump`, `kick` y `survival`, inicializadas en 1 y limitadas a nivel 10; `survival` aumenta la vida máxima y actual 10 por nivel, y `kick` aplica un multiplicador de 10 % por nivel a patadas y tiros de poder. Cada partido da 100 puntos por victoria y 25 por derrota; el empate da 25 a cada jugador. Las mejoras cuestan 500 puntos al inicio y duplican su costo en cada compra del jugador. | Pablo |
+| 2026-11-24 | El banco propone el nombre `partida.dat`; `Game.save(File)` conserva el destino proporcionado. | Pablo |
+| 2026-11-24 | Se unifica la detección geométrica y se retira el registro de estrategias. La cancha se trata como geometría fija. Se conservan los rebotes entre balones y en los marcos de los arcos, y el empuje al caminar. El estado normal o aturdido controla las acciones del participante. El contacto normal con el balón solo produce respuesta física. | Pablo |

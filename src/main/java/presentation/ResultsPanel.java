@@ -342,7 +342,27 @@ public class ResultsPanel extends BasePanel {
         };
     }
 
-    private record CharacterInfo(String animal, String country, String winnerName) { }
+    /** Datos de texto usados para identificar al personaje en los resultados. */
+    private static final class CharacterInfo {
+        private final String animal;
+        private final String country;
+        private final String winnerName;
+
+        /** Crea los datos descriptivos del personaje.
+         * @param animal animal asociado
+         * @param country país asociado
+         * @param winnerName nombre que se muestra como ganador
+         */
+        private CharacterInfo(String animal, String country, String winnerName) {
+            this.animal = animal;
+            this.country = country;
+            this.winnerName = winnerName;
+        }
+
+        private String animal() { return animal; }
+        private String country() { return country; }
+        private String winnerName() { return winnerName; }
+    }
 
     /** Dibuja la cancha como fondo y la oscurece para resaltar la tarjeta. */
     private static final class CourtBackground extends JPanel {

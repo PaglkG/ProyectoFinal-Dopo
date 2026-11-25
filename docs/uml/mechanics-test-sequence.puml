@@ -1,89 +1,62 @@
 @startuml
-title Banco visual: acciones y escenarios por la fachada Game
+title Banco visual extensible: menú, capas y simulación a través de Game
 actor Usuario
-participant "setup: MechanicsTestSetupPanel" as Setup
 participant "panel: MechanicsTestPanel" as P
 participant "controller: MechanicsTestController" as C
 participant "movement: PresentationMovement" as M
+participant "canvas: GameCanvas" as V
 participant "game: Game" as G
 participant "session: GameSession (interno)" as S
 
-Usuario -> Setup: seleccionar clases de sesión, regla y poderes
-Usuario -> Setup: indicar parámetros y perfil del bot
-Usuario -> Setup: Iniciar banco de pruebas
-Setup -> P: abrir MechanicsTestPanel(configuration)
-P -> C: crear controlador(configuration)
-C -> G: startSession(ruleParameters, powerClasses, sessionClass, matchClass, player)
-C -> G: inspectSession()
-G --> C: SessionView inmutable
-P -> P: dibujar estado recibido del controlador
+P -> C: crear controlador del banco
+C -> G: startSession(parámetros, poderes, PlayerVsPlayer, ByGoals, player)
+G --> C: sesión administrada
+Usuario -> P: elegir el escenario Partida libre
+P -> C: ejecutar acción del escenario
+C -> G: resetSession
+P -> V: repintar
+V -> G: consultar geometría y estado con getters escalares
+G --> V: cancha, arcos, participantes, balón y velocidades
+V -> V: dibujar recursos, hitboxes y vector
 
-Usuario -> P: Nueva sesión
-P -> C: restartConfiguredSession()
-C -> G: startSession(configuration)
-
-Usuario -> P: mantener dirección o pulsar salto
-P -> C: setMovementControl(control, pressed)
-C -> M: setControl(control, pressed)
-Usuario -> P: pulsar botón o F/Enter
-P -> C: kickLeft() o kickRight()
-C -> G: kickPlayer(participantId)
+Usuario -> P: pulsar F o Enter
+P -> C: kick(lado)
+C -> G: kickPlayer(lado)
 G -> S: kickPlayer(participant)
-S --> G: patada aplicada o no aplicada
+S --> G: resultado de la patada
 G --> C: resultado
+P -> P: animar la pata
 
-loop cada paso de simulación
-  P -> C: step()
-  C -> M: update(game, mode)
-  M -> G: inspectSession()
-  G --> M: SessionView
-  opt dirección horizontal activa
-    M -> G: movePlayer(participantId, direction)
-  end
-  opt ajustar salto visual o límites del banco
-    M -> G: setParticipantPosition(participantId, x, y)
-  end
-  M -> M: comprobar colisión vertical del salto con balones
-  alt ascenso desde debajo o caída sobre el balón
-    M -> M: limitar posición al borde circular
-    M -> G: setParticipantPosition(participantId, x, y)
-  else salta alejándose desde arriba
-    M -> M: conservar movimiento y permitir despegar
-  end
+Usuario -> P: mantener A/D o flechas
+P -> C: setMovementControl(control, pressed)
+loop cada actualización visual
+  C -> M: update(Game)
+  M -> G: movePlayer(...) mientras siga la tecla
+end
+
+loop cada intervalo de actualización visual
+  P -> C: update()
   C -> G: updateGame()
   G -> S: updateGame()
   opt gol detectado
     S -> S: actualizar marcador y reiniciar ronda
   end
-  C -> G: inspectSession()
-  G --> C: SessionView actualizado
-  P -> P: mostrar marcador y estado
+  P -> V: repintar
+  V -> G: consultar getters escalares
+  G --> V: estado actual
+  V -> V: dibujar capas activas y HUD
 end
 
-Usuario -> P: elegir escenario
-P -> C: runScenario(scenario)
-C -> G: crear sesión y consultar SessionView
-alt escenario de gol, rebote o contacto entre entidades
-  C -> G: setBallPosition / applyBallImpulse
-  opt escenario entre balones y hay al menos dos
-    C -> G: setBallPosition / applyBallImpulse para ambos
-    note over C,G: La actualización común siguiente resuelve la colisión con restitución 0.70.
-  end
-else escenario de salida o superposición
-  C -> G: setParticipantPosition
-end
-C -> G: updateGame()
-G -> S: updateGame()
-S --> G: resultado o GameException
-C -> G: inspectSession()
-G --> C: SessionView actualizado
-P -> P: mostrar resultado visual
+Usuario -> P: activar o desactivar una capa
+P -> P: actualizar selección visible
+P -> V: repintar capas seleccionadas
 
 note over P,G
-  La presentación de pruebas solo llama a Game.
-  Game expone instantáneas inmutables y operaciones
-  para acciones y preparación de escenarios.
-  PresentationMovement simula el salto visual, bloquea
-  el cruce vertical del balón y permite saltar desde su cara superior.
+  El banco consulta y modifica mediante Game solo con las operaciones
+  de partida disponibles; no fuerza posiciones ni velocidades.
+  Las capas geométricas representan medidas escalares y el menú
+  se amplía registrando nuevas acciones o capas en MechanicsTestPanel.
+  Vida y poder aparecen como no disponibles mientras Game no exponga
+  esos valores y el poder siga sin implementarse.
 end note
 @enduml

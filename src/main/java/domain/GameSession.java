@@ -1,6 +1,7 @@
 package domain;
 
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,9 +15,6 @@ import domain.TypeOfMatch;
  * @author Samuel Ahumada Florez
  */
 public abstract class GameSession implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-
     private static GameSession instance;
 
     /** Devuelve la sesión singleton existente sin crear una nueva.
@@ -58,12 +56,10 @@ public abstract class GameSession implements Serializable {
         if (instance != null) return instance;
         try {
             Class<? extends GameSession> targetClass = findSessionSubclass(typeGame);
-            var constructor = targetClass.getDeclaredConstructor(
+            Constructor<?> constructor = targetClass.getDeclaredConstructor(
                     boolean.class, String.class, List.class, List.class);
-            if (java.lang.reflect.Modifier.isPrivate(constructor.getModifiers())
-                    && targetClass != PlayerVsPlayer.class && targetClass != PlayerVsBot.class) {
-                throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
-            }
+            
+            // La fábrica puede acceder al constructor privado de las subclases.
             constructor.setAccessible(true);
             instance = GameSession.class.cast(constructor.newInstance(
                     player, typeMatche, parametersRules, parametersPowers));
@@ -394,11 +390,11 @@ public abstract class GameSession implements Serializable {
     }
 
     /**
-     * Comprueba primero participantes fuera de cancha y superpuestos; después
-     * procesa goles antes de salidas del balón, rebotes con límites/arcos y suelo,
-     * y contactos físicos entre balones y participantes. La cancha corrige los
-     * balones contra los límites para mantenerlos dentro; lanza {@link GameException}
-     * si un participante excede el campo o se superpone con otro.
+     * Valida la posición de los participantes y comprueba si hay gol. Si no hay
+     * gol, resuelve los rebotes entre balones, luego el contacto con participantes
+     * y finalmente los rebotes contra el contorno de la cancha y los arcos.
+     * @throws GameException si un participante está fuera del área permitida o
+     *         hace contacto con otro participante
      */
     private void collision() {
         List<SessionParticipant> allParticipants = new ArrayList<>(participantsLeft);

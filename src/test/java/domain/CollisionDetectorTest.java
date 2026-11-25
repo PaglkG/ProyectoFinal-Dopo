@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-/** Pruebas de selección y delegación de estrategias geométricas. */
+/** Pruebas de detección geométrica y de las entidades conservadas en el resultado. */
 class CollisionDetectorTest {
 
     @Test
@@ -58,38 +58,31 @@ class CollisionDetectorTest {
         assertSame(second, contact.getSecond());
     }
 
-    @Test
-    void registeredStrategyCanHandleAnAdditionalShapePair() {
-        CollisionDetector detector = new CollisionDetector();
-        CollisionDetectionStrategy extraStrategy = new CollisionDetectionStrategy() {
-            @Override
-            public boolean supports(CollisionShape first, CollisionShape second) {
-                return first instanceof TestShape && second instanceof TestShape;
-            }
-
-            @Override
-            public boolean detect(CollisionShape first, CollisionShape second) {
-                return true;
-            }
-        };
-        detector.registerStrategy(extraStrategy);
-        Collidable first = new TestCollidable(new TestShape(0, 0));
-        Collidable second = new TestCollidable(new TestShape(0, 0));
-
-        assertTrue(detector.detect(first, second).isContact());
-    }
-
     private static final class TestParticipant extends SessionParticipant {
     }
 
-    private record TestCollidable(CollisionShape collisionShape) implements Collidable {
+    private static final class TestCollidable implements Collidable {
+        private final CollisionShape collisionShape;
+
+        private TestCollidable(CollisionShape collisionShape) {
+            this.collisionShape = collisionShape;
+        }
+
         @Override
         public CollisionShape getCollisionShape() {
             return collisionShape;
         }
     }
 
-    private record TestShape(double x, double y) implements CollisionShape {
+    private static final class TestShape implements CollisionShape {
+        private double x;
+        private double y;
+
+        private TestShape(double x, double y) {
+            this.x = x;
+            this.y = y;
+        }
+
         @Override
         public double getX() { return x; }
 

@@ -1,0 +1,194 @@
+@startuml
+title Subsistema de colisiones
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide methods
+hide empty members
+
+package "Resolución física" {
+  class SoccerField {
+    - fieldHitbox: RectangularHitbox
+    - LeftGoalHitbox: RectangularHitbox
+    - RightGoalHitbox: RectangularHitbox
+    - balls: Ball[]
+    - collisions: CollisionFacade
+    + getHitboxField(): RectangularHitbox[4]
+    + getGoalHitboxes(): RectangularHitbox[2]
+    + resolveBallCollisions(restitution: double): void
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>): void
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
+    + keepBallInsideCourt(ball: Ball, retention: double): void
+  }
+
+  class CollisionFacade {
+    - field: SoccerField
+    - geometry: CourtGeometry
+    - participantResolver: BallParticipantCollisionResolver
+    - ballResolver: BallCollisionResolver
+    + resolveBallCollisions(restitution: double): void
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>): void
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    + touchesGround(ball: Ball): boolean
+    + groundCenterY(ball: Ball): double
+    + goalSideFor(ball: Ball): String
+  }
+
+  class CourtGeometry {
+    - field: SoccerField
+    + isValidBallPosition(candidate: Ball, moved: SessionParticipant, participants: Iterable<SessionParticipant>): boolean
+    + keepBallInsideCourt(ball: Ball, retention: double): void
+    + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    + touchesGround(ball: Ball): boolean
+    + groundCenterY(ball: Ball): double
+    + goalSideFor(ball: Ball): String
+  }
+
+  class BallCollisionResolver {
+    + resolveAll(balls: Ball[], restitution: double): void
+    + resolveWalkingContact(balls: Ball[], moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, geometry: CourtGeometry): void
+    - resolvePair(first: Ball, second: Ball, restitution: double): void
+  }
+
+  class BallParticipantCollisionResolver {
+    + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolve(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
+    - resolve(ball: Ball, participant: SessionParticipant, previousBallX: double, previousBallY: double, previousParticipantX: double, previousParticipantY: double, restitution: double, minimumLandingSpeed: double): void
+  }
+
+  class CircleRectangleCollisionResolver <<package-private>> {
+    {static} ~ resolveAgainstFixedRectangle(ball: Ball, rectangle: RectangularHitbox, restitution: double): Resolution
+    {static} ~ resolve(ball: Ball, rectangle: RectangularHitbox, previousBallX: double, previousBallY: double, previousRectangleX: double, previousRectangleY: double, restitution: double): Resolution
+  }
+  class Resolution {
+    - horizontal: boolean
+    - side: double
+    - bounced: boolean
+    ~ isHorizontal(): boolean
+    ~ side(): double
+    ~ bounced(): boolean
+  }
+}
+
+package "Detección geométrica de contacto" {
+  interface Collidable {
+    + getCollisionShape(): CollisionShape
+  }
+  interface CollisionShape {
+    + getX(): double
+    + getY(): double
+    + reposition(x: double, y: double): void
+  }
+  interface Hitbox {
+    + intersects(target: Object): HitboxContact
+  }
+  class CollisionDetector {
+    + detect(first: Collidable, second: Collidable): CollisionContact
+    {static} ~ intersects(first: CollisionShape, second: CollisionShape): boolean
+  }
+  class CollisionContact {
+    - first: Collidable
+    - second: Collidable
+    - contact: boolean
+    + getFirst(): Collidable
+    + getSecond(): Collidable
+    + isContact(): boolean
+  }
+  class HitboxIntersections {
+    {static} + intersects(first: Object, second: Object): HitboxContact
+    {static} - shapeOf(subject: Object): Hitbox
+    {static} - contactFor(target: Object): HitboxContact
+  }
+  class HitboxContact {
+    - name: String
+    - hitbox: Hitbox
+    + name(): String
+    + hitbox(): Hitbox
+    + isContact(): boolean
+    {static} + none(): HitboxContact
+  }
+  class CircularHitbox
+  class RectangularHitbox
+}
+
+class Ball
+class SessionParticipant {
+  {static} - NORMAL_STATE: ParticipantState
+  {static} - STUNNED_STATE: StunnedState
+  - currentState(): ParticipantState
+}
+
+package "Estados del participante" {
+  interface "ParticipantState" as ParticipantState <<privada>> {
+    + blocksMovement(): boolean
+    + move(participant: SessionParticipant, right: boolean): void
+  }
+  class "NormalState" as NormalState <<privada>>
+  class "StunnedState" as StunnedState <<privada>> {
+    - enter(participant: SessionParticipant): void
+    - recover(participant: SessionParticipant): void
+  }
+}
+
+SoccerField "1" *--> "1" CollisionFacade
+CollisionFacade --> SoccerField : cancha
+SoccerField *-- "1..*" Ball
+SoccerField *-- "3" RectangularHitbox : rectángulo exterior (1) y arcos (2)
+CollisionFacade --> "1" CourtGeometry
+CollisionFacade --> "1" BallCollisionResolver
+CollisionFacade --> "1" BallParticipantCollisionResolver
+CourtGeometry --> "1" SoccerField
+BallCollisionResolver ..> CourtGeometry
+BallCollisionResolver ..> Ball
+BallCollisionResolver ..> SessionParticipant
+BallParticipantCollisionResolver ..> Ball
+BallParticipantCollisionResolver ..> SessionParticipant
+BallParticipantCollisionResolver ..> CircleRectangleCollisionResolver
+CourtGeometry ..> CircleRectangleCollisionResolver
+CircleRectangleCollisionResolver +-- Resolution
+Ball *-- "1" CircularHitbox
+SessionParticipant *-- "1" RectangularHitbox
+
+SessionParticipant --> "1" ParticipantState : NORMAL_STATE {static}
+SessionParticipant --> "1" StunnedState : STUNNED_STATE {static}
+NormalState ..|> ParticipantState
+StunnedState ..|> ParticipantState
+
+Hitbox --|> CollisionShape
+CircularHitbox ..|> Hitbox
+RectangularHitbox ..|> Hitbox
+Ball ..|> Collidable
+SessionParticipant ..|> Collidable
+CollisionDetector ..> Collidable
+CollisionContact --> "0..2" Collidable : first y second
+HitboxIntersections ..> CollisionDetector
+HitboxIntersections ..> HitboxContact
+HitboxIntersections ..> Ball
+HitboxIntersections ..> SessionParticipant
+HitboxIntersections ..> SoccerField
+HitboxContact --> "0..1" Hitbox
+
+note right of CollisionDetector
+  Evalúa el contacto según las formas recibidas.
+end note
+
+note bottom of CourtGeometry
+  La cancha usa un rectángulo exterior.
+  Sus bordes definen los límites estáticos.
+end note
+
+note bottom of ParticipantState
+  Las clases de estado pertenecen a SessionParticipant.
+  El efecto de aturdimiento determina el estado activo.
+end note
+@enduml

@@ -1,0 +1,32 @@
+@startuml
+title Estado del participante ante una patada
+
+participant "GameSession" as Session
+participant "Atacante: SessionParticipant" as Attacker
+participant "Estado activo del atacante" as AttackerState
+participant "Rival: SessionParticipant" as Target
+participant "StunnedState" as Stun
+
+Session -> Attacker: blocksMovement()
+Attacker -> AttackerState: blocksMovement()
+AttackerState --> Attacker: bloqueo según estado
+Attacker --> Session: bloqueo
+alt atacante aturdido
+  Session -> Session: cancelar patada
+else atacante registrado, sesión activa y rival al alcance
+  Session -> Target: takeDamage(daño de patada)
+  Target -> Target: descontar vida hasta un mínimo de cero
+  opt vida igual a cero
+    Target -> Stun: enter(rival)
+    Stun -> Target: applyStatusEffect(aturdimiento de 3 s)
+  end
+end
+
+== Actualización de efectos ==
+Session -> Target: updateStatusEffects()
+opt expira el aturdimiento
+  Target -> Stun: recover(rival)
+  Stun -> Target: restaurar vida máxima
+  Target -> Target: retirar el efecto expirado
+end
+@enduml

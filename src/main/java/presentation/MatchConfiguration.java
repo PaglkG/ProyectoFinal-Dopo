@@ -1,32 +1,22 @@
 package presentation;
 
 import java.util.List;
+import java.util.Objects;
 
-/** Configuración inmutable que la presentación entrega a la fachada {@code Game}.
- * @param parametersRules parámetros ordenados de la regla de partido
- * @param parametersPowers nombres de clase de poderes y perfil del bot
- * @param typeGame nombre de clase simple del tipo de sesión
- * @param typeMatch nombre de clase simple del tipo de partido
- * @param playerOne identidad humana seleccionada para el primer jugador
- * @param againstBot indica si la modalidad enfrenta al jugador con un bot
- * @param playerOneCountryCode código de país del primer participante
- * @param playerTwoCountryCode código de país del segundo participante
- * @param playerOneHeadImage recurso de imagen de cabeza del primer participante
- * @param playerTwoHeadImage recurso de imagen de cabeza del segundo participante
- */
-public record MatchConfiguration(
-        List<String> parametersRules,
-        List<String> parametersPowers,
-        String typeGame,
-        String typeMatch,
-        boolean playerOne,
-        boolean againstBot,
-        String playerOneCountryCode,
-        String playerTwoCountryCode,
-        String playerOneHeadImage,
-        String playerTwoHeadImage) {
+/** Configuración inmutable que la presentación entrega a la fachada {@code Game}. */
+public final class MatchConfiguration {
+    private final List<String> parametersRules;
+    private final List<String> parametersPowers;
+    private final String typeGame;
+    private final String typeMatch;
+    private final boolean playerOne;
+    private final boolean againstBot;
+    private final String playerOneCountryCode;
+    private final String playerTwoCountryCode;
+    private final String playerOneHeadImage;
+    private final String playerTwoHeadImage;
 
-    /** Copia las listas de parámetros para mantenerlas inmutables.
+    /** Crea una configuración y copia sus listas para mantenerlas inmutables.
      * @param parametersRules parámetros ordenados de la regla
      * @param parametersPowers poderes y perfil, según la modalidad
      * @param typeGame nombre de la clase del tipo de sesión
@@ -38,8 +28,92 @@ public record MatchConfiguration(
      * @param playerOneHeadImage imagen de cabeza del primer participante
      * @param playerTwoHeadImage imagen de cabeza del segundo participante
      */
-    public MatchConfiguration {
-        parametersRules = List.copyOf(parametersRules);
-        parametersPowers = List.copyOf(parametersPowers);
+    public MatchConfiguration(List<String> parametersRules, List<String> parametersPowers,
+            String typeGame, String typeMatch, boolean playerOne, boolean againstBot,
+            String playerOneCountryCode, String playerTwoCountryCode,
+            String playerOneHeadImage, String playerTwoHeadImage) {
+        this.parametersRules = List.copyOf(parametersRules);
+        this.parametersPowers = List.copyOf(parametersPowers);
+        this.typeGame = typeGame;
+        this.typeMatch = typeMatch;
+        this.playerOne = playerOne;
+        this.againstBot = againstBot;
+        this.playerOneCountryCode = playerOneCountryCode;
+        this.playerTwoCountryCode = playerTwoCountryCode;
+        this.playerOneHeadImage = playerOneHeadImage;
+        this.playerTwoHeadImage = playerTwoHeadImage;
+    }
+
+    /** Devuelve los parámetros ordenados de la regla del partido.
+     * @return lista inmutable de parámetros
+     */
+    public List<String> parametersRules() { return parametersRules; }
+    /** Devuelve los nombres de clase de poderes y perfil del bot.
+     * @return lista inmutable de parámetros de poderes
+     */
+    public List<String> parametersPowers() { return parametersPowers; }
+    /** Devuelve el nombre simple de la modalidad de sesión.
+     * @return nombre de clase
+     */
+    public String typeGame() { return typeGame; }
+    /** Devuelve el nombre simple de la modalidad de partido.
+     * @return nombre de clase
+     */
+    public String typeMatch() { return typeMatch; }
+    /** Indica la identidad humana elegida para el primer jugador.
+     * @return {@code true} para jugador uno
+     */
+    public boolean playerOne() { return playerOne; }
+    /** Indica si la partida enfrenta al jugador con un bot.
+     * @return {@code true} si juega contra un bot
+     */
+    public boolean againstBot() { return againstBot; }
+    /** Devuelve el código de país del primer participante.
+     * @return código de país
+     */
+    public String playerOneCountryCode() { return playerOneCountryCode; }
+    /** Devuelve el código de país del segundo participante.
+     * @return código de país
+     */
+    public String playerTwoCountryCode() { return playerTwoCountryCode; }
+    /** Devuelve el recurso de cabeza del primer participante.
+     * @return ruta del recurso
+     */
+    public String playerOneHeadImage() { return playerOneHeadImage; }
+    /** Devuelve el recurso de cabeza del segundo participante.
+     * @return ruta del recurso
+     */
+    public String playerTwoHeadImage() { return playerTwoHeadImage; }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof MatchConfiguration that)) return false;
+        return playerOne == that.playerOne && againstBot == that.againstBot
+                && Objects.equals(parametersRules, that.parametersRules)
+                && Objects.equals(parametersPowers, that.parametersPowers)
+                && Objects.equals(typeGame, that.typeGame)
+                && Objects.equals(typeMatch, that.typeMatch)
+                && Objects.equals(playerOneCountryCode, that.playerOneCountryCode)
+                && Objects.equals(playerTwoCountryCode, that.playerTwoCountryCode)
+                && Objects.equals(playerOneHeadImage, that.playerOneHeadImage)
+                && Objects.equals(playerTwoHeadImage, that.playerTwoHeadImage);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(parametersRules, parametersPowers, typeGame, typeMatch, playerOne,
+                againstBot, playerOneCountryCode, playerTwoCountryCode,
+                playerOneHeadImage, playerTwoHeadImage);
+    }
+
+    @Override
+    public String toString() {
+        return "MatchConfiguration[parametersRules=" + parametersRules
+                + ", parametersPowers=" + parametersPowers + ", typeGame=" + typeGame
+                + ", typeMatch=" + typeMatch + ", playerOne=" + playerOne
+                + ", againstBot=" + againstBot + ", playerOneCountryCode=" + playerOneCountryCode
+                + ", playerTwoCountryCode=" + playerTwoCountryCode + ", playerOneHeadImage="
+                + playerOneHeadImage + ", playerTwoHeadImage=" + playerTwoHeadImage + "]";
     }
 }

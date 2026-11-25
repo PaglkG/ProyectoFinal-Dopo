@@ -1,12 +1,7 @@
 package domain;
 
-import domain.Ball;
-import domain.SessionParticipant;
-import domain.SoccerField;
-
 /**
- * Adapta la API histórica de hitboxes a {@link CollisionDetector} y a las
- * estrategias geométricas registradas allí.
+ * Adapta las consultas de hitboxes al cálculo geométrico de {@link CollisionDetector}.
  *
  * <p>Reconoce círculos y rectángulos asociados a objetos del dominio
  * ({@code Ball} y {@code SessionParticipant}) o contenidos por el campo
@@ -15,9 +10,6 @@ import domain.SoccerField;
  * consecuencias físicas.</p>
  */
 public final class HitboxIntersections {
-
-    /** Detector compartido que contiene las tres estrategias geométricas básicas. */
-    private static final CollisionDetector DETECTOR = new CollisionDetector();
 
     /** Evita crear instancias de esta clase, que solo ofrece operaciones estáticas. */
     private HitboxIntersections() {
@@ -51,9 +43,7 @@ public final class HitboxIntersections {
 
         Hitbox firstShape = shapeOf(first);
         Hitbox secondShape = shapeOf(second);
-        if (firstShape == null || secondShape == null
-                || !DETECTOR.detect(new ShapeCollidable(firstShape),
-                        new ShapeCollidable(secondShape)).isContact()) {
+        if (!CollisionDetector.intersects(firstShape, secondShape)) {
             return HitboxContact.none();
         }
 
@@ -78,19 +68,6 @@ public final class HitboxIntersections {
             return hitbox;
         }
         return null;
-    }
-
-    /**
-     * Adaptador para que la API histórica de hitboxes use el detector estratégico.
-     *
-     * @param collisionShape forma que expondrá el adaptador
-     */
-    private record ShapeCollidable(CollisionShape collisionShape) implements Collidable {
-        /** {@inheritDoc} */
-        @Override
-        public CollisionShape getCollisionShape() {
-            return collisionShape;
-        }
     }
 
     /**

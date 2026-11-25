@@ -15,7 +15,6 @@ public class Ball implements Serializable, Collidable {
 
     private static final long serialVersionUID = 1L;
 
-    private boolean physical;
     private double velocityX;
     private double velocityY;
     private double previousX;

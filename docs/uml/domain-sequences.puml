@@ -8,19 +8,6 @@ G --> Usuario --: instancia Game
 @enduml
 
 @startuml
-title closeSession (flujo implementado)
-actor Usuario
-participant "game: Game" as G
-Usuario -> G ++: closeSession()
-G -> G: session = null
-G --> Usuario --: void
-note over G
-  Game limpia su referencia; GameSession conserva
-  la instancia singleton para una llamada posterior.
-end note
-@enduml
-
-@startuml
 title movePlayer (flujo implementado)
 actor Usuario
 participant "game: Game" as G

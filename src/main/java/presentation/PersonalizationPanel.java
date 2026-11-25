@@ -654,9 +654,48 @@ public class PersonalizationPanel extends BasePanel
         return CHARACTER_PROFILES[countryComboBox.getSelectedIndex()];
     }
 
-    private record CharacterProfile(String country, String countryCode, String animal, String imageFile,
-                                    String previewImageFile, String powerClassName, String powerName,
-                                    String description) { }
+    /** Datos de selección y presentación de un personaje disponible. */
+    private static final class CharacterProfile {
+        private final String country;
+        private final String countryCode;
+        private final String animal;
+        private final String imageFile;
+        private final String previewImageFile;
+        private final String powerClassName;
+        private final String powerName;
+        private final String description;
+
+        /** Crea los metadatos visibles y recursos asociados al personaje.
+         * @param country nombre del país
+         * @param countryCode código de país
+         * @param animal nombre del animal representado
+         * @param imageFile recurso principal de imagen
+         * @param previewImageFile recurso de vista previa
+         * @param powerClassName nombre completo de clase del poder
+         * @param powerName nombre visible del poder
+         * @param description descripción del poder
+         */
+        private CharacterProfile(String country, String countryCode, String animal, String imageFile,
+                String previewImageFile, String powerClassName, String powerName, String description) {
+            this.country = country;
+            this.countryCode = countryCode;
+            this.animal = animal;
+            this.imageFile = imageFile;
+            this.previewImageFile = previewImageFile;
+            this.powerClassName = powerClassName;
+            this.powerName = powerName;
+            this.description = description;
+        }
+
+        private String country() { return country; }
+        private String countryCode() { return countryCode; }
+        private String animal() { return animal; }
+        private String imageFile() { return imageFile; }
+        private String previewImageFile() { return previewImageFile; }
+        private String powerClassName() { return powerClassName; }
+        private String powerName() { return powerName; }
+        private String description() { return description; }
+    }
 
     /**
      * Verifica que el campo visible (minutos o goles) contenga un entero positivo.

@@ -1,11 +1,18 @@
 package domain;
 
-/** Resuelve el contacto exacto entre el círculo del balón y un rectángulo fijo. */
+/** Clasifica y resuelve el contacto exacto entre el balón y una hitbox rectangular. */
 final class CircleRectangleCollisionResolver {
 
     private static final double EPSILON = 1e-9;
 
     private CircleRectangleCollisionResolver() {
+    }
+
+    /** Resuelve el contacto con un límite o marco que conserva su posición entre pasos. */
+    static Resolution resolveAgainstFixedRectangle(Ball ball, RectangularHitbox rectangle,
+            double restitution) {
+        return resolve(ball, rectangle, ball.getPreviousX(), ball.getPreviousY(),
+                rectangle.getX(), rectangle.getY(), restitution);
     }
 
     /** Corrige el contacto sobre el eje clasificado y refleja solo su velocidad normal. */
@@ -24,19 +31,19 @@ final class CircleRectangleCollisionResolver {
         double radius = Math.abs(ball.getRadius());
         if (distance > radius) return null;
 
-        CollisionAxisResolver.Axis axis = CollisionAxisResolver.forCircleRectangle(
+        boolean horizontal = isHorizontalContact(
                 ball, rectangle, previousBallX, previousBallY,
                 previousRectangleX, previousRectangleY);
-        double side = CollisionAxisResolver.sideForAxis(axis, ball, rectangle,
+        double side = sideForAxis(horizontal, ball, rectangle,
                 previousBallX, previousBallY, previousRectangleX, previousRectangleY);
-        double normalX = axis == CollisionAxisResolver.Axis.HORIZONTAL ? side : 0;
-        double normalY = axis == CollisionAxisResolver.Axis.VERTICAL ? side : 0;
+        double normalX = horizontal ? side : 0;
+        double normalY = horizontal ? 0 : side;
         double penetration = radius - distance;
 
         if (penetration > EPSILON) {
             double targetX = ball.getX();
             double targetY = ball.getY();
-            if (axis == CollisionAxisResolver.Axis.HORIZONTAL) {
+            if (horizontal) {
                 double outsideDistanceY = ball.getY() < top ? top - ball.getY()
                         : ball.getY() > bottom ? ball.getY() - bottom : 0;
                 double radialOffset = outsideDistanceY == 0 ? radius
@@ -58,9 +65,94 @@ final class CircleRectangleCollisionResolver {
             double impulse = -(1 + restitution) * normalSpeed;
             ball.applyImpulse(impulse * normalX, impulse * normalY);
         }
-        return new Resolution(axis, side, bounced);
+        return new Resolution(horizontal, side, bounced);
     }
 
-    record Resolution(CollisionAxisResolver.Axis axis, double side, boolean bounced) {
+    /**
+     * Clasifica un contacto círculo-rectángulo usando la proyección AABB del
+     * círculo solo para determinar el eje; la detección geométrica sigue usando
+     * el círculo real.
+     */
+    private static boolean isHorizontalContact(Ball ball, RectangularHitbox rectangle,
+            double previousBallX, double previousBallY,
+            double previousRectangleX, double previousRectangleY) {
+        double halfWidth = Math.abs(rectangle.getWidth()) / 2;
+        double halfHeight = Math.abs(rectangle.getHeight()) / 2;
+        double radius = Math.abs(ball.getRadius());
+        double rectangleCenterX = rectangle.getX() + rectangle.getWidth() / 2;
+        double rectangleCenterY = rectangle.getY() + rectangle.getHeight() / 2;
+        double previousRectangleCenterX = previousRectangleX + rectangle.getWidth() / 2;
+        double previousRectangleCenterY = previousRectangleY + rectangle.getHeight() / 2;
+
+        double overlapX = radius + halfWidth - Math.abs(ball.getX() - rectangleCenterX);
+        double overlapY = radius + halfHeight - Math.abs(ball.getY() - rectangleCenterY);
+        double previousOverlapX = radius + halfWidth - Math.abs(previousBallX - previousRectangleCenterX);
+        double previousOverlapY = radius + halfHeight - Math.abs(previousBallY - previousRectangleCenterY);
+
+        boolean wasSeparatedX = previousOverlapX <= 0;
+        boolean wasSeparatedY = previousOverlapY <= 0;
+        boolean wasOverlappingX = previousOverlapX > 0;
+        boolean wasOverlappingY = previousOverlapY > 0;
+
+        if (wasSeparatedX && wasOverlappingY) return true;
+        if (wasSeparatedY && wasOverlappingX) return false;
+
+        if (overlapX + EPSILON < overlapY) return true;
+        if (overlapY + EPSILON < overlapX) return false;
+        return Math.abs(ball.getVelocityX()) > Math.abs(ball.getVelocityY());
+    }
+
+    /** Devuelve -1 o 1 según el lado previo/actual del círculo respecto al rectángulo.
+     * @param horizontal {@code true} si el contacto se clasifica como horizontal
+     */
+    private static double sideForAxis(boolean horizontal, Ball ball,
+            RectangularHitbox rectangle, double previousBallX, double previousBallY,
+            double previousRectangleX, double previousRectangleY) {
+        if (horizontal) {
+            double currentDifference = ball.getX() - (rectangle.getX() + rectangle.getWidth() / 2);
+            if (Math.abs(currentDifference) > EPSILON) return Math.signum(currentDifference);
+            double previousDifference = previousBallX - (previousRectangleX + rectangle.getWidth() / 2);
+            if (Math.abs(previousDifference) > EPSILON) return Math.signum(previousDifference);
+            return ball.getVelocityX() >= 0 ? -1 : 1;
+        }
+
+        double currentDifference = ball.getY() - (rectangle.getY() + rectangle.getHeight() / 2);
+        if (Math.abs(currentDifference) > EPSILON) return Math.signum(currentDifference);
+        double previousDifference = previousBallY - (previousRectangleY + rectangle.getHeight() / 2);
+        if (Math.abs(previousDifference) > EPSILON) return Math.signum(previousDifference);
+        return ball.getVelocityY() >= 0 ? -1 : 1;
+    }
+
+    /** Resultado inmutable de la clasificación y respuesta de un contacto. */
+    static final class Resolution {
+        private final boolean horizontal;
+        private final double side;
+        private final boolean bounced;
+
+        /** Crea el resultado de la resolución del contacto.
+         * @param horizontal {@code true} si se resolvió horizontalmente
+         * @param side lado del rectángulo respecto al que se separó el balón
+         * @param bounced indica si se aplicó un rebote
+         */
+        Resolution(boolean horizontal, double side, boolean bounced) {
+            this.horizontal = horizontal;
+            this.side = side;
+            this.bounced = bounced;
+        }
+
+        /** Indica si el contacto se resolvió horizontalmente.
+         * @return {@code true} si fue horizontal
+         */
+        boolean isHorizontal() { return horizontal; }
+
+        /** Devuelve el lado elegido para la separación.
+         * @return lado con valor -1 o 1
+         */
+        double side() { return side; }
+
+        /** Indica si el contacto produjo un rebote.
+         * @return {@code true} si se aplicó un impulso de rebote
+         */
+        boolean bounced() { return bounced; }
     }
 }

@@ -52,15 +52,6 @@ public class Game {
     }
 
     /**
-     * Cierra la sesión indicada.
-     *
-     * @param closeSession sesión que se cerrará
-     */
-    public void closeSession(GameSession closeSession) {
-        sessions.remove(0);
-    }
-
-    /**
      * Reinicia la sesión indicada.
      *
      * @param session sesión que se reiniciará
@@ -189,10 +180,6 @@ public class Game {
             boolean player,
             String stats,
             int points) {
-    }
-
-    /** Guarda el estado de la partida. */
-    public void save() {
     }
 
     /**

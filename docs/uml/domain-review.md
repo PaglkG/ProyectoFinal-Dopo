@@ -7,7 +7,6 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 ## Resumen
 
 - Implementado de forma coherente: instancia compartida de `GameSession` para `PlayerVsBot` y `PlayerVsPlayer`; creación reflectiva de la modalidad; colocación fija de participantes; construcción y reinicio del balón; construcción y reposicionamiento de hitboxes; comprobaciones `ByGoals` y `ByTime`; valores iniciales y mejoras de `Stats`.
-- Implementado: `Game.closeSession` elimina de `sessions` el objeto de sesión recibido.
 - Implementado en esta revisión: actualización fija del balón, rebotes contra límites, otros balones y participantes, aterrizaje visual encima del balón, excepciones por salida/superposición, goles y marcador, reinicio de ronda y cierre por modalidad.
 - Implementado en esta revisión: movimiento horizontal delegado por `Game`, escalado por `Stats.speed` y aplicado al participante y su hitbox.
 - Implementado en esta revisión: 100 puntos por victoria humana, 25 por derrota o empate, costo progresivo de mejoras, daño de patada según `kick`, vida máxima según `survival`, aturdimiento con `StatusEffect` y errores de dominio emitidos como `GameException`.
@@ -19,7 +18,6 @@ Se contrastaron el diagrama de clases y las secuencias entregadas en los PDF de 
 | Clase / grupo | Código observado | Evaluación frente al UML y reglas |
 |---|---|---|
 | `Game` | `startSession` solicita `GameSession.getInstance`; registra la referencia solo una vez. | Las llamadas posteriores reutilizan la primera sesión, aun si solicitan otra subclase; la primera modalidad concreta permanece activa. |
-| `Game.closeSession` | Limpia la referencia `session` de `Game`. | No destruye la instancia singleton; una llamada posterior a `startSession` vuelve a guardar esa misma instancia. |
 | `Game.movePlayer` | Delega en la sesión para participantes registrados en una partida activa; el participante se desplaza 150 × `speed` / 60 unidades, en la dirección confirmada. | Implementado en esta revisión conforme a dirección y fórmula confirmadas. |
 | `Game.resetSession` | Delega `restartRound` en la sesión única administrada; también permite resolverla por índice. | Reinicia balones y posiciones sin reemplazar la instancia ni cambiar el marcador, tiempo o estado final. `powerPlayer` sigue vacío; `save` y `open` serializan la sesión única. |
 powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el código actual.
@@ -42,7 +40,6 @@ powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el cód
 1. `TypeOfMatch.check` aparece sin parámetros en el PDF; Java declara `check(List<String>)`. `ByGoals.check` y `ByTime.check` también necesitan la lista según el contrato actual.
 2. El PDF coloca `isTime` e `isSuddenDeath` en `ByGoals`; el código y la regla documentada los ubican en `ByTime`.
 3. `Stats.action` aparece como `HashSet` en el PDF; el código/regla acordada definen `Map<String,Integer>`.
-4. La secuencia `closeSession` y la implementación eliminan la sesión solicitada.
 5. La secuencia resetSession del PDF supone cuatro coordenadas y bases por lado; esos campos no existen en GameSession actual. El reinicio confirmado centra el balón y reposiciona participantes mediante `restartRound`.
 6. Las secuencias `startSessionPlayerVsBot`/`VsPlayer` tienen inconsistencias de nombres/tipos: llamadas a modalidad con nombres de parámetros intercambiados, creación o retorno rotulado como la modalidad equivocada, y creación de `Scoreboard` aunque esa clase fue retirada del dominio actual. En la secuencia PVP, la sesión aparece rotulada `PlayerVsBot`.
 7. La interfaz y formas del diagrama de Hitbox omiten `reposition(x,y)`, que sí existe en Java.
@@ -51,7 +48,6 @@ powerPlayer sigue vacío; minParticipants y assignRules ya no existen en el cód
 
 ## Pendientes de codificación derivados de los diagramas
 
-1. Mantener `Game.closeSession` alineado con el flujo que elimina el objeto de sesión recibido.
 2. La secuencia resetSession del PDF continúa pendiente de actualización para coincidir con el reinicio confirmado de la ronda.
 3. Extender el movimiento si se confirman límites de cancha, colisiones u otras restricciones adicionales.
 4. Implementar salto y poder a través de `Game`, `GameSession`, participante y `Power` una vez definidos sus efectos y límites.

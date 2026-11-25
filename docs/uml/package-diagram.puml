@@ -7,11 +7,12 @@ package "presentation" {
   }
   package "testing" {
     class MechanicsTestApp
-    class MechanicsTestSetupPanel
-    class MechanicsTestConfiguration
     class MechanicsTestPanel
     class MechanicsTestController
     class PresentationMovement
+    class GameCanvas
+    class TestScenario
+    class LayerOption
   }
   package "screens / components / navigation" as UI
 }
@@ -65,13 +66,12 @@ SessionParticipant ..> Power
 PowerFactory ..> Power
 UI ..> GameController : futuras llamadas desde UI
 MechanicsTestPanel ..> MechanicsTestController
-MechanicsTestSetupPanel ..> MechanicsTestConfiguration
-MechanicsTestApp ..> MechanicsTestSetupPanel
 MechanicsTestApp ..> MechanicsTestPanel
-MechanicsTestPanel ..> MechanicsTestConfiguration
-MechanicsTestPanel ..> Game : vista inmutable
+MechanicsTestPanel ..> GameCanvas
+MechanicsTestPanel ..> TestScenario : menú extensible
+MechanicsTestPanel ..> LayerOption : capas activables
 MechanicsTestController ..> Game
-PresentationMovement ..> Game
+MechanicsTestController ..> PresentationMovement : entrada visual
 note bottom of UI
   Las pantallas de la aplicación principal aún son esqueletos.
   El banco de pruebas es una aplicación independiente.
@@ -96,9 +96,8 @@ note bottom of Hitbox
   la interfaz.
 end note
 note right of MechanicsTestController
-  Controla el banco de pruebas a través
-  de Game y su instantánea SessionView.
-  PresentationMovement usa Game para
-  mover y preparar participantes.
+  Adapta movimientos, patadas y escenarios
+  a la fachada Game. La vista obtiene las
+  geometrías mediante getters escalares.
 end note
 @enduml

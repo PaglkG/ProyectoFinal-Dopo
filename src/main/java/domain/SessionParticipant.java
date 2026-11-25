@@ -20,6 +20,8 @@ import domain.GameException;
 public abstract class SessionParticipant implements Serializable, Collidable {
 
     private static final long serialVersionUID = 1L;
+    private static final ParticipantState NORMAL_STATE = new NormalState();
+    private static final StunnedState STUNNED_STATE = new StunnedState();
 
     private double previousX;
     private double previousY;
@@ -43,10 +45,7 @@ public abstract class SessionParticipant implements Serializable, Collidable {
      * @param dir {@code true} para derecha, {@code false} para izquierda
      */
     public void move(boolean dir) {
-        if (blocksMovement()) return;
-        double direction = dir ? 1 : -1;
-        double distance = direction * 150.0 * stats.getSpeed() / 60.0;
-        reposition(UserHitbox.getX() + distance, UserHitbox.getY());
+        currentState().move(this, dir);
     }
 
     /** Devuelve las estadísticas asociadas a este participante.
@@ -70,7 +69,12 @@ public abstract class SessionParticipant implements Serializable, Collidable {
      * @return {@code true} si el participante no puede moverse
      */
     public boolean blocksMovement() {
-        return status.stream().anyMatch(StatusEffect::blocksMovement);
+        return currentState().blocksMovement();
+    }
+
+    /** Deriva el comportamiento de los efectos vigentes, incluso tras cargar una partida. */
+    private ParticipantState currentState() {
+        return status.stream().anyMatch(StatusEffect::blocksMovement) ? STUNNED_STATE : NORMAL_STATE;
     }
 
     /** Reduce la vida sin permitir que baje de cero y aturde al llegar a cero.
@@ -79,8 +83,7 @@ public abstract class SessionParticipant implements Serializable, Collidable {
     public void takeDamage(int damage) {
         if (damage <= 0) throw new GameException(GameException.INVALID_DAMAGE);
         life = Math.max(0, life - damage);
-        if (life == 0) applyStatusEffect(new StatusEffect(StatusEffect.STUNNED,
-                StatusEffect.STUN_DURATION_SECONDS));
+        if (life == 0) STUNNED_STATE.enter(this);
     }
 
     /** Agrega un efecto y reemplaza cualquier efecto previo del mismo tipo.
@@ -99,7 +102,7 @@ public abstract class SessionParticipant implements Serializable, Collidable {
             StatusEffect effect = iterator.next();
             effect.update();
             if (effect.isExpired()) {
-                if (StatusEffect.STUNNED.equals(effect.getType())) life = getMaxLife();
+                if (StatusEffect.STUNNED.equals(effect.getType())) STUNNED_STATE.recover(this);
                 iterator.remove();
             }
         }
@@ -238,5 +241,59 @@ public abstract class SessionParticipant implements Serializable, Collidable {
 
     private void setPosition(double x, double y) {
         UserHitbox.reposition(x, y);
+    }
+
+    /** Comportamiento del participante según los efectos que permiten o bloquean sus acciones. */
+    private interface ParticipantState {
+        /** Indica si el estado bloquea el movimiento y la patada.
+         * @return {@code true} cuando el participante tiene las acciones bloqueadas
+         */
+        boolean blocksMovement();
+
+        /** Procesa un intento de movimiento horizontal en el estado vigente.
+         * @param participant participante que intenta moverse
+         * @param right {@code true} para mover a la derecha, {@code false} a la izquierda
+         */
+        void move(SessionParticipant participant, boolean right);
+    }
+
+    /** Permite el movimiento horizontal cuando los efectos activos no lo impiden. */
+    private static final class NormalState implements ParticipantState {
+        /** {@inheritDoc} */
+        @Override
+        public boolean blocksMovement() { return false; }
+
+        /** {@inheritDoc} */
+        @Override
+        public void move(SessionParticipant participant, boolean right) {
+            double direction = right ? 1 : -1;
+            double distance = direction * 150.0 * participant.stats.getSpeed() / 60.0;
+            RectangularHitbox hitbox = participant.UserHitbox;
+            participant.reposition(hitbox.getX() + distance, hitbox.getY());
+        }
+    }
+
+    /** Impide el movimiento durante el aturdimiento y restaura la vida al vencer ese efecto. */
+    private static final class StunnedState implements ParticipantState {
+        /** {@inheritDoc} */
+        @Override
+        public boolean blocksMovement() { return true; }
+
+        /** {@inheritDoc} */
+        @Override
+        public void move(SessionParticipant participant, boolean right) {
+            // El intento no modifica la posición durante el bloqueo.
+        }
+
+        /** Activa o renueva el aturdimiento cuando el daño deja la vida en cero. */
+        private void enter(SessionParticipant participant) {
+            participant.applyStatusEffect(new StatusEffect(StatusEffect.STUNNED,
+                    StatusEffect.STUN_DURATION_SECONDS));
+        }
+
+        /** Devuelve al participante su vida máxima al vencer el efecto de aturdimiento. */
+        private void recover(SessionParticipant participant) {
+            participant.life = participant.getMaxLife();
+        }
     }
 }

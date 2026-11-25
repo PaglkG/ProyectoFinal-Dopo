@@ -1,9 +1,6 @@
 package presentation.testing;
-import domain.BallView;
-import domain.ParticipantView;
-import domain.RectangleView;
-import domain.SessionView;
 
+import domain.Game;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -11,624 +8,601 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridLayout;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
-import java.util.HashSet;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
+import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSpinner;
-import javax.swing.SpinnerNumberModel;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 import javax.swing.KeyStroke;
+import javax.swing.Timer;
+import javax.swing.ImageIcon;
+import java.awt.Image;
 
-import domain.Game;
-
-/** Ventana de pruebas manuales para las mecánicas ya implementadas en el dominio. */
+/** Banco visual configurable para inspeccionar los datos de juego y las hitboxes. */
 public final class MechanicsTestPanel extends JPanel {
+    private static final Color BACKGROUND = new Color(25, 31, 40);
+    private static final Color TEXT = new Color(238, 242, 246);
+    private static final Color LEFT_COLOR = new Color(255, 100, 90);
+    private static final Color RIGHT_COLOR = new Color(87, 200, 255);
+    private static final double CHARACTER_HEAD_HEIGHT_RATIO = 0.16;
+    private static final double CHARACTER_BODY_HEIGHT_RATIO = 0.09;
+    private static final double CHARACTER_BODY_WIDTH_RATIO = 0.62;
+    private static final double CHARACTER_HEAD_BODY_OVERLAP_RATIO = 0.18;
+    private static final double CHARACTER_FLOOR_RATIO = 0.985;
+    private static final CharacterStyle LEFT_CHARACTER = new CharacterStyle("Lobo",
+            "/images/outfits/heads/Heads Scaled/wolf_referencia.png",
+            "/images/outfits/shoes/PATAWOLF.png", true);
+    private static final CharacterStyle RIGHT_CHARACTER = new CharacterStyle("Tigre",
+            "/images/outfits/heads/Heads Scaled/tiger_escalado.png",
+            "/images/outfits/shoes/tiger@4x-8.png", false);
 
-    private final MechanicsTestController controller;
-    private final JComboBox<MechanicsTestController.SessionMode> sessionMode =
-            new JComboBox<>(MechanicsTestController.SessionMode.values());
-    private final JComboBox<MechanicsTestController.MatchMode> matchMode =
-            new JComboBox<>(MechanicsTestController.MatchMode.values());
-    private final JSpinner limit = new JSpinner(new SpinnerNumberModel(5, 0, 999, 1));
-    private final JLabel status = new JLabel("Sesión lista. Usa los escenarios para probar contactos.");
+    private final MechanicsTestController controller = new MechanicsTestController();
+    private final List<TestScenario> scenarios = new ArrayList<>();
+    private final List<LayerOption> layers = new ArrayList<>();
+    private final JComboBox<TestScenario> scenarioMenu = new JComboBox<>();
+    private final JPanel layerMenu = new JPanel();
+    private final JLabel status = new JLabel("Simulación lista");
     private final JLabel score = new JLabel();
-    private final JLabel controlHelp = new JLabel();
-    private final JCheckBox showHitboxes = new JCheckBox("Mostrar todas las hitboxes", true);
-    private final FieldView fieldView = new FieldView();
-    private final Timer timer = new Timer(16, event -> advanceOneStep(false));
-    private final JButton runButton = new JButton("Iniciar simulación");
-    private final JButton kickLeftButton = new JButton("Patear izquierda (F)");
-    private final JButton kickRightButton = new JButton("Patear derecha (Enter)");
+    private final GameCanvas canvas = new GameCanvas();
+    private final Timer timer = new Timer(16, event -> tick());
     private final Set<Integer> kickKeysDown = new HashSet<>();
+    private double leftKickProgress;
+    private double rightKickProgress;
 
-    /** Construye controles, escenarios, área de juego y enlaces de teclado; después crea la sesión inicial. */
-    public MechanicsTestPanel() {
-        this(MechanicsTestConfiguration.defaults());
-    }
-
-    /** Construye el banco usando la configuración elegida en la pantalla inicial.
-     * @param configuration configuración de modalidad, sesión y límite
+    /** Construye los menús, registra las capas iniciales y conecta los controles.
      */
-    public MechanicsTestPanel(MechanicsTestConfiguration configuration) {
+    public MechanicsTestPanel() {
         super(new BorderLayout(10, 10));
-        controller = new MechanicsTestController(configuration);
-        sessionMode.setSelectedItem(configuration.sessionMode());
-        matchMode.setSelectedItem(configuration.matchMode());
-        limit.setValue(configuration.limit());
-        sessionMode.setEnabled(false);
-        matchMode.setEnabled(false);
-        limit.setEnabled(false);
-        setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-        setBackground(new Color(24, 30, 39));
-        add(buildSettings(), BorderLayout.NORTH);
-        add(fieldView, BorderLayout.CENTER);
-        add(buildScenarios(), BorderLayout.EAST);
-        fieldView.add(buildFooter(), BorderLayout.SOUTH);
-        configureMovementKeys();
-        startSession();
+        setBackground(BACKGROUND);
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        registerDefaultScenarios();
+        registerDefaultLayers();
+        add(buildToolbar(), BorderLayout.NORTH);
+        add(canvas, BorderLayout.CENTER);
+        add(buildSideMenu(), BorderLayout.EAST);
+        bindKeys();
+        refreshLabels();
     }
 
-    /** Detiene el temporizador visual cuando se cierra la ventana. */
-    public void stopSimulation() {
-        timer.stop();
+    /** Inicia la actualización periódica de la sesión.
+     */
+    public void start() { timer.start(); }
+
+    /** Detiene la actualización periódica de la sesión.
+     */
+    public void stop() { timer.stop(); }
+
+    private JPanel buildToolbar() {
+        JPanel toolbar = new JPanel(new BorderLayout(8, 4));
+        toolbar.setOpaque(false);
+        JPanel controls = new JPanel();
+        controls.setOpaque(false);
+        JButton runScenario = new JButton("Preparar prueba");
+        runScenario.addActionListener(event -> runSelectedScenario());
+        JButton reset = new JButton("Reiniciar");
+        reset.addActionListener(event -> {
+            controller.reset();
+            leftKickProgress = rightKickProgress = 0;
+            status.setText("Ronda reiniciada");
+            refreshLabels();
+            canvas.repaint();
+        });
+        JButton pause = new JButton("Pausar / continuar");
+        pause.addActionListener(event -> {
+            if (timer.isRunning()) timer.stop(); else timer.start();
+        });
+        controls.add(scenarioMenu);
+        controls.add(runScenario);
+        controls.add(reset);
+        controls.add(pause);
+        toolbar.add(controls, BorderLayout.CENTER);
+        score.setForeground(TEXT);
+        score.setFont(score.getFont().deriveFont(Font.BOLD, 18f));
+        toolbar.add(score, BorderLayout.EAST);
+        status.setForeground(TEXT);
+        toolbar.add(status, BorderLayout.SOUTH);
+        return toolbar;
     }
 
-    /** Crea los selectores de sesión y modalidad, el límite y los controles de simulación. */
-    private JPanel buildSettings() {
-        JPanel settings = new JPanel();
-        settings.setOpaque(false);
-        settings.add(label("Sesión"));
-        settings.add(sessionMode);
-        settings.add(label("Modalidad"));
-        settings.add(matchMode);
-        settings.add(label("Límite (goles/minutos)"));
-        settings.add(limit);
-        JButton create = new JButton("Nueva sesión");
-        create.addActionListener(event -> startSession());
-        settings.add(create);
-        JButton step = new JButton("Un paso");
-        step.addActionListener(event -> advanceOneStep(true));
-        settings.add(step);
-        showHitboxes.setOpaque(false);
-        showHitboxes.setForeground(Color.WHITE);
-        showHitboxes.addActionListener(event -> fieldView.repaint());
-        settings.add(showHitboxes);
-        runButton.addActionListener(event -> toggleSimulation());
-        settings.add(runButton);
-        JButton save = new JButton("Guardar partida");
-        save.addActionListener(event -> saveGame());
-        settings.add(save);
-        JButton open = new JButton("Abrir partida");
-        open.addActionListener(event -> openGame());
-        settings.add(open);
-        return settings;
-    }
-
-    /** Solicita un archivo y guarda el estado actual de la sesión probada. */
-    private void saveGame() {
-        JFileChooser chooser = new JFileChooser();
-        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            try {
-                controller.save(ensureSaveExtension(chooser.getSelectedFile()));
-                status.setText("Partida guardada.");
-            } catch (RuntimeException exception) {
-                status.setText("No se pudo guardar: " + exception.getMessage());
-            } finally {
-                refreshView();
-            }
+    private JScrollPane buildSideMenu() {
+        layerMenu.setOpaque(false);
+        layerMenu.setLayout(new javax.swing.BoxLayout(layerMenu, javax.swing.BoxLayout.Y_AXIS));
+        JLabel title = new JLabel("Elementos visibles");
+        title.setForeground(TEXT);
+        title.setFont(title.getFont().deriveFont(Font.BOLD));
+        layerMenu.add(title);
+        for (LayerOption layer : layers) {
+            JCheckBox toggle = new JCheckBox(layer.label(), layer.enabled());
+            toggle.setOpaque(false);
+            toggle.setForeground(TEXT);
+            toggle.addActionListener(event -> {
+                layer.setEnabled(toggle.isSelected());
+                canvas.repaint();
+            });
+            layerMenu.add(toggle);
         }
-    }
-
-    /** Solicita un archivo y restaura su sesión en el banco de pruebas. */
-    private void openGame() {
-        JFileChooser chooser = new JFileChooser();
-        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            try {
-                timer.stop();
-                runButton.setText("Iniciar simulación");
-                controller.open(chooser.getSelectedFile());
-                status.setText("Partida abierta.");
-            } catch (RuntimeException exception) {
-                status.setText("No se pudo abrir: " + exception.getMessage());
-                JOptionPane.showMessageDialog(this, exception.getMessage(),
-                        "Error al abrir la partida", JOptionPane.ERROR_MESSAGE);
-            } finally {
-                refreshView();
-            }
-        }
-    }
-
-    /** Conserva una extensión .ser visible al guardar desde el banco. */
-    private java.io.File ensureSaveExtension(java.io.File file) {
-        String name = file.getName();
-        return name.toLowerCase().endsWith(".ser")
-                ? file : new java.io.File(file.getAbsoluteFile().getParentFile(), name + ".ser");
-    }
-
-    /** Construye la lista desplazable de patadas y escenarios manuales disponibles. */
-    private JPanel buildScenarios() {
-        JPanel panel = new JPanel(new GridLayout(0, 1, 6, 6));
-        panel.setOpaque(false);
-        panel.setPreferredSize(new Dimension(205, 0));
-        panel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(new Color(90, 108, 127)), "Acciones y escenarios", 0, 0,
-                new Font(Font.SANS_SERIF, Font.BOLD, 13), Color.WHITE));
-        kickLeftButton.addActionListener(event -> performKick(true));
-        kickRightButton.addActionListener(event -> performKick(false));
-        panel.add(kickLeftButton);
-        panel.add(kickRightButton);
-        addScenario(panel, "Gol en arco izquierdo", MechanicsTestController.Scenario.LEFT_GOAL);
-        addScenario(panel, "Gol en arco derecho", MechanicsTestController.Scenario.RIGHT_GOAL);
-        addScenario(panel, "Contacto jugador-balón", MechanicsTestController.Scenario.PLAYER_BALL_CONTACT);
-        addScenario(panel, "Rebote en el suelo", MechanicsTestController.Scenario.GROUND_BOUNCE);
-        addScenario(panel, "Contacto seguro con límite", MechanicsTestController.Scenario.SAFE_FIELD_CONTACT);
-        addScenario(panel, "Rebote del balón en límite lateral", MechanicsTestController.Scenario.BALL_SIDE_REBOUND);
-        addScenario(panel, "Colisión entre dos balones", MechanicsTestController.Scenario.BALL_BALL_COLLISION);
-        addScenario(panel, "Jugador fuera de cancha", MechanicsTestController.Scenario.PARTICIPANT_OUTSIDE);
-        addScenario(panel, "Jugador toca límite lateral", MechanicsTestController.Scenario.PARTICIPANT_TOUCHES_SIDE);
-        addScenario(panel, "Jugadores superpuestos", MechanicsTestController.Scenario.PARTICIPANTS_OVERLAP);
-        addScenario(panel, "Preparar patada al rival", MechanicsTestController.Scenario.KICK_OPPONENT);
-        addScenario(panel, "Muerte súbita y gol ganador", MechanicsTestController.Scenario.SUDDEN_DEATH_WIN);
-        JScrollPane scroll = new JScrollPane(panel);
-        scroll.setPreferredSize(new Dimension(220, 400));
+        JLabel help = new JLabel("<html>A / D: mover izquierda<br>← / →: mover derecha<br>F / Enter: patear</html>");
+        help.setForeground(TEXT);
+        layerMenu.add(help);
+        JScrollPane scroll = new JScrollPane(layerMenu);
+        scroll.setPreferredSize(new Dimension(245, 100));
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getViewport().setOpaque(false);
         scroll.setOpaque(false);
-        return wrapScenarioScroll(scroll);
+        return scroll;
     }
 
-    /** Inserta la lista desplazable en un panel contenedor transparente. */
-    private JPanel wrapScenarioScroll(JScrollPane scroll) {
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setOpaque(false);
-        wrapper.add(scroll, BorderLayout.CENTER);
-        return wrapper;
+    private void registerDefaultScenarios() {
+        addScenario("Partida libre", () -> controller.reset());
     }
 
-    /** Añade un botón que ejecuta el escenario, comunica errores y refresca la vista. */
-    private void addScenario(JPanel panel, String title, MechanicsTestController.Scenario scenario) {
-        JButton button = new JButton(title);
-        button.setFocusPainted(false);
-        button.addActionListener(event -> {
-            timer.stop();
-            runButton.setText("Iniciar simulación");
-            try {
-                if (scenario == MechanicsTestController.Scenario.BALL_BALL_COLLISION
-                        && controller.getSessionView().balls().size() < 2) {
-                    status.setText("Este escenario requiere una sesión con al menos dos balones.");
-                    refreshView();
-                    return;
-                }
-                controller.runScenario(scenario);
-                status.setText("Escenario ejecutado: " + title + ".");
-                if (!controller.getSessionView().finished()) {
-                    timer.start();
-                    runButton.setText("Pausar simulación");
-                }
-            } catch (RuntimeException exception) {
-                status.setText("Excepción detectada: " + exception.getMessage());
-            } finally {
-                refreshView();
-                focusGameField();
+    /** Añade una opción al menú de escenarios. Para extender el banco, registrar aquí una nueva acción.
+     * @param label texto que aparece en el menú
+     * @param action preparación de la prueba seleccionada
+     */
+    public void addScenario(String label, Runnable action) {
+        TestScenario scenario = new TestScenario(label, action);
+        scenarios.add(scenario);
+        scenarioMenu.addItem(scenario);
+    }
+
+    private void registerDefaultLayers() {
+        layers.add(new LayerOption("Hitbox completa de cancha", true));
+        layers.add(new LayerOption("Hitboxes de arcos", true));
+        layers.add(new LayerOption("Hitboxes de participantes", true));
+        layers.add(new LayerOption("Hitboxes de balón", true));
+        layers.add(new LayerOption("Vector del balón", true));
+        layers.add(new LayerOption("Animación de patada", true));
+        layers.add(new LayerOption("Vida", true));
+        layers.add(new LayerOption("Barra de poder", true));
+        layers.add(new LayerOption("Marcador y tiempo", true));
+    }
+
+    private void runSelectedScenario() {
+        TestScenario selected = (TestScenario) scenarioMenu.getSelectedItem();
+        if (selected == null) return;
+        try {
+            selected.action().run();
+            status.setText("Prueba: " + selected.label());
+            refreshLabels();
+            canvas.repaint();
+        } catch (RuntimeException exception) {
+            status.setText("No se pudo preparar: " + exception.getMessage());
+        }
+    }
+
+    private void tick() {
+        controller.update();
+        leftKickProgress = Math.max(0, leftKickProgress - 0.08);
+        rightKickProgress = Math.max(0, rightKickProgress - 0.08);
+        refreshLabels();
+        canvas.repaint();
+    }
+
+    private void refreshLabels() {
+        Game game = controller.game();
+        score.setText(game.getGoalsLeft() + "  :  " + game.getGoalsRight()
+                + "     " + String.format("%02d:%02d", (int) game.getElapsedSeconds() / 60,
+                        (int) game.getElapsedSeconds() % 60));
+    }
+
+    private void bindKeys() {
+        bindControl(KeyEvent.VK_A, "left-player-left", false, false);
+        bindControl(KeyEvent.VK_D, "left-player-right", false, true);
+        bindControl(KeyEvent.VK_LEFT, "right-player-left", true, false);
+        bindControl(KeyEvent.VK_RIGHT, "right-player-right", true, true);
+        bindKick(KeyEvent.VK_F, "left-kick", false);
+        bindKick(KeyEvent.VK_ENTER, "right-kick", true);
+    }
+
+    private void bindControl(int keyCode, String name, boolean rightPlayer, boolean rightDirection) {
+        String pressedName = name + "-pressed";
+        String releasedName = name + "-released";
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), pressedName);
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), releasedName);
+        getActionMap().put(pressedName, new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent event) {
+                controller.setMovementControl(rightPlayer, rightDirection, true);
             }
         });
-        panel.add(button);
-    }
-
-    /** Construye la zona inferior con marcador, estado e instrucciones de control. */
-    private JPanel buildFooter() {
-        JPanel footer = new JPanel(new BorderLayout(8, 4));
-        footer.setOpaque(false);
-        score.setForeground(Color.WHITE);
-        score.setFont(score.getFont().deriveFont(Font.BOLD, 16f));
-        status.setForeground(new Color(209, 220, 231));
-        footer.add(score, BorderLayout.NORTH);
-        footer.add(status, BorderLayout.CENTER);
-        JPanel hints = new JPanel(new GridLayout(0, 1, 2, 2));
-        hints.setOpaque(false);
-        controlHelp.setForeground(new Color(185, 220, 255));
-        hints.add(controlHelp);
-        hints.add(label("Simulación visual: 150 u/s · salto 110 · gravedad 180. Poderes aún pendientes."));
-        hints.add(label("Hitboxes: amarillo cancha · naranja arcos · cian/magenta jugadores · blanco balón."));
-        footer.add(hints, BorderLayout.SOUTH);
-        return footer;
-    }
-
-    /** Asocia teclas de movimiento, salto y patada con las acciones del controlador. */
-    private void configureMovementKeys() {
-        bindKey(KeyEvent.VK_A, "move-left-left", PresentationMovement.Control.LEFT_LEFT);
-        bindKey(KeyEvent.VK_D, "move-left-right", PresentationMovement.Control.LEFT_RIGHT);
-        bindKey(KeyEvent.VK_W, "jump-left", PresentationMovement.Control.LEFT_JUMP);
-        bindKey(KeyEvent.VK_LEFT, "move-right-left", PresentationMovement.Control.RIGHT_LEFT);
-        bindKey(KeyEvent.VK_RIGHT, "move-right-right", PresentationMovement.Control.RIGHT_RIGHT);
-        bindKey(KeyEvent.VK_UP, "jump-right", PresentationMovement.Control.RIGHT_JUMP);
-        bindKickKey(KeyEvent.VK_F, "kick-left", true);
-        bindKickKey(KeyEvent.VK_ENTER, "kick-right", false);
-    }
-
-    /** Vincula la pulsación y liberación de una tecla con un control de movimiento. */
-    private void bindKey(int keyCode, String name, PresentationMovement.Control control) {
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), name + "-pressed");
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), name + "-released");
-        getActionMap().put(name + "-pressed", new AbstractAction() {
-            /** Envía al controlador el inicio del estado presionado. */
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                controller.setMovementControl(control, true);
-            }
-        });
-        getActionMap().put(name + "-released", new AbstractAction() {
-            /** Envía al controlador la liberación del control. */
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                controller.setMovementControl(control, false);
+        getActionMap().put(releasedName, new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent event) {
+                controller.setMovementControl(rightPlayer, rightDirection, false);
             }
         });
     }
 
-    /** Vincula una tecla de patada y evita repetirla mientras siga presionada. */
-    private void bindKickKey(int keyCode, String name, boolean leftPlayer) {
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), name + "-pressed");
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), name + "-released");
-        getActionMap().put(name + "-pressed", new AbstractAction() {
-            /** Ejecuta una sola patada por pulsación de la tecla. */
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                if (!kickKeysDown.add(keyCode)) return;
-                performKick(leftPlayer);
+    private void bindKick(int keyCode, String name, boolean rightSide) {
+        String pressedName = name + "-pressed";
+        String releasedName = name + "-released";
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), pressedName);
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), releasedName);
+        getActionMap().put(pressedName, new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent event) {
+                if (kickKeysDown.add(keyCode)) kick(rightSide);
             }
         });
-        getActionMap().put(name + "-released", new AbstractAction() {
-            /** Elimina la tecla del conjunto de teclas de patada presionadas. */
-            @Override
-            public void actionPerformed(ActionEvent event) {
+        getActionMap().put(releasedName, new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent event) {
                 kickKeysDown.remove(keyCode);
             }
         });
     }
 
-    /** Intenta la patada del lado elegido y actualiza el mensaje y el dibujo. */
-    private void performKick(boolean leftPlayer) {
-        boolean kicked = leftPlayer ? controller.kickLeft() : controller.kickRight();
-        String side = leftPlayer ? "izquierdo" : "derecho";
-        if (kicked) {
-            status.setText("Patada del jugador " + side + ".");
-        } else if (leftPlayer
-                && sessionMode.getSelectedItem() == MechanicsTestController.SessionMode.PLAYER_VS_BOT) {
-            status.setText("En jugador contra bot, el jugador controlable está a la derecha.");
-        } else {
-            status.setText("Acércate: el balón debe quedar a 8 unidades del jugador.");
-        }
-        refreshView();
+    private void kick(boolean rightSide) {
+        if (rightSide) rightKickProgress = 1; else leftKickProgress = 1;
+        boolean hit = controller.kick(rightSide);
+        status.setText(hit ? "Patada: contacto" : "Patada: sin contacto");
+        canvas.repaint();
     }
 
-    /** Crea una etiqueta con el estilo de texto usado en el panel. */
-    private JLabel label(String text) {
-        JLabel label = new JLabel(text);
-        label.setForeground(Color.WHITE);
-        return label;
-    }
+    /** Recursos de cabeza y pata que componen un personaje seleccionable del banco. */
+    private static final class CharacterStyle {
+        private final String name;
+        private final String headPath;
+        private final String bodyPath;
+        private final boolean bodyFacesRightAtSource;
 
-    /** Detiene la partida anterior, crea otra con las opciones actuales e inicia su temporizador. */
-    private void startSession() {
-        timer.stop();
-        runButton.setText("Iniciar simulación");
-        controller.restartConfiguredSession();
-        kickKeysDown.clear();
-        status.setText("Sesión nueva. Simulación en marcha; usa las teclas para jugar.");
-        boolean playerVsPlayer = sessionMode.getSelectedItem()
-                == MechanicsTestController.SessionMode.PLAYER_VS_PLAYER;
-        kickLeftButton.setEnabled(playerVsPlayer);
-        controlHelp.setText(playerVsPlayer
-                ? "Izquierdo: A/D/W · patear F     ·     Derecho: ←/→/↑ · patear Enter"
-                : "Humano (derecha): ←/→/↑ · patear Enter     ·     El bot permanece quieto");
-        timer.start();
-        runButton.setText("Pausar simulación");
-        refreshView();
-        focusGameField();
-    }
-
-    /** Pausa el temporizador o lo reanuda y devuelve el foco al campo de juego. */
-    private void toggleSimulation() {
-        if (timer.isRunning()) {
-            timer.stop();
-            runButton.setText("Iniciar simulación");
-        } else {
-            timer.start();
-            runButton.setText("Pausar simulación");
-            focusGameField();
-        }
-    }
-
-    /** Avanza la sesión una vez, detiene el temporizador al terminar o ante una excepción y refresca la vista. */
-    private void advanceOneStep(boolean showStepStatus) {
-        try {
-            controller.step();
-            SessionView session = controller.getSessionView();
-            if (session.finished()) {
-                timer.stop();
-                runButton.setText("Iniciar simulación");
-                String mode = matchMode.getSelectedItem() == MechanicsTestController.MatchMode.TIME
-                        ? "por tiempo" : "por goles";
-                status.setText("La partida " + mode + " terminó.");
-            } else if (showStepStatus) {
-                status.setText("Actualización aplicada.");
-            }
-        } catch (RuntimeException exception) {
-            timer.stop();
-            runButton.setText("Iniciar simulación");
-            status.setText("Excepción detectada: " + exception.getMessage());
-        }
-        refreshView();
-    }
-
-    /** Actualiza el texto del marcador y solicita redibujar el campo. */
-    private void refreshView() {
-        SessionView session = controller.getSessionView();
-        BallView ball = session.balls().get(0);
-        score.setText(String.format("Izquierda %d  :  %d Derecha  ·  %.2f s  ·  balón vx %.1f / vy %.1f%s",
-                session.goalsLeft(), session.goalsRight(), session.elapsedSeconds(),
-                ball.velocityX(), ball.velocityY(),
-                session.finished() ? "     ·     PARTIDA TERMINADA" : ""));
-        fieldView.repaint();
-    }
-
-    /** Solicita el foco del campo en el hilo de eventos de Swing. */
-    private void focusGameField() {
-        SwingUtilities.invokeLater(fieldView::requestFocusInWindow);
-    }
-
-    private final class FieldView extends JPanel {
-        /** Crea el área gráfica y configura su tamaño, fondo y borde. */
-        private FieldView() {
-            setLayout(new BorderLayout());
-            setPreferredSize(new Dimension(760, 420));
-            setBackground(new Color(32, 91, 61));
-            setBorder(BorderFactory.createLineBorder(new Color(110, 140, 116), 2));
-            setFocusable(true);
+        /** Crea la definición visual y sus rutas de recursos.
+         * @param name nombre del estilo
+         * @param headPath ruta de la cabeza
+         * @param bodyPath ruta del cuerpo
+         * @param bodyFacesRightAtSource orientación original del cuerpo
+         */
+        private CharacterStyle(String name, String headPath, String bodyPath,
+                boolean bodyFacesRightAtSource) {
+            this.name = name;
+            this.headPath = headPath;
+            this.bodyPath = bodyPath;
+            this.bodyFacesRightAtSource = bodyFacesRightAtSource;
         }
 
-        /** Dibuja estadio, cancha, arcos, participantes, balón e indicador de velocidad. */
-        @Override
-        public void paintComponent(Graphics graphics) {
+        String name() { return name; }
+        String headPath() { return headPath; }
+        String bodyPath() { return bodyPath; }
+        boolean bodyFacesRightAtSource() { return bodyFacesRightAtSource; }
+    }
+
+    /** Imágenes cargadas y recortadas de un personaje. */
+    private static final class CharacterSprite {
+        private final BufferedImage head;
+        private final BufferedImage body;
+        private final boolean bodyFacesRightAtSource;
+
+        /** Crea el par de imágenes recortadas del personaje.
+         * @param head imagen de cabeza
+         * @param body imagen del cuerpo
+         * @param bodyFacesRightAtSource orientación original del cuerpo
+         */
+        private CharacterSprite(BufferedImage head, BufferedImage body,
+                boolean bodyFacesRightAtSource) {
+            this.head = head;
+            this.body = body;
+            this.bodyFacesRightAtSource = bodyFacesRightAtSource;
+        }
+
+        BufferedImage head() { return head; }
+        BufferedImage body() { return body; }
+        boolean bodyFacesRightAtSource() { return bodyFacesRightAtSource; }
+    }
+
+    /** Conserva la selección visible de una capa y su control de menú. */
+    private static final class LayerOption {
+        private final String label;
+        private boolean enabled;
+        /** Crea una capa del menú con su estado inicial.
+         * @param label texto visible
+         * @param enabled estado inicial de visibilidad
+         */
+        LayerOption(String label, boolean enabled) {
+            this.label = label;
+            this.enabled = enabled;
+        }
+        /** Devuelve la etiqueta de la capa.
+         * @return etiqueta visible
+         */
+        String label() { return label; }
+        /** Indica si la capa está activa.
+         * @return {@code true} si se dibuja
+         */
+        boolean enabled() { return enabled; }
+        /** Cambia el estado de visibilidad.
+         * @param enabled nuevo estado
+         */
+        void setEnabled(boolean enabled) { this.enabled = enabled; }
+    }
+
+    /** Representa una acción registrable desde el menú de escenarios. */
+    private static final class TestScenario {
+        private final String label;
+        private final Runnable action;
+
+        /** Crea una opción ejecutable del menú de escenarios.
+         * @param label texto visible
+         * @param action preparación que se ejecuta al seleccionar el escenario
+         */
+        private TestScenario(String label, Runnable action) {
+            this.label = label;
+            this.action = action;
+        }
+
+        String label() { return label; }
+        Runnable action() { return action; }
+
+        /** Devuelve el nombre que debe mostrar el selector.
+         * @return etiqueta del escenario
+         */
+        @Override public String toString() { return label; }
+    }
+
+    /** Lienzo que representa cancha, entidades, hitboxes y capas opcionales.
+     */
+    private final class GameCanvas extends JPanel {
+        private final Image courtImage = loadImage("/images/ui/court@4x-8.png");
+        private final Image ballImage = loadImage("/images/ball/ball@4x-8.png");
+        private final Map<String, BufferedImage> trimmedSprites = new HashMap<>();
+        private final CharacterSprite leftPlayer = loadCharacter(LEFT_CHARACTER);
+        private final CharacterSprite rightPlayer = loadCharacter(RIGHT_CHARACTER);
+
+        /** Prepara el lienzo y carga recursos gráficos del proyecto. */
+        GameCanvas() {
+            setBackground(new Color(25, 135, 95));
+            setMinimumSize(new Dimension(500, 360));
+            setBorder(BorderFactory.createLineBorder(new Color(226, 208, 156), 2));
+        }
+
+        /** Dibuja los recursos, entidades y capas seleccionadas según el estado escalar de Game.
+         * @param graphics contexto de dibujo suministrado por Swing
+         */
+        @Override protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            drawStadium(g);
-            SessionView session = controller.getSessionView();
-            RectangleView court = session.court();
-            double x = court.x();
-            double y = court.y();
-            double width = court.width();
-            double height = court.height();
-            double scale = Math.min((getWidth() - 50.0) / width, (getHeight() * .52) / height);
-            double offsetX = (getWidth() - width * scale) / 2;
-            double offsetY = getHeight() - height * scale;
-
-            g.setPaint(new java.awt.GradientPaint(0, (float) offsetY, new Color(87, 190, 48),
-                    0, (float) (offsetY + height * scale), new Color(25, 128, 18)));
-            g.fill(new Rectangle2D.Double(offsetX, offsetY, width * scale, height * scale));
-            for (int stripe = 0; stripe < 8; stripe++) {
-                if (stripe % 2 == 0) {
-                    g.setColor(new Color(190, 245, 115, 32));
-                    g.fill(new Rectangle2D.Double(offsetX + stripe * width * scale / 8, offsetY,
-                            width * scale / 8, height * scale));
+            Game game = controller.game();
+            double courtX = game.getCourtX(), courtY = game.getCourtY();
+            double courtWidth = game.getCourtWidth(), courtHeight = game.getCourtHeight();
+            double margin = 22;
+            double scale = Math.min((getWidth() - 2 * margin) / courtWidth,
+                    (getHeight() - 2 * margin) / courtHeight);
+            double originX = (getWidth() - courtWidth * scale) / 2 - courtX * scale;
+            double originY = (getHeight() - courtHeight * scale) / 2 - courtY * scale;
+            if (courtImage != null) g.drawImage(courtImage,
+                    (int) (originX + courtX * scale), (int) (originY + courtY * scale),
+                    (int) (courtWidth * scale), (int) (courtHeight * scale), this);
+            for (LayerOption option : layers) {
+                if (option.enabled() && !option.label().equals("Animación de patada")
+                        && !option.label().equals("Hitboxes de participantes")
+                        && !option.label().equals("Hitboxes de balón")) {
+                    drawLayer(g, game, option.label(), originX, originY, scale);
                 }
             }
-            g.setColor(Color.WHITE);
-            g.setStroke(new BasicStroke(2f));
-            g.draw(new Rectangle2D.Double(offsetX, offsetY, width * scale, height * scale));
-            g.draw(new Ellipse2D.Double(offsetX + width * scale * .375,
-                    offsetY + height * scale * .25, width * scale * .25, height * scale * .5));
-            g.drawLine((int) (offsetX + width * scale / 2), (int) offsetY,
-                    (int) (offsetX + width * scale / 2), (int) (offsetY + height * scale));
-            for (var goal : session.goals()) {
-                drawRect(g, goal.x() - x, goal.y() - y, goal.width(), goal.height(),
-                        offsetX, offsetY, scale, new Color(237, 191, 87, 120), true);
-            }
-            drawGoal(g, offsetX - 14, offsetY + height * scale * .42, 28, height * scale * .58);
-            drawGoal(g, offsetX + width * scale - 14, offsetY + height * scale * .42, 28, height * scale * .58);
-            drawParticipants(g, session.participants().stream().filter(player -> player.side().equals("left")).toList(),
-                    x, y, offsetX, offsetY, scale,
-                    new Color(71, 151, 255));
-            drawParticipants(g, session.participants().stream().filter(player -> player.side().equals("right")).toList(),
-                    x, y, offsetX, offsetY, scale,
-                    new Color(255, 105, 105));
-            for (BallView ball : session.balls()) {
-                double radius = ball.radius();
-                double ballX = offsetX + (ball.x() - radius - x) * scale;
-                double ballY = offsetY + (ball.y() - radius - y) * scale;
-                g.setColor(Color.WHITE);
-                g.fill(new Ellipse2D.Double(ballX, ballY, radius * 2 * scale, radius * 2 * scale));
-                g.setColor(Color.DARK_GRAY);
-                g.draw(new Ellipse2D.Double(ballX, ballY, radius * 2 * scale, radius * 2 * scale));
-                drawVelocityIndicator(g, ballX + radius * scale, ballY + radius * scale, ball.velocityY());
-            }
-            if (showHitboxes.isSelected()) {
-                drawHitboxOverlay(g, session, x, y, offsetX, offsetY, scale);
-            }
+            drawActors(g, game, originX, originY, scale);
+            if (isLayerEnabled("Hitboxes de participantes")) drawPlayerHitboxes(g, game, originX, originY, scale);
+            if (isLayerEnabled("Hitboxes de balón")) drawBallHitboxes(g, game, originX, originY, scale);
+            drawFooter(g);
             g.dispose();
         }
 
-        /** Dibuja los límites, arcos, hitboxes de jugadores y balones sobre los sprites. */
-        private void drawHitboxOverlay(Graphics2D g, SessionView session,
-                double courtX, double courtY, double offsetX, double offsetY, double scale) {
-            g.setStroke(new BasicStroke(1.5f));
-            for (int index = 0; index < session.boundaries().size(); index++) {
-                RectangleView box = session.boundaries().get(index);
-                drawRect(g, box.x() - courtX, box.y() - courtY, box.width(), box.height(),
-                        offsetX, offsetY, scale, new Color(255, 236, 80), false);
-            }
-            for (RectangleView goal : session.goals()) {
-                drawRect(g, goal.x() - courtX, goal.y() - courtY, goal.width(), goal.height(),
-                        offsetX, offsetY, scale, new Color(255, 153, 40), false);
-            }
-            for (ParticipantView participant : session.participants()) {
-                drawRect(g, participant.x() - courtX, participant.y() - courtY,
-                        participant.width(), participant.height(), offsetX, offsetY, scale,
-                        participant.side().equals("left") ? Color.CYAN : Color.MAGENTA, false);
-            }
-            for (BallView ball : session.balls()) {
-                double diameter = ball.radius() * 2 * scale;
-                double screenX = offsetX + (ball.x() - ball.radius() - courtX) * scale;
-                double screenY = offsetY + (ball.y() - ball.radius() - courtY) * scale;
-                g.setColor(Color.WHITE);
-                g.draw(new Ellipse2D.Double(screenX, screenY, diameter, diameter));
+        private void drawLayer(Graphics2D g, Game game, String layer,
+                double originX, double originY, double scale) {
+            switch (layer) {
+                case "Hitbox completa de cancha" -> outline(g, new Rectangle2D.Double(originX + game.getCourtX() * scale,
+                        originY + game.getCourtY() * scale, game.getCourtWidth() * scale,
+                        game.getCourtHeight() * scale), Color.YELLOW, 3);
+                case "Hitboxes de arcos" -> drawGoals(g, game, originX, originY, scale);
+                case "Vector del balón" -> drawBallVectors(g, game, originX, originY, scale);
+                case "Vida" -> drawLife(g);
+                case "Barra de poder" -> drawPower(g);
+                case "Marcador y tiempo" -> drawHud(g, game);
+                default -> { }
             }
         }
 
-        /** Dibuja el fondo decorativo del estadio y su tribuna. */
-        private void drawStadium(Graphics2D g) {
-            int w = getWidth(), h = getHeight();
-            g.setPaint(new java.awt.GradientPaint(0, 0, new Color(74, 41, 45), 0, h * .55f,
-                    new Color(205, 133, 75)));
-            g.fillRect(0, 0, w, h);
-            g.setColor(new Color(224, 177, 100));
-            g.fillRect(0, h / 3, w, 12);
-            g.setColor(new Color(111, 66, 54));
-            g.fillRect(0, h / 3 + 12, w, 22);
-            java.util.Random crowd = new java.util.Random(19);
-            Color[] seats = {new Color(224, 79, 44), new Color(239, 184, 54),
-                    new Color(48, 130, 105), new Color(230, 220, 184)};
-            for (int row = 0; row < 7; row++) {
-                for (int col = 0; col < w / 8; col++) {
-                    g.setColor(seats[crowd.nextInt(seats.length)]);
-                    int x = col * 8 + crowd.nextInt(3);
-                    int y = row * 13 + 16 + crowd.nextInt(4);
-                    g.fillOval(x, y, 4, 5);
-                }
+        private void drawGoals(Graphics2D g, Game game, double ox, double oy, double scale) {
+            g.setColor(new Color(255, 209, 60, 210));
+            g.setStroke(new BasicStroke(3));
+            for (int i = 0; i < 2; i++) g.draw(new Rectangle2D.Double(ox + game.getGoalX(i) * scale,
+                    oy + game.getGoalY(i) * scale, game.getGoalWidth(i) * scale,
+                    game.getGoalHeight(i) * scale));
+        }
+
+        private void drawPlayerHitboxes(Graphics2D g, Game game, double ox, double oy, double scale) {
+            for (boolean right : new boolean[] {false, true}) {
+                Color color = right ? RIGHT_COLOR : LEFT_COLOR;
+                double x = game.getPlayerX(right), y = game.getPlayerY(right);
+                double width = game.getPlayerWidth(right), height = game.getPlayerHeight(right);
+                outline(g, new Rectangle2D.Double(ox + x * scale, oy + y * scale,
+                        width * scale, height * scale), color, 3);
             }
-            g.setPaint(new java.awt.GradientPaint(0, h * .47f, new Color(104, 196, 48),
-                    0, h, new Color(35, 135, 22)));
-            g.fillRect(0, (int) (h * .47), w, h - (int) (h * .47));
-            g.setColor(new Color(4, 19, 94));
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(26, w / 13)));
-            String first = "SOCCER";
-            int titleX = (w - g.getFontMetrics().stringWidth(first)) / 2;
-            int titleY = h / 3 + 2;
-            g.setStroke(new BasicStroke(8, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g.drawString(first, titleX, titleY);
-            g.setColor(new Color(255, 215, 57));
-            g.drawString(first, titleX, titleY);
+        }
+
+        private void drawBallHitboxes(Graphics2D g, Game game, double ox, double oy, double scale) {
             g.setColor(Color.WHITE);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(20, w / 20)));
-            String second = "HEADS";
-            g.drawString(second, (w - g.getFontMetrics().stringWidth(second)) / 2, titleY + 38);
-        }
-
-        /** Dibuja el marco y la red de un arco en coordenadas de pantalla. */
-        private void drawGoal(Graphics2D g, double x, double y, double width, double height) {
-            g.setColor(new Color(224, 250, 255, 70));
-            g.fill(new Rectangle2D.Double(x, y, width, height));
-            g.setColor(new Color(213, 248, 255));
-            g.setStroke(new BasicStroke(4f));
-            g.draw(new Rectangle2D.Double(x, y, width, height));
-            g.setStroke(new BasicStroke(1f));
-            for (int i = 1; i < 5; i++) g.drawLine((int)x, (int)(y + i * height / 5), (int)(x + width), (int)(y + i * height / 5));
-            for (int i = 1; i < 4; i++) g.drawLine((int)(x + i * width / 4), (int)y, (int)(x + i * width / 4), (int)(y + height));
-        }
-
-        /** Dibuja una flecha vertical cuyo sentido y longitud reflejan la velocidad del balón. */
-        private void drawVelocityIndicator(Graphics2D g, double x, double y, double velocityY) {
-            double direction = velocityY < 0 ? -1 : 1;
-            double length = 8 + Math.min(36, Math.abs(velocityY) * 0.7);
-            double endY = y + direction * length;
-            g.setColor(new Color(255, 211, 91));
-            g.setStroke(new BasicStroke(2f));
-            g.drawLine((int) x, (int) y, (int) x, (int) endY);
-            g.drawLine((int) x, (int) endY, (int) (x - 4), (int) (endY - direction * 5));
-            g.drawLine((int) x, (int) endY, (int) (x + 4), (int) (endY - direction * 5));
-        }
-
-        /**
-         * Dibuja cada participante con una representación arcade simplificada,
-         * escalando su hitbox del dominio al tamaño actual del campo.
-         * @param g contexto gráfico donde se dibuja
-         * @param participants participantes que se representan
-         * @param courtX coordenada horizontal de origen de la cancha
-         * @param courtY coordenada vertical de origen de la cancha
-         * @param offsetX desplazamiento horizontal en pantalla
-         * @param offsetY desplazamiento vertical en pantalla
-         * @param scale escala entre unidades de dominio y píxeles
-         * @param color color del cuerpo del participante
-         */
-        private void drawParticipants(Graphics2D g, java.util.List<ParticipantView> participants,
-                double courtX, double courtY, double offsetX, double offsetY, double scale, Color color) {
-            for (ParticipantView participant : participants) {
-                double x = offsetX + (participant.x() - courtX) * scale;
-                double y = offsetY + (participant.y() - courtY) * scale;
-                double width = participant.width() * scale;
-                double height = participant.height() * scale;
-                double headSize = Math.min(width * .96, height * .46);
-                double headX = x + (width - headSize) / 2;
-                double headY = y + height * .02;
-
-                g.setColor(new Color(49, 38, 34));
-                g.fill(new Ellipse2D.Double(headX, headY, headSize, headSize));
-                g.setColor(new Color(245, 202, 158));
-                g.fill(new Ellipse2D.Double(headX + headSize * .08, headY + headSize * .10,
-                        headSize * .84, headSize * .82));
-                g.setColor(color);
-                double bodyX = x + width * .22;
-                double bodyY = y + height * .43;
-                double bodyWidth = width * .56;
-                double bodyHeight = height * .38;
-                g.fill(new Rectangle2D.Double(bodyX, bodyY, bodyWidth, bodyHeight));
-                g.fill(new Rectangle2D.Double(x + width * .28, y + height * .79,
-                        width * .16, height * .19));
-                g.fill(new Rectangle2D.Double(x + width * .56, y + height * .79,
-                        width * .16, height * .19));
-                g.setColor(Color.WHITE);
-                g.fill(new Ellipse2D.Double(headX + headSize * .30, headY + headSize * .43,
-                        Math.max(2, headSize * .08), Math.max(2, headSize * .08)));
-                g.fill(new Ellipse2D.Double(headX + headSize * .62, headY + headSize * .43,
-                        Math.max(2, headSize * .08), Math.max(2, headSize * .08)));
-                g.setColor(new Color(30, 31, 35));
-                g.fill(new Ellipse2D.Double(headX + headSize * .33, headY + headSize * .45,
-                        Math.max(1.5, headSize * .04), Math.max(1.5, headSize * .04)));
-                g.fill(new Ellipse2D.Double(headX + headSize * .65, headY + headSize * .45,
-                        Math.max(1.5, headSize * .04), Math.max(1.5, headSize * .04)));
+            g.setStroke(new BasicStroke(2));
+            for (int i = 0; i < game.getBallCount(); i++) {
+                double radius = game.getBallRadius(i) * scale;
+                g.draw(new Ellipse2D.Double(ox + game.getBallX(i) * scale - radius,
+                        oy + game.getBallY(i) * scale - radius, radius * 2, radius * 2));
             }
         }
 
-        /**
-         * Convierte un rectángulo de coordenadas de cancha a coordenadas de
-         * pantalla, lo rellena si se solicita y siempre dibuja su contorno.
-         * @param g contexto gráfico
-         * @param x coordenada horizontal relativa a la cancha
-         * @param y coordenada vertical relativa a la cancha
-         * @param width ancho del rectángulo en unidades de cancha
-         * @param height alto del rectángulo en unidades de cancha
-         * @param offsetX desplazamiento horizontal de la cancha en pantalla
-         * @param offsetY desplazamiento vertical de la cancha en pantalla
-         * @param scale escala aplicada a las dimensiones
-         * @param color color de relleno y contorno
-         * @param fill indica si se rellena antes de dibujar el contorno
-         */
-        private void drawRect(Graphics2D g, double x, double y, double width, double height,
-                double offsetX, double offsetY, double scale, Color color, boolean fill) {
-            Rectangle2D rectangle = new Rectangle2D.Double(offsetX + x * scale,
-                    offsetY + y * scale, width * scale, height * scale);
+        private void drawBallVectors(Graphics2D g, Game game, double ox, double oy, double scale) {
+            g.setColor(new Color(255, 42, 230));
+            g.setStroke(new BasicStroke(3));
+            for (int i = 0; i < game.getBallCount(); i++) {
+                double x = ox + game.getBallX(i) * scale, y = oy + game.getBallY(i) * scale;
+                double dx = game.getBallVelocityX(i) * scale * 0.18;
+                double dy = game.getBallVelocityY(i) * scale * 0.18;
+                g.draw(new Line2D.Double(x, y, x + dx, y + dy));
+                g.fill(new Ellipse2D.Double(x + dx - 3, y + dy - 3, 6, 6));
+            }
+        }
+
+        private void drawActors(Graphics2D g, Game game, double ox, double oy, double scale) {
+            for (boolean right : new boolean[] {false, true}) {
+                double x = game.getPlayerX(right), y = game.getPlayerY(right);
+                double width = game.getPlayerWidth(right), height = game.getPlayerHeight(right);
+                double kickProgress = isLayerEnabled("Animación de patada")
+                        ? right ? rightKickProgress : leftKickProgress : 0;
+                drawCharacter(g, game, right ? rightPlayer : leftPlayer, right,
+                        x, y, width, height, kickProgress,
+                        ox, oy, scale);
+            }
+            for (int i = 0; i < game.getBallCount(); i++) {
+                double diameter = game.getBallRadius(i) * 2 * scale;
+                int x = (int) (ox + (game.getBallX(i) - game.getBallRadius(i)) * scale);
+                int y = (int) (oy + (game.getBallY(i) - game.getBallRadius(i)) * scale);
+                if (ballImage != null) g.drawImage(ballImage, x, y, (int) diameter, (int) diameter, this);
+                else { g.setColor(Color.WHITE); g.fill(new Ellipse2D.Double(x, y, diameter, diameter)); }
+            }
+        }
+
+        private boolean isLayerEnabled(String layer) {
+            return layers.stream().anyMatch(option -> option.label().equals(layer) && option.enabled());
+        }
+
+        private void drawCharacter(Graphics2D g, Game game, CharacterSprite sprite, boolean right,
+                double x, double y, double width, double height, double kickProgress,
+                double ox, double oy, double scale) {
+            if (sprite == null || sprite.head() == null || sprite.body() == null) {
+                g.setColor(right ? RIGHT_COLOR : LEFT_COLOR);
+                g.fill(new Rectangle2D.Double(ox + x * scale, oy + y * scale,
+                        width * scale, height * scale));
+                return;
+            }
+            double courtHeight = game.getCourtHeight();
+            int headHeight = Math.max(1, (int) (courtHeight * scale * CHARACTER_HEAD_HEIGHT_RATIO));
+            int headWidth = Math.max(1, headHeight * sprite.head().getWidth() / sprite.head().getHeight());
+            int bodyHeight = Math.max(1, (int) (courtHeight * scale * CHARACTER_BODY_HEIGHT_RATIO));
+            int bodyWidth = Math.max(1, (int) (headWidth * CHARACTER_BODY_WIDTH_RATIO));
+            double centerX = ox + (x + width / 2) * scale;
+            double baselineY = oy + (y + height) * scale;
+            int bodyX = (int) (centerX - bodyWidth / 2.0);
+            int bodyY = (int) (baselineY - bodyHeight);
+            int headX = (int) (centerX - headWidth / 2.0);
+            int headY = bodyY - headHeight + (int) (headHeight * CHARACTER_HEAD_BODY_OVERLAP_RATIO);
+            boolean onLeftSide = !right;
+            boolean flipBody = onLeftSide != sprite.bodyFacesRightAtSource();
+            boolean flipHead = right;
+            double kickSwing = kickProgress > 0 ? Math.sin((1 - kickProgress) * Math.PI) : 0;
+            int kickOffset = (int) ((right ? -1 : 1) * bodyWidth * 1.4 * kickSwing);
+            drawCharacterPart(g, sprite.body(), bodyX + kickOffset, bodyY,
+                    bodyWidth, bodyHeight, flipBody);
+            drawCharacterPart(g, sprite.head(), headX, headY, headWidth, headHeight, flipHead);
+        }
+
+        private void drawCharacterPart(Graphics2D g, BufferedImage image,
+                int x, int y, int width, int height, boolean flipHorizontal) {
+            if (!flipHorizontal) {
+                g.drawImage(image, x, y, width, height, this);
+                return;
+            }
+            Graphics2D flipped = (Graphics2D) g.create();
+            flipped.translate(x + width, y);
+            flipped.scale(-1, 1);
+            flipped.drawImage(image, 0, 0, width, height, this);
+            flipped.dispose();
+        }
+
+        private CharacterSprite loadCharacter(CharacterStyle style) {
+            return new CharacterSprite(loadTrimmedSprite(style.headPath()),
+                    loadTrimmedSprite(style.bodyPath()), style.bodyFacesRightAtSource());
+        }
+
+        private BufferedImage loadTrimmedSprite(String resourcePath) {
+            if (trimmedSprites.containsKey(resourcePath)) return trimmedSprites.get(resourcePath);
+            URL imageUrl = getClass().getResource(resourcePath);
+            if (imageUrl == null) {
+                trimmedSprites.put(resourcePath, null);
+                return null;
+            }
+            try {
+                BufferedImage source = ImageIO.read(imageUrl);
+                if (source == null) return null;
+                int minX = source.getWidth(), minY = source.getHeight(), maxX = -1, maxY = -1;
+                for (int y = 0; y < source.getHeight(); y++) {
+                    for (int x = 0; x < source.getWidth(); x++) {
+                        if ((source.getRGB(x, y) >>> 24) != 0) {
+                            minX = Math.min(minX, x);
+                            minY = Math.min(minY, y);
+                            maxX = Math.max(maxX, x);
+                            maxY = Math.max(maxY, y);
+                        }
+                    }
+                }
+                BufferedImage result = maxX < minX || maxY < minY ? source
+                        : source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
+                trimmedSprites.put(resourcePath, result);
+                return result;
+            } catch (java.io.IOException exception) {
+                trimmedSprites.put(resourcePath, null);
+                return null;
+            }
+        }
+
+        private void drawLife(Graphics2D g) {
+            drawGauge(g, 16, 16, 180, "Vida: API no disponible", LEFT_COLOR);
+            drawGauge(g, Math.max(205, getWidth() - 196), 16, 180,
+                    "Vida: API no disponible", RIGHT_COLOR);
+        }
+
+        private void drawPower(Graphics2D g) {
+            drawGauge(g, 16, 46, 180, "Poder: no implementado", new Color(177, 110, 255));
+            drawGauge(g, Math.max(205, getWidth() - 196), 46, 180,
+                    "Poder: no implementado", new Color(177, 110, 255));
+        }
+
+        private void drawGauge(Graphics2D g, int x, int y, int width, String label, Color color) {
+            g.setFont(g.getFont().deriveFont(Font.BOLD, 11f));
+            g.setColor(Color.WHITE);
+            g.drawString(label, x, y + 10);
+            g.setColor(new Color(25, 25, 25, 190));
+            g.fillRoundRect(x, y + 14, width, 10, 8, 8);
             g.setColor(color);
-            if (fill) g.fill(rectangle);
-            g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue()));
+            g.drawRoundRect(x, y + 14, width, 10, 8, 8);
+        }
+
+        private void drawHud(Graphics2D g, Game game) {
+            g.setColor(Color.WHITE);
+            g.setFont(g.getFont().deriveFont(Font.BOLD, 15f));
+            g.drawString("Goles  " + game.getGoalsLeft() + " : " + game.getGoalsRight()
+                    + "     Tiempo  " + String.format("%02d:%02d", (int) game.getElapsedSeconds() / 60,
+                            (int) game.getElapsedSeconds() % 60),
+                    Math.max(16, (getWidth() - 260) / 2), 26);
+        }
+
+        private void drawFooter(Graphics2D g) {
+            g.setColor(new Color(255, 255, 255, 210));
+            g.setFont(g.getFont().deriveFont(11f));
+            g.drawString("Los colores y contornos representan las hitboxes que entrega Game.", 12, getHeight() - 8);
+        }
+
+        private void outline(Graphics2D g, Rectangle2D rectangle, Color color, float stroke) {
+            g.setColor(color);
+            g.setStroke(new BasicStroke(stroke));
             g.draw(rectangle);
+        }
+
+        private Image loadImage(String resource) {
+            URL url = getClass().getResource(resource);
+            return url == null ? null : new ImageIcon(url).getImage();
         }
     }
 }

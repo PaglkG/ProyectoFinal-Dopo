@@ -12,15 +12,19 @@ import java.util.List;
 
 /**
  * Administra el acceso a la sesión singleton y ofrece operaciones de partida
- * y vistas inmutables a las capas cliente.
+ * y consultas escalares a las capas cliente.
  *
  * @author Pablo Andres Gualdron Lindo
  * @author Samuel Ahumada Florez
  */
 public class Game {
 
-    /** Nombre predeterminado del archivo usado por {@link #save()}. */
-    public static final String DEFAULT_SAVE_FILE = "dopo-saved-game.ser";
+    /** Nombre y extensión iniciales propuestos por el selector de guardado. */
+    public static String DEFAULT_SAVE_FILE = "partida.dat";
+
+    public Game() {
+
+    }
 
     private GameSession session;
     /**
@@ -51,226 +55,181 @@ public class Game {
         return session;
     }
 
-    /**
-     * Limpia la referencia administrada a la sesión única. El singleton
-     * continúa existiendo y puede volver a registrarse con startSession.
-     */
-    public void closeSession() {
-        session = null;
-    }
-
-    /**
-     * Reinicia la ronda de la sesión administrada sin reemplazar la instancia
-     * ni modificar marcador o modalidad.
+    /** Reinicia la ronda sin reemplazar la sesión administrada ni su marcador.
      */
     public void resetSession() {
         if (session != null) session.restartRound();
     }
 
     /** Mueve al participante seleccionado por identidad.
-     * @param playerOne {@code true} para jugador 1; {@code false} para jugador 2
+     * @param player {@code true} para jugador 1; {@code false} para jugador 2
      * @param direction {@code true} para derecha; {@code false} para izquierda
      */
-    public void movePlayer(boolean playerOne, boolean direction) {
+    public void movePlayer(boolean player, boolean direction) {
         GameSession session = requireSession();
-        session.movePlayer(findPlayer(playerOne), direction);
+        session.movePlayer(findPlayer(player), direction);
     }
 
     /** Ejecuta una patada para el participante seleccionado.
-     * @param playerOne {@code true} para jugador 1; {@code false} para jugador 2
+     * @param player {@code true} para jugador 1; {@code false} para jugador 2
      * @return {@code true} si la patada alcanzó al rival o al balón
      */
-    public boolean kickPlayer(boolean playerOne) {
+    public boolean kickPlayer(boolean player) {
         GameSession session = requireSession();
-        return session.kickPlayer(findPlayer(playerOne));
+        return session.kickPlayer(findPlayer(player));
     }
 
     /** Devuelve la coordenada horizontal del participante seleccionado.
-     * @param playerOne identidad del jugador que se consulta
+     * @param player identidad del jugador que se consulta
      * @return coordenada horizontal
      */
-    public double getPlayerX(boolean playerOne) { return findPlayer(playerOne).getHitbox().getX(); }
+    public double getPlayerX(boolean player) {
+        return findPlayer(player).getHitbox().getX();
+    }
     /** Devuelve la coordenada vertical del participante seleccionado.
-     * @param playerOne identidad del jugador que se consulta
+     * @param player identidad del jugador que se consulta
      * @return coordenada vertical
      */
-    public double getPlayerY(boolean playerOne) { return findPlayer(playerOne).getHitbox().getY(); }
+    public double getPlayerY(boolean player) { 
+        return findPlayer(player).getHitbox().getY(); 
+    }
     /** Devuelve el ancho de la hitbox del participante seleccionado.
-     * @param playerOne identidad del jugador que se consulta
+     * @param player identidad del jugador que se consulta
      * @return ancho de la hitbox
      */
-    public double getPlayerWidth(boolean playerOne) { return findPlayer(playerOne).getHitbox().getWidth(); }
+    public double getPlayerWidth(boolean player) { 
+        return findPlayer(player).getHitbox().getWidth(); 
+    }
     /** Devuelve el alto de la hitbox del participante seleccionado.
-     * @param playerOne identidad del jugador que se consulta
+     * @param player identidad del jugador que se consulta
      * @return alto de la hitbox
      */
-    public double getPlayerHeight(boolean playerOne) { return findPlayer(playerOne).getHitbox().getHeight(); }
+    public double getPlayerHeight(boolean player) { 
+        return findPlayer(player).getHitbox().getHeight(); 
+    }
     /** Devuelve el nivel de velocidad del participante seleccionado.
-     * @param playerOne identidad del jugador que se consulta
+     * @param player identidad del jugador que se consulta
      * @return nivel actual de velocidad
      */
-    public int getPlayerSpeed(boolean playerOne) { return findPlayer(playerOne).getStats().getSpeed(); }
+    public int getPlayerSpeed(boolean player) { 
+        return findPlayer(player).getStats().getSpeed(); 
+    }
     /** Devuelve la coordenada horizontal del centro del balón indicado.
      * @param index índice del balón
      * @return coordenada horizontal del centro
      */
-    public double getBallX(int index) { return requireBall(index).getX(); }
+    public double getBallX(int index) { 
+        return requireBall(index).getX(); 
+    }
     /** Devuelve la coordenada vertical del centro del balón indicado.
      * @param index índice del balón
      * @return coordenada vertical del centro
      */
-    public double getBallY(int index) { return requireBall(index).getY(); }
+    public double getBallY(int index) { 
+        return requireBall(index).getY(); 
+    }
     /** Devuelve el radio del balón indicado.
      * @param index índice del balón
      * @return radio del balón
      */
-    public double getBallRadius(int index) { return requireBall(index).getRadius(); }
+    public double getBallRadius(int index) { 
+        return requireBall(index).getRadius(); 
+    }
     /** Devuelve la velocidad horizontal del balón indicado.
      * @param index índice del balón
      * @return velocidad horizontal
      */
-    public double getBallVelocityX(int index) { return requireBall(index).getVelocityX(); }
+    public double getBallVelocityX(int index) { 
+        return requireBall(index).getVelocityX(); 
+    }
     /** Devuelve la velocidad vertical del balón indicado.
      * @param index índice del balón
      * @return velocidad vertical
      */
-    public double getBallVelocityY(int index) { return requireBall(index).getVelocityY(); }
+    public double getBallVelocityY(int index) { 
+        return requireBall(index).getVelocityY(); 
+    }
     /** Devuelve la cantidad de balones de la sesión.
      * @return número de balones registrados
      */
-    public int getBallCount() { return requireSession().getField().getBalls().length; }
+    public int getBallCount() { 
+        return requireSession().getField().getBalls().length; 
+    }
     /** Devuelve la coordenada horizontal del arco indicado.
      * @param index índice del arco
      * @return coordenada horizontal
      */
-    public double getGoalX(int index) { return requireGoal(index).getX(); }
+    public double getGoalX(int index) { 
+        return requireGoal(index).getX(); 
+    }
     /** Devuelve la coordenada vertical del arco indicado.
      * @param index índice del arco
      * @return coordenada vertical
      */
-    public double getGoalY(int index) { return requireGoal(index).getY(); }
+    public double getGoalY(int index) { 
+        return requireGoal(index).getY(); 
+    }
     /** Devuelve el ancho del arco indicado.
      * @param index índice del arco
      * @return ancho del arco
      */
-    public double getGoalWidth(int index) { return requireGoal(index).getWidth(); }
+    public double getGoalWidth(int index) { 
+        return requireGoal(index).getWidth(); 
+    }
     /** Devuelve el alto del arco indicado.
      * @param index índice del arco
      * @return alto del arco
      */
-    public double getGoalHeight(int index) { return requireGoal(index).getHeight(); }
+    public double getGoalHeight(int index) { 
+        return requireGoal(index).getHeight(); 
+    }
     /** Devuelve la coordenada horizontal del borde izquierdo de la cancha.
      * @return coordenada horizontal
      */
-    public double getCourtX() { return requireSession().getField().courtX(); }
+    public double getCourtX() { 
+        return requireSession().getField().courtX(); 
+    }
     /** Devuelve la coordenada vertical del borde superior de la cancha.
      * @return coordenada vertical
      */
-    public double getCourtY() { return requireSession().getField().courtY(); }
+    public double getCourtY() { 
+        return requireSession().getField().courtY(); 
+    }
     /** Devuelve el ancho exterior de la cancha.
      * @return ancho de la cancha
      */
-    public double getCourtWidth() { return requireSession().getField().courtWidth(); }
+    public double getCourtWidth() { 
+        return requireSession().getField().courtWidth(); 
+    }
     /** Devuelve el alto exterior de la cancha.
      * @return alto de la cancha
      */
-    public double getCourtHeight() { return requireSession().getField().courtHeight(); }
-    /** Devuelve la coordenada horizontal del borde izquierdo del límite indicado.
-     * @param index índice del límite
-     * @return coordenada horizontal
-     */
-    public double getBoundaryX(int index) { return requireBoundary(index).getX(); }
-    /** Devuelve la coordenada vertical del borde superior del límite indicado.
-     * @param index índice del límite
-     * @return coordenada vertical
-     */
-    public double getBoundaryY(int index) { return requireBoundary(index).getY(); }
-    /** Devuelve el ancho del límite indicado.
-     * @param index índice del límite
-     * @return ancho del límite
-     */
-    public double getBoundaryWidth(int index) { return requireBoundary(index).getWidth(); }
-    /** Devuelve el alto del límite indicado.
-     * @param index índice del límite
-     * @return alto del límite
-     */
-    public double getBoundaryHeight(int index) { return requireBoundary(index).getHeight(); }
+    public double getCourtHeight() { 
+        return requireSession().getField().courtHeight(); 
+    }
     /** Devuelve los goles anotados por el lado izquierdo.
      * @return goles del lado izquierdo
      */
-    public int getGoalsLeft() { return requireSession().getGoalsLeft(); }
+    public int getGoalsLeft() { 
+        return requireSession().getGoalsLeft(); 
+    }
     /** Devuelve los goles anotados por el lado derecho.
      * @return goles del lado derecho
      */
-    public int getGoalsRight() { return requireSession().getGoalsRight(); }
+    public int getGoalsRight() { 
+        return requireSession().getGoalsRight(); 
+    }
     /** Devuelve el tiempo transcurrido de la sesión.
      * @return tiempo transcurrido, en segundos
      */
-    public double getElapsedSeconds() { return requireSession().getElapsedSeconds(); }
+    public double getElapsedSeconds() { 
+        return requireSession().getElapsedSeconds(); 
+    }
     /** Indica si la regla de partido terminó la sesión.
      * @return {@code true} si la sesión terminó
      */
-    public boolean isFinished() { return requireSession().isFinished(); }
-
-    /** Devuelve una instantánea inmutable de la geometría exterior de la cancha.
-     * @return rectángulo de la cancha
-     * @throws GameException si no hay una sesión iniciada
-     */
-    public RectangleView getCourtView() {
-        return new RectangleView(getCourtX(), getCourtY(), getCourtWidth(), getCourtHeight());
-    }
-
-    /** Devuelve instantáneas inmutables de los límites en orden superior, inferior, izquierdo y derecho.
-     * @return lista inmutable de límites
-     * @throws GameException si no hay una sesión iniciada
-     */
-    public List<RectangleView> getBoundaryViews() {
-        List<RectangleView> views = new ArrayList<>();
-        for (int index = 0; index < 4; index++) {
-            views.add(new RectangleView(getBoundaryX(index), getBoundaryY(index),
-                    getBoundaryWidth(index), getBoundaryHeight(index)));
-        }
-        return List.copyOf(views);
-    }
-
-    /** Devuelve instantáneas inmutables de los arcos en orden izquierdo y derecho.
-     * @return lista inmutable de arcos
-     * @throws GameException si no hay una sesión iniciada
-     */
-    public List<RectangleView> getGoalViews() {
-        List<RectangleView> views = new ArrayList<>();
-        for (int index = 0; index < 2; index++) {
-            views.add(new RectangleView(getGoalX(index), getGoalY(index),
-                    getGoalWidth(index), getGoalHeight(index)));
-        }
-        return List.copyOf(views);
-    }
-
-    /** Devuelve instantáneas inmutables de los participantes por lado.
-     * @return participantes del lado izquierdo, seguidos por los del lado derecho
-     * @throws GameException si no hay una sesión iniciada
-     */
-    public List<ParticipantView> getParticipantViews() {
-        GameSession active = requireSession();
-        List<ParticipantView> views = new ArrayList<>();
-        addParticipantViews(views, "left", active.getParticipantsLeft());
-        addParticipantViews(views, "right", active.getParticipantsRight());
-        return List.copyOf(views);
-    }
-
-    /** Devuelve instantáneas inmutables de los balones en el orden de la sesión.
-     * @return lista inmutable de balones
-     * @throws GameException si no hay una sesión iniciada
-     */
-    public List<BallView> getBallViews() {
-        Ball[] sessionBalls = requireSession().getField().getBalls();
-        List<BallView> views = new ArrayList<>();
-        for (int index = 0; index < sessionBalls.length; index++) {
-            Ball ball = sessionBalls[index];
-            views.add(new BallView(index, ball.getX(), ball.getY(), ball.getRadius(),
-                    ball.getVelocityX(), ball.getVelocityY()));
-        }
-        return List.copyOf(views);
+    public boolean isFinished() { 
+        return requireSession().isFinished(); 
     }
 
     /** Devuelve marcador y datos de tiempo en el formato de la regla activa.
@@ -287,33 +246,29 @@ public class Game {
         return List.copyOf(state);
     }
 
-    private RectangularHitbox requireBoundary(int index) {
-        RectangularHitbox[] boundaries = requireSession().getField().getHitboxField();
-        if (index < 0 || index >= boundaries.length) throw new GameException(GameException.INVALID_BALL_INDEX);
-        return boundaries[index];
-    }
-
     private RectangularHitbox requireGoal(int index) {
+        // Obtiene el arco indicado y rechaza índices fuera de la lista.
         RectangularHitbox[] goals = requireSession().getField().getGoalHitboxes();
         if (index < 0 || index >= goals.length) throw new GameException(GameException.INVALID_BALL_INDEX);
         return goals[index];
     }
 
-    private SessionParticipant findPlayer(boolean playerOne) {
+    private SessionParticipant findPlayer(boolean player) {
+        // Resuelve el jugador solicitado por identidad, incluyendo la posición del bot.
         GameSession active = requireSession();
-        int expectedId = playerOne ? 1 : 2;
+        int expectedId = player ? 1 : 2;
         for (SessionParticipant participant : active.getParticipantsLeft()) {
-            if (participant instanceof Player player && player.getUserId() == expectedId) return participant;
+            if (participant instanceof Player actualPlayer && actualPlayer.getUserId() == expectedId) return participant;
         }
         for (SessionParticipant participant : active.getParticipantsRight()) {
-            if (participant instanceof Player player && player.getUserId() == expectedId) return participant;
+            if (participant instanceof Player actualPlayer && actualPlayer.getUserId() == expectedId) return participant;
         }
         // In player-vs-bot, the bot occupies the identity not selected for the human.
         if (active instanceof PlayerVsBot) {
             SessionParticipant bot = active.getParticipantsLeft().get(0);
             SessionParticipant human = active.getParticipantsRight().get(0);
-            boolean humanIsPlayerOne = human instanceof Player p && p.getUserId() == 1;
-            if (playerOne != humanIsPlayerOne) return bot;
+            boolean humanIsPlayer = human instanceof Player actualPlayer && actualPlayer.getUserId() == 1;
+            if (player != humanIsPlayer) return bot;
         }
         throw new GameException(GameException.INVALID_PARTICIPANT_ID);
     }
@@ -347,33 +302,6 @@ public class Game {
                 Defensive.class.getSimpleName(), Expert.class.getSimpleName());
     }
 
-    /** Coloca a un participante para una prueba manual o visual.
-     * @param playerOne {@code true} para jugador 1; {@code false} para jugador 2
-     * @param x coordenada horizontal de la esquina superior izquierda de su hitbox
-     * @param y coordenada vertical de la esquina superior izquierda de su hitbox
-     */
-    public void setPlayerPosition(boolean playerOne, double x, double y) {
-        findPlayer(playerOne).resetPosition(x, y);
-    }
-
-    /** Coloca un balón para preparar un escenario reproducible.
-     * @param ballIndex índice del balón en la sesión
-     * @param x coordenada horizontal de su centro
-     * @param y coordenada vertical de su centro
-     */
-    public void setBallPosition(int ballIndex, double x, double y) {
-        requireBall(ballIndex).reposition(x, y);
-    }
-
-    /** Aplica un cambio de velocidad al balón indicado.
-     * @param ballIndex índice del balón en la sesión
-     * @param deltaX cambio de velocidad horizontal
-     * @param deltaY cambio de velocidad vertical
-     */
-    public void applyBallImpulse(int ballIndex, double deltaX, double deltaY) {
-        requireBall(ballIndex).applyImpulse(deltaX, deltaY);
-    }
-
     /** Devuelve la sesión única administrada o falla si todavía no se ha iniciado. */
     private GameSession requireSession() {
         if (session == null) throw new GameException(GameException.NO_FOUND_SESSION);
@@ -388,19 +316,6 @@ public class Game {
         }
         return balls[ballIndex];
     }
-
-    /** Interpreta el identificador lado:índice y busca al participante correspondiente. */
-    /** Copia la información de cada participante de un lado a las instantáneas de presentación. */
-    private void addParticipantViews(List<ParticipantView> target, String side,
-            List<SessionParticipant> participants) {
-        for (int index = 0; index < participants.size(); index++) {
-            var participant = participants.get(index);
-            var box = participant.getHitbox();
-            target.add(new ParticipantView(side,
-                    box.getX(), box.getY(), box.getWidth(), box.getHeight(), participant.getStats().getSpeed()));
-        }
-    }
-
 
     /**
      * Punto de extensión para activar el poder. El cuerpo está vacío y no aplica
@@ -419,15 +334,6 @@ public class Game {
      */
     public void improveStatistics(boolean player, String stats) {
         if (session != null) session.improveStatistics(player, stats);
-    }
-
-    /**
-     * Guarda la sesión administrada en el archivo predeterminado.
-     *
-     * @throws GameException si no hay una sesión o no puede escribirse el archivo
-     */
-    public void save() {
-        save(new File(DEFAULT_SAVE_FILE));
     }
 
     /**

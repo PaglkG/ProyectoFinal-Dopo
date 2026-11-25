@@ -1,0 +1,217 @@
+@startuml
+title POOBSoccer - diagrama actual de clases del dominio
+left to right direction
+skinparam backgroundColor #F8FAFC
+skinparam packageStyle rectangle
+skinparam classBackgroundColor #FFF8CC
+skinparam classBorderColor #7C6F45
+skinparam classArrowColor #526477
+skinparam classFontColor #243247
+skinparam packageBorderColor #8393A8
+skinparam packageFontColor #243247
+skinparam shadowing false
+hide empty members
+
+package "Sesión y reglas" {
+  class Game {
+    - session: GameSession
+    + startSession(...): GameSession
+    + resetSession(): void
+    + movePlayer(player: boolean, direction: boolean): void
+    + kickPlayer(player: boolean): boolean
+    + save(file: File): void
+    + open(file: File): void
+  }
+  abstract class GameSession {
+    {static} - instance: GameSession
+    - timeLeft: double
+    - field: SoccerField
+    - TypeOfMatch: TypeOfMatch
+    - goalsLeft: int
+    - goalsRight: int
+    - finished: boolean
+    # participantsLeft: List<SessionParticipant>
+    # participantsRight: List<SessionParticipant>
+    + GameSession(player: boolean, typeMatche: String, parametersRules: List<String>)
+    {static} + getInstance(...): GameSession
+    {static} + restoreInstance(session: GameSession): void
+    + updateGame(): void
+    + restartRound(): void
+    + kickPlayer(player: SessionParticipant): boolean
+  }
+  class PlayerVsPlayer
+  class PlayerVsBot
+  abstract class TypeOfMatch {
+    + check(parameters: List<String>): boolean
+  }
+  class ByGoals
+  class ByTime
+  class GameException
+}
+
+package "Participantes y poderes" {
+  abstract class SessionParticipant {
+    {static} - NORMAL_STATE: ParticipantState
+    {static} - STUNNED_STATE: StunnedState
+    - previousX: double
+    - previousY: double
+    - life: int
+    - UserHitbox: RectangularHitbox
+    - stats: Stats
+    - status: List<StatusEffect>
+    - specialPower: Power
+    + move(direction: boolean): void
+    + takeDamage(damage: int): void
+    + jump(): void
+    + power(): void
+    - currentState(): ParticipantState
+  }
+  interface ParticipantState <<privada>>
+  class NormalState <<privada>>
+  class StunnedState <<privada>>
+  class Player {
+    - user: int
+    + getUserId(): int
+  }
+  class BotPlayer {
+    + decideAction(field: SoccerField): Set<String>
+  }
+  class Clumsy
+  class Offensive
+  class Defensive
+  class Expert
+  class Stats {
+    - points: int
+    - nextUpgradeCost: int
+    - action: Map<String, Integer>
+    + improveStatistics(stat: String): void
+  }
+  class StatusEffect {
+    - type: String
+    - duration: double
+    - remaining: double
+    + update(): void
+  }
+  abstract class Power {
+    - chargePower: int
+    + usePower(): void
+  }
+  class BlueAura
+  class Lightning
+  class Tornado
+  class Illusion
+  class PowerFactory {
+    {static} + create(className: String): Power
+  }
+}
+
+package "Cancha y respuesta física" {
+  class SoccerField {
+    - courtWidth: double
+    - courtHeight: double
+    - fieldHitbox: RectangularHitbox
+    - balls: Ball[]
+    - collisions: CollisionFacade
+    + advanceBalls(...): void
+    + resetBall(x: double, y: double): void
+  }
+  class Ball {
+    - velocityX: double
+    - velocityY: double
+    - previousX: double
+    - previousY: double
+    - BallHitbox: CircularHitbox
+    + advance(...): void
+    + applyImpulse(...): void
+  }
+  class CollisionFacade
+  class CourtGeometry
+  class BallCollisionResolver
+  class BallParticipantCollisionResolver
+  class CircleRectangleCollisionResolver <<internal>>
+}
+
+package "Detección geométrica" {
+  interface Collidable
+  interface CollisionShape
+  interface Hitbox
+  class CircularHitbox
+  class RectangularHitbox
+  class CollisionDetector
+  class CollisionContact
+  class HitboxContact
+  class HitboxIntersections
+}
+
+Game "1" --> "0..1" GameSession : sesión administrada
+GameSession <|-- PlayerVsPlayer
+GameSession <|-- PlayerVsBot
+GameSession "1" *-- "1" SoccerField : contiene
+GameSession "1" o-- "1..*" SessionParticipant : participantes
+GameSession --> TypeOfMatch : regla
+GameSession ..> GameException : informa errores
+TypeOfMatch <|-- ByGoals
+TypeOfMatch <|-- ByTime
+
+SessionParticipant <|-- Player
+SessionParticipant <|-- BotPlayer
+BotPlayer <|-- Clumsy
+BotPlayer <|-- Offensive
+BotPlayer <|-- Defensive
+BotPlayer <|-- Expert
+SessionParticipant *-- RectangularHitbox : hitbox
+SessionParticipant --> Stats
+SessionParticipant --> "0..*" StatusEffect
+SessionParticipant --> "1" ParticipantState : NORMAL_STATE {static}
+SessionParticipant --> "1" StunnedState : STUNNED_STATE {static}
+NormalState ..|> ParticipantState
+StunnedState ..|> ParticipantState
+SessionParticipant --> Power : poder asociado
+PlayerVsPlayer ..> PowerFactory
+PlayerVsBot ..> PowerFactory
+PowerFactory ..> Power
+Power <|-- BlueAura
+Power <|-- Lightning
+Power <|-- Tornado
+Power <|-- Illusion
+
+SoccerField "1" *-- "1..*" Ball : balones
+SoccerField "1" *-- "1" RectangularHitbox : cancha
+SoccerField "1" *-- "2" RectangularHitbox : arcos
+SoccerField *-- CollisionFacade
+Ball *-- CircularHitbox : hitbox
+Ball ..|> Collidable
+SessionParticipant ..|> Collidable
+CollisionFacade *-- CourtGeometry
+CollisionFacade *-- BallCollisionResolver
+CollisionFacade *-- BallParticipantCollisionResolver
+CollisionFacade --> SoccerField
+CourtGeometry --> SoccerField
+BallCollisionResolver ..> Ball
+BallParticipantCollisionResolver ..> Ball
+BallParticipantCollisionResolver ..> SessionParticipant
+CircleRectangleCollisionResolver ..> Ball
+CircleRectangleCollisionResolver ..> RectangularHitbox
+
+Hitbox -|> CollisionShape
+CircularHitbox ..|> Hitbox
+RectangularHitbox ..|> Hitbox
+CollisionDetector ..> Collidable
+CollisionContact --> "0..2" Collidable : first y second
+HitboxIntersections ..> CollisionDetector
+HitboxIntersections ..> HitboxContact
+HitboxContact --> "0..1" Hitbox
+
+note bottom of GameSession
+  La sesión es singleton y coordina el ciclo del partido.
+  SoccerField conserva la geometría y delega las respuestas
+  físicas en CollisionFacade.
+end note
+note bottom of CollisionDetector
+  Evalúa el contacto según las formas recibidas.
+end note
+note bottom of ParticipantState
+  Las clases de estado pertenecen a SessionParticipant.
+  El efecto de aturdimiento determina el estado activo.
+end note
+@enduml
