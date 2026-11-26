@@ -7,6 +7,7 @@ package domain;
  */
 public class Player extends SessionParticipant {
 
+    /** Identificador humano del jugador, independiente de su lado. */
     private int user;
 
     /**

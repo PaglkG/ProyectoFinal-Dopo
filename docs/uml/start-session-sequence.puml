@@ -16,8 +16,9 @@ end
 note right of S
   PlayerVsPlayer recibe dos clases Power:
   jugador derecho, luego jugador izquierdo.
-  PlayerVsBot recibe jugador derecho, bot izquierdo
-  y perfil Clumsy/Offensive/Defensive/Expert.
+  PlayerVsBot recibe el poder del humano, el del bot
+  y el perfil Clumsy/Offensive/Defensive/Expert.
+  Ubica al humano a la izquierda y al bot a la derecha.
   Las clases de poder son BlueAura, Lightning, Tornado e Illusion.
 end note
 S -> S: inicializar listas de participantes
@@ -25,6 +26,9 @@ S -> S: createMatchRule(typeMatche, parametersRules)
 S -> T ++: constructor(List<String>) reflectivo
 T --> S --: instancia concreta
 S -> S: crear SoccerField y fijar timeLeft = 0
+opt sesión nueva con ambos lados
+  S -> S: colocar participantes y ajustar hitboxes a la coronilla
+end
 S --> G: instancia única de sesión
 G -> G: session = instancia
 G --> Cliente: session

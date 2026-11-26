@@ -26,6 +26,17 @@ import javax.swing.SwingConstants;
  
 /**
  * Pantalla del menú principal: jugar, abrir una partida, configuración y salir.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> {@code prepareView()} construye las opciones
+ *       del menú y {@code loadLogo()} lee la imagen del classpath.</li>
+ *   <li><strong>Modificación:</strong> {@code prepareController()} conecta los
+ *       botones con {@link NavigationController}. {@code openMatch()} recibe
+ *       la selección del archivo mediante un {@code JFileChooser}. La carga
+ *       queda pendiente de enlazar con la fachada del juego.</li>
+ *   <li><strong>Actualización:</strong> {@code loadLogo()} asigna la imagen o
+ *       el título alternativo. La ventana muestra el menú al navegar a él.</li>
+ * </ul>
  */
 public class MainMenuPanel extends BasePanel 
 {
@@ -52,11 +63,17 @@ public class MainMenuPanel extends BasePanel
     private static final int LABEL_GAP = 12;
     private static final int BUTTON_GAP = 20;
  
+    /** Controlador que coordina los cambios de pantalla. */
     private NavigationController navigationController;
+    /** Rótulo de título del menú inicial. */
     private JLabel titleLabel;
+    /** Acción para ir a la configuración de una nueva partida. */
     private JButton playButton;
+    /** Acción que permite elegir una partida guardada. */
     private JButton openMatchButton;
+    /** Acción para abrir la configuración de teclas. */
     private JButton configurationButton;
+    /** Acción de salida de la aplicación. */
     private JButton exitButton;
  
     /**
@@ -281,7 +298,8 @@ public class MainMenuPanel extends BasePanel
     }
 
     /**
-     * Panel con esquinas redondeadas.
+     * Recibe el color y el radio de esquina en el constructor y los usa
+     * en {@code paintComponent} cada vez que Swing repinta el fondo del menú.
      */
     private static class RoundedPanel extends JPanel 
     {

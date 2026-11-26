@@ -3,7 +3,12 @@ package presentation;
 import java.util.List;
 import java.util.Objects;
 
-/** Configuración inmutable que la presentación entrega a la fachada {@code Game}. */
+/**
+ * Configuración inmutable reunida por {@code PersonalizationPanel.createMatchConfiguration()}.
+ * La ventana usa sus parámetros al iniciar la sesión y la incluye en
+ * {@link MatchSnapshot}. Preparación, cancha y resultados usan sus datos de
+ * países, personajes y modalidad al refrescarse.
+ */
 public final class MatchConfiguration {
     private final List<String> parametersRules;
     private final List<String> parametersPowers;
@@ -84,6 +89,22 @@ public final class MatchConfiguration {
      * @return ruta del recurso
      */
     public String playerTwoHeadImage() { return playerTwoHeadImage; }
+
+    /** Devuelve el país del personaje que ocupa el lado solicitado.
+     * @param right indica el lado derecho
+     * @return código del país
+     */
+    String countryCodeForSide(boolean right) {
+        return right != againstBot ? playerOneCountryCode : playerTwoCountryCode;
+    }
+
+    /** Devuelve el recurso de cabeza del personaje que ocupa el lado solicitado.
+     * @param right indica el lado derecho
+     * @return nombre del recurso de imagen
+     */
+    String headImageForSide(boolean right) {
+        return right != againstBot ? playerOneHeadImage : playerTwoHeadImage;
+    }
 
     @Override
     public boolean equals(Object other) {

@@ -33,6 +33,41 @@ class GameTest {
     }
 
     @Test
+    void gettersExposeParticipantPointsAndLife() {
+        game.startSession(List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+
+        assertEquals(0, game.getPlayerPoints(true));
+        assertEquals(100, game.getPlayerLife(true));
+        assertEquals(100, game.getPlayerMaxLife(true));
+        assertEquals(0, game.getPlayerPoints(false));
+        assertEquals(100, game.getPlayerLife(false));
+    }
+
+    @Test
+    void sessionUpdateChargesBothParticipantPowers() {
+        game.startSession(List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+
+        game.updateGame();
+
+        assertEquals(10.0 - 1.0 / 60, game.getPlayerPowerRemainingSeconds(true), 1e-9);
+        assertEquals(10.0 - 1.0 / 60, game.getPlayerPowerRemainingSeconds(false), 1e-9);
+    }
+
+    @Test
+    void goalChargesOnlyTheConcedingParticipantPower() {
+        GameSession session = game.startSession(List.of("150", "450", "5"),
+                List.of("domain.BlueAura", "domain.Lightning"), PlayerVsPlayer.class.getName(),
+                ByGoals.class.getName(), true);
+
+        session.goal("left");
+
+        assertEquals(7.5, game.getPlayerPowerRemainingSeconds(true));
+        assertEquals(10.0, game.getPlayerPowerRemainingSeconds(false));
+    }
+
+    @Test
     void startSessionReportsAnUnknownSessionClassAndDoesNotStoreASession() throws ReflectiveOperationException {
         GameException exception = assertThrows(
                 GameException.class,
@@ -309,6 +344,25 @@ class GameTest {
         assertEquals(60, restored.getBallY(0), 1e-9);
         assertEquals(7, restored.getBallVelocityX(0), 1e-9);
         assertEquals(-3, restored.getBallVelocityY(0), 1e-9);
+    }
+
+    @Test
+    void openingAnOlderSaveShortensTheHitboxAndKeepsTheFeetPosition() {
+        GameSession session = game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        SessionParticipant player = session.getParticipantsRight().get(0);
+        player.resizeHitbox(450.0 / 20, 150.0 / 3);
+        player.resetPosition(315, 80);
+        Path file = tempDir.resolve("partida.dat");
+        game.save(file.toFile());
+
+        Game restored = new Game();
+        restored.open(file.toFile());
+
+        assertEquals(315, restored.getPlayerX(true), 1e-9);
+        assertEquals(33.18, restored.getPlayerHeight(true), 1e-9);
+        assertEquals(130, restored.getPlayerY(true) + restored.getPlayerHeight(true), 1e-9);
     }
 
     @Test

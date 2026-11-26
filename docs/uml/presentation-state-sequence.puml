@@ -1,0 +1,30 @@
+@startuml
+title Actualización del estado compartido de presentación
+
+participant "Temporizador Swing" as Timer
+participant DOPOSoccerGUI as GUI
+participant Game
+participant PresentationState as State
+participant MatchPanel as Match
+participant "Panel de destino" as Panel
+
+loop Mientras se muestra la cancha
+    Timer -> GUI : updateGame()
+    GUI -> Game : updateGame()
+    GUI -> Game : Consultar el estado del paso
+    Game --> GUI : Datos del paso
+    GUI -> State : setMatch(captura inmutable) [privado]
+    GUI -> Match : refreshMatchView()
+    Match -> State : getMatch()
+    State --> Match : MatchSnapshot
+    opt La partida terminó
+        GUI -> GUI : showScreen(RESULTS)
+    end
+end
+
+opt Mostrar Preparación, Resultados o Tienda
+    GUI -> Panel : refreshFromState()
+    Panel -> State : getMatch()
+    State --> Panel : MatchSnapshot o vacío
+end
+@enduml

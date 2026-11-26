@@ -12,9 +12,13 @@ public class RectangularHitbox implements Hitbox, Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Coordenada horizontal de la esquina de referencia. */
     private double x;
+    /** Coordenada vertical de la esquina de referencia. */
     private double y;
+    /** Extensión horizontal de la hitbox. */
     private double width;
+    /** Extensión vertical de la hitbox. */
     private double height;
 
     /**

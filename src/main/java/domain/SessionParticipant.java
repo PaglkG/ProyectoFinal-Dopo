@@ -22,13 +22,26 @@ public abstract class SessionParticipant implements Serializable, Collidable {
     private static final long serialVersionUID = 1L;
     private static final ParticipantState NORMAL_STATE = new NormalState();
     private static final StunnedState STUNNED_STATE = new StunnedState();
+    private static final double JUMP_SPEED = 121.0;
+    private static final double JUMP_GRAVITY = 180.0;
 
+    /** Coordenada horizontal anterior usada para resolver el recorrido de colisión. */
     private double previousX;
+    /** Coordenada vertical anterior usada para resolver el recorrido de colisión. */
     private double previousY;
+    /** Indica si la trayectoria vertical del salto sigue activa. */
+    private boolean jumping;
+    /** Velocidad vertical del salto en unidades por segundo, positiva hacia abajo. */
+    private double jumpVelocity;
+    /** Rectángulo que almacena la posición física del participante. */
     private RectangularHitbox UserHitbox;
+    /** Estadísticas y puntos que pertenecen al participante. */
     private Stats stats;
+    /** Efectos temporales activos sobre el participante. */
     private List<StatusEffect> status;
+    /** Poder asociado al participante al configurar la partida. */
     private Power specialPower;
+    /** Vida que conserva el participante durante la partida. */
     private int life = Stats.BASE_LIFE;
 
     /** Crea el participante con una hitbox provisional en el origen. */
@@ -46,6 +59,11 @@ public abstract class SessionParticipant implements Serializable, Collidable {
      */
     public void move(boolean dir) {
         currentState().move(this, dir);
+    }
+
+    /** Distancia horizontal de un paso de movimiento para la velocidad actual. */
+    final double horizontalStep() {
+        return 150.0 * stats.getSpeed() / 60.0;
     }
 
     /** Devuelve las estadísticas asociadas a este participante.
@@ -128,8 +146,55 @@ public abstract class SessionParticipant implements Serializable, Collidable {
         return  UserHitbox;
     }
 
-    /** Método reservado para iniciar el salto; actualmente no modifica el estado. */
+    /** Inicia el impulso de un salto si el participante puede actuar y no tiene
+     * una trayectoria vertical activa. La sesión valida el apoyo antes de invocarlo.
+     */
     public void jump() {
+        if (jumping || blocksMovement()) return;
+        jumping = true;
+        jumpVelocity = -JUMP_SPEED;
+    }
+
+    /** Indica si los pies están sobre el apoyo identificado por la sesión y permiten despegar. */
+    boolean canStartJump(double supportY, double ceilingY) {
+        return jumpVelocity >= 0 && !blocksMovement()
+                && UserHitbox.getY() == supportY - UserHitbox.getHeight()
+                && UserHitbox.getY() > ceilingY;
+    }
+
+    /** Rearma el impulso al saltar desde un apoyo, incluida la cabeza de otro participante. */
+    void jumpFromSupport(double supportY, double ceilingY) {
+        if (!canStartJump(supportY, ceilingY)) return;
+        jumping = false;
+        jump();
+    }
+
+    /** Calcula la subida máxima con el mismo paso discreto que usa la simulación. */
+    static double maximumJumpRise(double stepSeconds) {
+        double decelerationPerStep = JUMP_GRAVITY * stepSeconds;
+        double risingSteps = Math.floor(JUMP_SPEED / decelerationPerStep);
+        return risingSteps * stepSeconds * (JUMP_SPEED - decelerationPerStep * (risingSteps + 1) / 2);
+    }
+
+    /** Propone la próxima altura. La sesión comprueba la cancha antes de aplicarla. */
+    double nextJumpY(double stepSeconds) {
+        if (!jumping) return UserHitbox.getY();
+        jumpVelocity += JUMP_GRAVITY * stepSeconds;
+        return UserHitbox.getY() + jumpVelocity * stepSeconds;
+    }
+
+    /** Desplaza la hitbox sin perder el origen horizontal del paso y resuelve el límite del salto. */
+    void applyJumpStep(double nextY, double allowedY, double groundTop) {
+        if (!jumping) return;
+        setPosition(UserHitbox.getX(), allowedY);
+        if (allowedY >= groundTop) finishJump();
+        else if (allowedY != nextY) jumpVelocity = 0;
+    }
+
+    /** Restablece el estado del salto al tocar el suelo o reiniciar la ronda. */
+    private void finishJump() {
+        jumping = false;
+        jumpVelocity = 0;
     }
 
     /**
@@ -138,6 +203,7 @@ public abstract class SessionParticipant implements Serializable, Collidable {
      * @param y coordenada vertical
      */
     public void resetPosition(double x, double y) {
+        finishJump();
         setPosition(x, y);
         rememberCurrentPosition();
     }
@@ -267,7 +333,7 @@ public abstract class SessionParticipant implements Serializable, Collidable {
         @Override
         public void move(SessionParticipant participant, boolean right) {
             double direction = right ? 1 : -1;
-            double distance = direction * 150.0 * participant.stats.getSpeed() / 60.0;
+            double distance = direction * participant.horizontalStep();
             RectangularHitbox hitbox = participant.UserHitbox;
             participant.reposition(hitbox.getX() + distance, hitbox.getY());
         }

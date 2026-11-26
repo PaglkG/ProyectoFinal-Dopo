@@ -15,10 +15,15 @@ public class Ball implements Serializable, Collidable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Velocidad horizontal del centro, en unidades por segundo. */
     private double velocityX;
+    /** Velocidad vertical del centro, positiva hacia abajo. */
     private double velocityY;
+    /** Coordenada horizontal anterior usada para resolver el recorrido de colisión. */
     private double previousX;
+    /** Coordenada vertical anterior usada para resolver el recorrido de colisión. */
     private double previousY;
+    /** Círculo que contiene la posición del balón y su radio. */
     private CircularHitbox BallHitbox;
 
     /**

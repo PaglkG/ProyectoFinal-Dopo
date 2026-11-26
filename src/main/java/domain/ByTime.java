@@ -8,7 +8,9 @@ import domain.GameException;
  */
 public class ByTime extends TypeOfMatch {
 
+    /** Duración reglamentaria del partido en minutos. */
     private int minutes;
+    /** Indica si el empate mantiene activa la partida después del tiempo reglamentario. */
     private boolean suddenDeath;
 
     /** Indica si el partido se encuentra en muerte súbita.

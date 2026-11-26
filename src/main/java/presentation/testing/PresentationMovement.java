@@ -2,7 +2,12 @@ package presentation.testing;
 
 import domain.Game;
 
-/** Repite el movimiento horizontal mientras una tecla permanece presionada. */
+/**
+ * Recibe cambios de teclado en {@code setControl()} y guarda qué direcciones
+ * están sostenidas. {@code update()} se ejecuta en el ciclo del banco y
+ * convierte ese estado en llamadas a {@code Game.movePlayer()}.
+ * {@code reset()} limpia las direcciones al liberar los controles del banco.
+ */
 final class PresentationMovement {
     private boolean leftPlayerLeftPressed;
     private boolean leftPlayerRightPressed;
@@ -21,7 +26,7 @@ final class PresentationMovement {
         else leftPlayerLeftPressed = pressed;
     }
 
-    /** Libera todas las teclas registradas.
+    /** Libera las direcciones horizontales registradas.
      */
     void reset() {
         leftPlayerLeftPressed = false;
@@ -32,11 +37,12 @@ final class PresentationMovement {
 
     /** Solicita a Game un paso horizontal para cada participante controlado.
      * @param game fachada de la sesión que aplica el movimiento
+     * @param leftIsPlayerOne identidad del lado izquierdo
      */
-    void update(Game game) {
+    void update(Game game, boolean leftIsPlayerOne) {
         if (game.isFinished()) return;
-        updatePlayer(game, false, leftPlayerLeftPressed, leftPlayerRightPressed);
-        updatePlayer(game, true, rightPlayerLeftPressed, rightPlayerRightPressed);
+        updatePlayer(game, leftIsPlayerOne, leftPlayerLeftPressed, leftPlayerRightPressed);
+        updatePlayer(game, !leftIsPlayerOne, rightPlayerLeftPressed, rightPlayerRightPressed);
     }
 
     private void updatePlayer(Game game, boolean playerOne, boolean left, boolean right) {
@@ -44,4 +50,5 @@ final class PresentationMovement {
         int direction = (right ? 1 : 0) - (left ? 1 : 0);
         if (direction != 0) game.movePlayer(playerOne, direction > 0);
     }
+
 }

@@ -34,7 +34,9 @@ public final class BallCollisionResolver {
         int direction = movement > 0 ? 1 : -1;
         for (Ball ball : balls) {
             if (!ball.intersects(moved).isContact()) continue;
-            double halfWidth = moved.getHitbox().getWidth() / 2;
+            RectangularHitbox box = moved.getHitbox();
+            if (BallParticipantCollisionResolver.restsOnHead(ball, previousX, box.getY(), box.getWidth())) continue;
+            double halfWidth = box.getWidth() / 2;
             double previousOverlap = ball.getRadius() + halfWidth
                     - Math.abs(ball.getX() - (previousX + halfWidth));
             double currentOverlap = ball.getRadius() + halfWidth

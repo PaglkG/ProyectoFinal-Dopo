@@ -22,6 +22,7 @@ public class Game {
     /** Nombre y extensión iniciales propuestos por el selector de guardado. */
     public static String DEFAULT_SAVE_FILE = "partida.dat";
 
+    /** Crea la fachada antes de iniciar o cargar una sesión. */
     public Game() {
 
     }
@@ -70,6 +71,15 @@ public class Game {
         session.movePlayer(findPlayer(player), direction);
     }
 
+    /** Solicita un salto para el participante seleccionado.
+     * @param player {@code true} para jugador 1; {@code false} para jugador 2
+     * @throws GameException si no hay sesión activa o no se encuentra el participante
+     */
+    public void jumpPlayer(boolean player) {
+        GameSession session = requireSession();
+        session.jumpPlayer(findPlayer(player));
+    }
+
     /** Ejecuta una patada para el participante seleccionado.
      * @param player {@code true} para jugador 1; {@code false} para jugador 2
      * @return {@code true} si la patada alcanzó al rival o al balón
@@ -114,6 +124,42 @@ public class Game {
     public int getPlayerSpeed(boolean player) { 
         return findPlayer(player).getStats().getSpeed(); 
     }
+    /** Devuelve los puntos disponibles del participante seleccionado.
+     * @param player {@code true} para el jugador 1; {@code false} para el jugador 2
+     * @return puntos disponibles para mejoras
+     * @throws GameException si no hay sesión o no existe el participante
+     */
+    public int getPlayerPoints(boolean player) {
+        return findPlayer(player).getStats().getPoints();
+    }
+
+    /** Devuelve la vida actual del participante seleccionado.
+     * @param player {@code true} para el jugador 1; {@code false} para el jugador 2
+     * @return vida actual del participante
+     * @throws GameException si no hay sesión o no existe el participante
+     */
+    public int getPlayerLife(boolean player) {
+        return findPlayer(player).getLife();
+    }
+
+    /** Devuelve la vida máxima del participante según sus estadísticas.
+     * @param player {@code true} para el jugador 1; {@code false} para el jugador 2
+     * @return vida máxima del participante
+     * @throws GameException si no hay sesión o no existe el participante
+     */
+    public int getPlayerMaxLife(boolean player) {
+        return findPlayer(player).getMaxLife();
+    }
+
+    /** Devuelve los segundos restantes para completar la recarga del poder asignado.
+     * @param player {@code true} para el jugador 1; {@code false} para el jugador 2
+     * @return segundos de recarga pendientes
+     * @throws GameException si no hay sesión o no existe el participante
+     */
+    public double getPlayerPowerRemainingSeconds(boolean player) {
+        return findPlayer(player).getSpecialPower().getRemainingSeconds();
+    }
+
     /** Devuelve la coordenada horizontal del centro del balón indicado.
      * @param index índice del balón
      * @return coordenada horizontal del centro
@@ -265,8 +311,8 @@ public class Game {
         }
         // In player-vs-bot, the bot occupies the identity not selected for the human.
         if (active instanceof PlayerVsBot) {
-            SessionParticipant bot = active.getParticipantsLeft().get(0);
-            SessionParticipant human = active.getParticipantsRight().get(0);
+            SessionParticipant bot = active.getParticipantsRight().get(0);
+            SessionParticipant human = active.getParticipantsLeft().get(0);
             boolean humanIsPlayer = human instanceof Player actualPlayer && actualPlayer.getUserId() == 1;
             if (player != humanIsPlayer) return bot;
         }

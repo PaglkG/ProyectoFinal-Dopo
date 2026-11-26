@@ -1,6 +1,7 @@
 package domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -132,6 +133,283 @@ class GameSessionUpdateTest {
 
         assertEquals(102.5, participant.getHitbox().getX(), 1e-9);
         assertEquals(200, outsider.getHitbox().getX(), 1e-9);
+    }
+
+    @Test
+    void opposingWalksDoNotStopTheMatchAndPlayersCanMoveApart() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant left = session.getParticipantsLeft().get(0);
+        SessionParticipant right = session.getParticipantsRight().get(0);
+        double initialLeft = left.getHitbox().getX();
+        double initialRight = right.getHitbox().getX();
+        for (int step = 0; step < 50; step++) {
+            session.movePlayer(left, true);
+            session.movePlayer(right, false);
+            session.updateGame();
+        }
+
+        double nearLeft = left.getHitbox().getX();
+        double nearRight = right.getHitbox().getX();
+        assertTrue(nearLeft > initialLeft);
+        assertTrue(nearRight < initialRight);
+        assertFalse(left.intersects(right).isContact());
+
+        session.movePlayer(left, false);
+        session.movePlayer(right, true);
+        session.updateGame();
+
+        assertTrue(left.getHitbox().getX() < nearLeft);
+        assertTrue(right.getHitbox().getX() > nearRight);
+    }
+
+    @Test
+    void participantsAlreadyOverlappingCanSeparateWhileTheMatchContinues() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant left = session.getParticipantsLeft().get(0);
+        SessionParticipant right = session.getParticipantsRight().get(0);
+        left.resetPosition(200, 100);
+        right.resetPosition(200, 100);
+
+        assertDoesNotThrow(session::updateGame);
+        for (int step = 0; step < 6; step++) {
+            session.movePlayer(left, false);
+            session.movePlayer(right, true);
+            session.updateGame();
+        }
+
+        assertFalse(left.intersects(right).isContact());
+        assertTrue(session.getElapsedSeconds() > 0.1);
+    }
+
+    @Test
+    void bothGoalsStopWalksWithoutStoppingTheMatch() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant left = session.getParticipantsLeft().get(0);
+        SessionParticipant right = session.getParticipantsRight().get(0);
+        RectangularHitbox leftGoal = session.getField().getGoalHitboxes()[0];
+        RectangularHitbox rightGoal = session.getField().getGoalHitboxes()[1];
+        double leftX = leftGoal.getX() + leftGoal.getWidth() + 1;
+        double rightX = rightGoal.getX() - right.getHitbox().getWidth() - 1;
+        left.resetPosition(leftX, left.getHitbox().getY());
+        right.resetPosition(rightX, right.getHitbox().getY());
+
+        session.movePlayer(left, false);
+        session.movePlayer(right, true);
+        session.updateGame();
+
+        assertEquals(leftX, left.getHitbox().getX());
+        assertEquals(rightX, right.getHitbox().getX());
+        assertTrue(session.getElapsedSeconds() > 0);
+    }
+
+    @Test
+    void playerCanWalkAlongTheTopEdgeOfAnotherPlayer() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant upper = session.getParticipantsLeft().get(0);
+        RectangularHitbox lower = session.getParticipantsRight().get(0).getHitbox();
+        double height = upper.getHitbox().getHeight();
+        double initialX = lower.getX() + 2;
+        upper.resetPosition(initialX, lower.getY() - height);
+
+        session.movePlayer(upper, false);
+
+        assertTrue(upper.getHitbox().getX() < initialX);
+        assertEquals(lower.getY(), upper.getHitbox().getY() + height, 1e-9);
+    }
+
+    @Test
+    void jumpCanLandWhileTheSideEdgesOfTwoPlayersAreAligned() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant jumper = session.getParticipantsLeft().get(0);
+        RectangularHitbox neighbor = session.getParticipantsRight().get(0).getHitbox();
+        RectangularHitbox box = jumper.getHitbox();
+        double groundY = box.getY();
+        jumper.resetPosition(neighbor.getX() - box.getWidth(), groundY);
+        session.jumpPlayer(jumper);
+
+        for (int step = 0; step < 100; step++) session.updateGame();
+
+        assertEquals(groundY, box.getY(), 1e-9);
+        assertTrue(session.getElapsedSeconds() > 1);
+    }
+
+    @Test
+    void lowerPlayerWalksOutFromUnderTheUpperPlayerWhoFallsInPlace() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant upper = session.getParticipantsLeft().get(0);
+        SessionParticipant lower = session.getParticipantsRight().get(0);
+        landOnOtherPlayer(session, upper, lower);
+        double upperX = upper.getHitbox().getX();
+        double upperY = upper.getHitbox().getY();
+        double lowerX = lower.getHitbox().getX();
+
+        session.movePlayer(lower, true);
+        session.updateGame();
+
+        assertEquals(lowerX + lower.horizontalStep(), lower.getHitbox().getX(), 1e-9);
+        assertEquals(upperX, upper.getHitbox().getX(), 1e-9);
+        assertEquals(upperY, upper.getHitbox().getY(), 1e-9);
+        for (int step = 0; step < 8; step++) {
+            session.movePlayer(lower, true);
+            session.updateGame();
+        }
+        assertEquals(upperX + upper.getHitbox().getWidth(), lower.getHitbox().getX(), 1e-9);
+        assertEquals(upperX, upper.getHitbox().getX(), 1e-9);
+        assertTrue(upper.getHitbox().getY() > upperY);
+    }
+
+    @Test
+    void upperPlayerCanJumpAgainFromTheOtherPlayersHead() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant upper = session.getParticipantsLeft().get(0);
+        SessionParticipant lower = session.getParticipantsRight().get(0);
+        landOnOtherPlayer(session, upper, lower);
+        double supportedY = upper.getHitbox().getY();
+
+        session.jumpPlayer(upper);
+        session.updateGame();
+
+        assertEquals(supportedY - 118.0 / 60, upper.getHitbox().getY(), 1e-9);
+    }
+
+    private void landOnOtherPlayer(PlayerVsPlayer session, SessionParticipant upper, SessionParticipant lower)
+            throws Exception {
+        RectangularHitbox upperBox = upper.getHitbox();
+        RectangularHitbox lowerBox = lower.getHitbox();
+        ball(session).reposition(80, 75);
+        lower.resetPosition(200, lowerBox.getY());
+        upper.resetPosition(lowerBox.getX() - upperBox.getWidth() - 2.5, upperBox.getY());
+        session.jumpPlayer(upper);
+        for (int step = 0; step < 90; step++) {
+            if (upperBox.getX() < lowerBox.getX()) session.movePlayer(upper, true);
+            session.updateGame();
+        }
+        assertEquals(lowerBox.getX(), upperBox.getX(), 1e-9);
+        assertEquals(lowerBox.getY() - upperBox.getHeight(), upperBox.getY(), 1e-9);
+    }
+
+    @Test
+    void humanCanCrossAboveAnOpponentAndLandOnTheOtherSide() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant jumper = session.getParticipantsLeft().get(0);
+        SessionParticipant opponent = session.getParticipantsRight().get(0);
+        RectangularHitbox box = jumper.getHitbox();
+        double groundY = box.getY();
+        double opponentX = opponent.getHitbox().getX();
+        double opponentRight = opponentX + opponent.getHitbox().getWidth();
+        jumper.resetPosition(opponentX - box.getWidth() - 1, groundY);
+        session.jumpPlayer(jumper);
+
+        boolean crossedWhileAbove = false;
+        for (int step = 0; step < 100; step++) {
+            if (box.getX() <= opponentRight) session.movePlayer(jumper, true);
+            session.updateGame();
+            crossedWhileAbove |= box.getX() > opponentRight
+                    && box.getY() + box.getHeight() <= opponent.getHitbox().getY();
+        }
+
+        assertTrue(crossedWhileAbove);
+        assertEquals(groundY, box.getY(), 1e-9);
+    }
+
+    @Test
+    void registeredPlayerHitboxesAreAlignedToTheGroundAndTheHeadHeight() throws Exception {
+        PlayerVsPlayer session = session(5);
+        RectangularHitbox box = session.getParticipantsLeft().get(0).getHitbox();
+        SoccerField field = session.getField();
+
+        assertEquals(field.courtHeight() * 0.2212, box.getHeight(), 1e-9);
+        assertEquals(field.courtWidth() / 20, box.getWidth(), 1e-9);
+        assertEquals(field.groundY(), box.getY() + box.getHeight(), 1e-9);
+    }
+
+    @Test
+    void stationaryBallRollsToTheRightFromTheCenterOfTheHeadAndFalls() throws Exception {
+        PlayerVsPlayer session = session(5);
+        RectangularHitbox head = session.getParticipantsLeft().get(0).getHitbox();
+        Ball ball = ball(session);
+        double centerX = head.getX() + head.getWidth() / 2;
+        double supportedY = head.getY() - ball.getRadius();
+        ball.reposition(centerX, supportedY);
+
+        session.updateGame();
+
+        assertEquals(centerX + 4.0 / 60, ball.getX(), 1e-9);
+        assertEquals(supportedY, ball.getY(), 1e-9);
+        assertEquals(0, ball.getVelocityY(), 1e-9);
+        for (int step = 0; step < 220; step++) session.updateGame();
+        assertTrue(ball.getX() > head.getX() + head.getWidth());
+        assertTrue(ball.getY() > supportedY);
+    }
+
+    @Test
+    void lowBounceSettlesOnTheHeadAndStartsRolling() throws Exception {
+        PlayerVsPlayer session = session(5);
+        RectangularHitbox head = session.getParticipantsLeft().get(0).getHitbox();
+        Ball ball = ball(session);
+        double x = head.getX() + head.getWidth() / 2;
+        ball.reposition(x, head.getY() - ball.getRadius() - 0.005);
+
+        session.updateGame();
+        session.updateGame();
+
+        assertEquals(head.getY(), ball.getY() + ball.getRadius(), 1e-9);
+        assertEquals(0, ball.getVelocityY(), 1e-9);
+        assertEquals(x + 4.0 / 60, ball.getX(), 1e-9);
+    }
+
+    @Test
+    void jumpRaisesTheRealHitboxAndCarriesTheBallWhileItRollsLeft() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant participant = session.getParticipantsLeft().get(0);
+        RectangularHitbox head = participant.getHitbox();
+        Ball ball = ball(session);
+        double groundTop = head.getY();
+        double ballX = head.getX() + 5;
+        ball.reposition(ballX, groundTop - ball.getRadius());
+        session.jumpPlayer(participant);
+
+        session.updateGame();
+
+        assertEquals(groundTop - 118.0 / 60, head.getY(), 1e-9);
+        assertEquals(head.getY(), ball.getY() + ball.getRadius(), 1e-9);
+        assertEquals(ballX - 4.0 / 60, ball.getX(), 1e-9);
+    }
+
+    @Test
+    void jumpingAgainInTheAirDoesNotRestartTheVerticalImpulse() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant participant = session.getParticipantsLeft().get(0);
+        double groundTop = participant.getHitbox().getY();
+        session.jumpPlayer(participant);
+        session.updateGame();
+
+        session.jumpPlayer(participant);
+        session.updateGame();
+
+        assertEquals(groundTop - (118.0 + 115.0) / 60, participant.getHitbox().getY(), 1e-9);
+        for (int step = 0; step < 90; step++) session.updateGame();
+        assertEquals(groundTop, participant.getHitbox().getY(), 1e-9);
+    }
+
+    @Test
+    void jumpStopsBelowTheCeilingWithoutStoppingTheMatch() throws Exception {
+        PlayerVsPlayer session = GameSessionTestSupport.create(PlayerVsPlayer.class, true,
+                ByGoals.class.getName(), List.of("46", "450", "5"),
+                List.of("domain.BlueAura", "domain.Lightning"));
+        SessionParticipant participant = session.getParticipantsLeft().get(0);
+        double ceiling = session.getField().courtY() + session.getField().boundaryThickness();
+        double groundTop = participant.getHitbox().getY();
+        session.jumpPlayer(participant);
+
+        double highestY = groundTop;
+        for (int step = 0; step < 100; step++) {
+            session.updateGame();
+            highestY = Math.min(highestY, participant.getHitbox().getY());
+        }
+
+        assertTrue(highestY > ceiling && highestY - ceiling < 1e-9);
+        assertEquals(groundTop, participant.getHitbox().getY(), 1e-9);
     }
 
     @Test
@@ -314,6 +592,54 @@ class GameSessionUpdateTest {
     }
 
     @Test
+    void fastBallBouncesOnTheEntrySideAndThePlayerCanKeepMoving() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant player = session.getParticipantsRight().get(0);
+        player.resetPosition(300, 90);
+        Ball ball = ball(session);
+        ball.reposition(270, 115);
+        ball.applyImpulse(4500, 0);
+
+        session.updateGame();
+
+        assertEquals(290, ball.getX(), 1e-9);
+        assertEquals(-3150, ball.getVelocityX(), 1e-9);
+        session.movePlayer(player, true);
+        session.updateGame();
+        assertTrue(player.getHitbox().getX() > 300);
+    }
+
+    @Test
+    void fastBallCannotScoreThroughAParticipantInItsPath() throws Exception {
+        PlayerVsPlayer session = session(5);
+        session.getParticipantsRight().get(0).resetPosition(380, 90);
+        Ball ball = ball(session);
+        ball.reposition(340, 115);
+        ball.applyImpulse(4500, 0);
+
+        session.updateGame();
+
+        assertEquals(0, session.getGoalsLeft());
+        assertEquals(370, ball.getX(), 1e-9);
+        assertTrue(ball.getVelocityX() < 0);
+    }
+
+    @Test
+    void fastBallCanPassThroughTheEmptySpaceOutsideARoundedCorner() throws Exception {
+        PlayerVsPlayer session = session(5);
+        SessionParticipant player = session.getParticipantsRight().get(0);
+        player.resetPosition(300, 90);
+        Ball ball = ball(session);
+        ball.reposition(280, 83);
+        ball.applyImpulse(780, -120 - 40.0 / 60);
+
+        session.updateGame();
+
+        assertEquals(293, ball.getX(), 1e-9);
+        assertEquals(780, ball.getVelocityX(), 1e-9);
+    }
+
+    @Test
     void movingBallBouncesFromParticipantWithoutTeleportingOrAddingRepeatedImpulse() throws Exception {
         PlayerVsPlayer session = session(5);
         SessionParticipant participant = session.participantsLeft.get(0);
@@ -389,7 +715,9 @@ class GameSessionUpdateTest {
     void walkingPushStopsAtCourtBoundaryAndKeepsPlayerFromPassingThrough() throws Exception {
         PlayerVsPlayer session = session(5);
         SessionParticipant participant = session.participantsLeft.get(0);
-        participant.resetPosition(405, 50);
+        double aboveGoal = session.getField().getGoalHitboxes()[1].getY()
+                - participant.getHitbox().getHeight() - 1;
+        participant.resetPosition(405, aboveGoal);
         Ball ball = ball(session);
         ball.reposition(438, 75);
 
@@ -404,16 +732,18 @@ class GameSessionUpdateTest {
     void landingOnTopKeepsParticipantAboveAndSendsBallDownward() throws Exception {
         PlayerVsPlayer session = session(5);
         SessionParticipant participant = session.participantsLeft.get(0);
-        participant.resetPosition(100, 70);
+        session.jumpPlayer(participant);
+        for (int step = 0; step < 48; step++) session.updateGame();
+        RectangularHitbox box = participant.getHitbox();
         Ball ball = ball(session);
-        ball.reposition(111.25, 59.83);
-        ball.applyImpulse(0, 10);
+        ball.reposition(box.getX() + box.getWidth() / 2,
+                box.getY() + box.getHeight() + ball.getRadius() + 0.1);
+        ball.applyImpulse(0, -ball.getVelocityY() - 40.0 / 60);
 
         session.updateGame();
 
-        assertEquals(60, ball.getY(), 2e-6);
         assertEquals(0.5, ball.getVelocityY(), 1e-9);
-        assertTrue(ball.getY() + ball.getRadius() <= participant.getHitbox().getY() + 1e-9);
+        assertEquals(box.getY() + box.getHeight() + ball.getRadius(), ball.getY(), 1e-9);
     }
 
     @Test
@@ -453,18 +783,11 @@ class GameSessionUpdateTest {
     }
 
     @Test
-    void outsideObjectsAndOverlappingParticipantsRaiseDomainExceptions() throws Exception {
+    void outsideObjectsRaiseDomainException() throws Exception {
         PlayerVsPlayer outsideSession = session(5);
         outsideSession.participantsRight.get(0).resetPosition(-1, 50);
         GameException outside = assertThrows(GameException.class, outsideSession::updateGame);
         assertEquals(GameException.OBJECT_OUT_OF_MATCH, outside.getMessage());
-
-        PlayerVsPlayer overlapSession = session(5);
-        SessionParticipant left = overlapSession.participantsLeft.get(0);
-        SessionParticipant right = overlapSession.participantsRight.get(0);
-        right.resetPosition(left.getHitbox().getX(), left.getHitbox().getY());
-        GameException overlap = assertThrows(GameException.class, overlapSession::updateGame);
-        assertEquals(GameException.OBJECTS_OVERLAPPED, overlap.getMessage());
     }
 
     @Test

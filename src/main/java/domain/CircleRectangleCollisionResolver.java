@@ -29,7 +29,7 @@ final class CircleRectangleCollisionResolver {
         double distanceY = ball.getY() - closestY;
         double distance = Math.hypot(distanceX, distanceY);
         double radius = Math.abs(ball.getRadius());
-        if (distance > radius) return null;
+        if (distance > radius + EPSILON) return null;
 
         boolean horizontal = isHorizontalContact(
                 ball, rectangle, previousBallX, previousBallY,
@@ -66,6 +66,81 @@ final class CircleRectangleCollisionResolver {
             ball.applyImpulse(impulse * normalX, impulse * normalY);
         }
         return new Resolution(horizontal, side, bounced);
+    }
+
+    /**
+     * Devuelve la primera fracción del recorrido que toca el rectángulo, o infinito.
+     * La unión de dos franjas y los cuatro discos de las esquinas representa
+     * exactamente el espacio alcanzable por el centro del círculo.
+     */
+    static double firstContactFraction(RectangularHitbox box, double radius,
+            double x, double y, double dx, double dy) {
+        double left = box.getX();
+        double right = left + box.getWidth();
+        double top = box.getY();
+        double bottom = top + box.getHeight();
+        double endX = x + dx;
+        double endY = y + dy;
+        if (Math.max(x, endX) < left - radius || Math.min(x, endX) > right + radius
+                || Math.max(y, endY) < top - radius || Math.min(y, endY) > bottom + radius) {
+            return Double.POSITIVE_INFINITY;
+        }
+
+        double distance = distanceToBox(x, y, left, right, top, bottom);
+        if (distance <= radius + EPSILON) {
+            // Un balón que ya se separa desde el contacto debe conservar su avance.
+            double probe = Math.min(1, 1e-5 / Math.max(Math.hypot(dx, dy), EPSILON));
+            double after = distanceToBox(x + dx * probe, y + dy * probe, left, right, top, bottom);
+            return after < distance - EPSILON ? 0 : Double.POSITIVE_INFINITY;
+        }
+
+        double first = Math.min(
+                enterBox(x, y, dx, dy, left - radius, right + radius, top, bottom),
+                enterBox(x, y, dx, dy, left, right, top - radius, bottom + radius));
+        first = Math.min(first, enterDisk(x - left, y - top, dx, dy, radius));
+        first = Math.min(first, enterDisk(x - right, y - top, dx, dy, radius));
+        first = Math.min(first, enterDisk(x - left, y - bottom, dx, dy, radius));
+        return Math.min(first, enterDisk(x - right, y - bottom, dx, dy, radius));
+    }
+
+    /** Mide la distancia exacta desde un centro hasta la superficie del rectángulo. */
+    private static double distanceToBox(double x, double y,
+            double left, double right, double top, double bottom) {
+        return Math.hypot(x - Math.clamp(x, left, right), y - Math.clamp(y, top, bottom));
+    }
+
+    /** Interseca los intervalos de tiempo de los dos ejes de la franja. */
+    private static double enterBox(double x, double y, double dx, double dy,
+            double left, double right, double top, double bottom) {
+        if ((dx == 0 && (x < left || x > right)) || (dy == 0 && (y < top || y > bottom))) {
+            return Double.POSITIVE_INFINITY;
+        }
+        double first = 0;
+        double last = 1;
+        if (dx != 0) {
+            double a = (left - x) / dx;
+            double b = (right - x) / dx;
+            first = Math.max(first, Math.min(a, b));
+            last = Math.min(last, Math.max(a, b));
+        }
+        if (dy != 0) {
+            double a = (top - y) / dy;
+            double b = (bottom - y) / dy;
+            first = Math.max(first, Math.min(a, b));
+            last = Math.min(last, Math.max(a, b));
+        }
+        return first <= last ? first : Double.POSITIVE_INFINITY;
+    }
+
+    /** Calcula el primer corte del recorrido con un disco de esquina. */
+    private static double enterDisk(double x, double y, double dx, double dy, double radius) {
+        double speedSquared = dx * dx + dy * dy;
+        if (speedSquared == 0) return Double.POSITIVE_INFINITY;
+        double cross = x * dy - y * dx;
+        double discriminant = speedSquared * radius * radius - cross * cross;
+        if (discriminant < 0) return Double.POSITIVE_INFINITY;
+        double first = (-x * dx - y * dy - Math.sqrt(discriminant)) / speedSquared;
+        return first >= 0 && first <= 1 ? first : Double.POSITIVE_INFINITY;
     }
 
     /**

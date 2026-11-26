@@ -15,16 +15,33 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
-/** Menú visual de pausa con acceso al menú principal. */
+/**
+ * Menú de pausa de la partida.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> el constructor recibe el controlador
+ *       de navegación y la acción que solicita una vista de resultados.</li>
+ *   <li><strong>Modificación:</strong> {@code prepareController()} conecta
+ *       Continuar, Resultados y Menú principal. La ventana cambia de pantalla
+ *       y gestiona el temporizador del partido mediante {@code showScreen()}.</li>
+ *   <li><strong>Actualización:</strong> {@code prepareView()} construye el menú;
+ *       el fondo se repinta cuando Swing muestra o redimensiona el panel.</li>
+ * </ul>
+ */
 public class PausePanel extends BasePanel {
     private static final String COURT_IMAGE = "/images/ui/court@4x-8.png";
     private static final String LOGO_IMAGE = "/images/ui/logo@4x-8.png";
     private static final int LOGO_SIZE = 64;
 
+    /** Controlador que coordina los cambios de pantalla. */
     private final NavigationController navigationController;
+    /** Acción que muestra el resultado parcial desde la pausa. */
     private final Runnable resultsPreviewAction;
+    /** Acción que vuelve a la pantalla de partida. */
     private JButton resumeButton;
+    /** Acción que solicita la vista previa del resultado. */
     private JButton resultsButton;
+    /** Acción que regresa al menú principal. */
     private JButton mainMenuButton;
 
     /** Crea la pantalla de pausa conectada con la navegación principal.
@@ -132,7 +149,7 @@ public class PausePanel extends BasePanel {
         return new ImageIcon(image);
     }
 
-    /** Pinta la imagen de cancha a pantalla completa. */
+    /** Recibe la imagen de cancha en el constructor y la escala al repintar el fondo. */
     private static final class CourtBackground extends JPanel {
         private final Image courtImage = loadCourtImage();
 

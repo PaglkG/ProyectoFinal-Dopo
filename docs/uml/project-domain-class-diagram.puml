@@ -18,7 +18,13 @@ package "Sesión y reglas" {
     + startSession(...): GameSession
     + resetSession(): void
     + movePlayer(player: boolean, direction: boolean): void
+    + jumpPlayer(player: boolean): void
     + kickPlayer(player: boolean): boolean
+    + getBotTypes(): List<String>
+    + getPlayerPoints(player: boolean): int
+    + getPlayerLife(player: boolean): int
+    + getPlayerMaxLife(player: boolean): int
+    + getPlayerPowerRemainingSeconds(player: boolean): double
     + save(file: File): void
     + open(file: File): void
   }
@@ -36,11 +42,26 @@ package "Sesión y reglas" {
     {static} + getInstance(...): GameSession
     {static} + restoreInstance(session: GameSession): void
     + updateGame(): void
+    + movePlayer(user: SessionParticipant, direction: boolean): void
+    ~ movePlayer(user: SessionParticipant, direction: boolean, jumpOverOpponent: boolean): void
+    + jumpPlayer(user: SessionParticipant): void
+    ~ jumpSupportY(user: SessionParticipant): double
+    - advanceJumps(participants: List<SessionParticipant>): void
+    - limitVerticalStep(box: RectangularHitbox, obstacle: RectangularHitbox, nextY: double): double
+    - blocksHorizontalStep(current: RectangularHitbox, path: RectangularHitbox, nextX: double, obstacle: RectangularHitbox): boolean
+    # mirrorPlayingSides(): void
+    # updateAutonomousParticipants(): void
     + restartRound(): void
     + kickPlayer(player: SessionParticipant): boolean
+    {static} ~ isBallInKickReach(box: RectangularHitbox, ball: Ball): boolean
   }
   class PlayerVsPlayer
-  class PlayerVsBot
+  class PlayerVsBot {
+    - kickHeld: boolean
+    # updateAutonomousParticipants(): void
+    + restartRound(): void
+    - readObject(input: ObjectInputStream): void
+  }
   abstract class TypeOfMatch {
     + check(parameters: List<String>): boolean
   }
@@ -55,14 +76,22 @@ package "Participantes y poderes" {
     {static} - STUNNED_STATE: StunnedState
     - previousX: double
     - previousY: double
+    - jumping: boolean
+    - jumpVelocity: double
     - life: int
     - UserHitbox: RectangularHitbox
     - stats: Stats
     - status: List<StatusEffect>
     - specialPower: Power
     + move(direction: boolean): void
+    ~ horizontalStep(): double
     + takeDamage(damage: int): void
     + jump(): void
+    ~ canStartJump(supportY: double, ceilingY: double): boolean
+    ~ jumpFromSupport(supportY: double, ceilingY: double): void
+    {static} ~ maximumJumpRise(stepSeconds: double): double
+    ~ nextJumpY(stepSeconds: double): double
+    ~ applyJumpStep(nextY: double, allowedY: double, groundTop: double): void
     + power(): void
     - currentState(): ParticipantState
   }
@@ -73,13 +102,6 @@ package "Participantes y poderes" {
     - user: int
     + getUserId(): int
   }
-  class BotPlayer {
-    + decideAction(field: SoccerField): Set<String>
-  }
-  class Clumsy
-  class Offensive
-  class Defensive
-  class Expert
   class Stats {
     - points: int
     - nextUpgradeCost: int
@@ -94,6 +116,10 @@ package "Participantes y poderes" {
   }
   abstract class Power {
     - chargePower: int
+    + update(): void
+    + addGoalBonus(): void
+    + getRemainingSeconds(): double
+    + isUsable(): boolean
     + usePower(): void
   }
   class BlueAura
@@ -105,14 +131,69 @@ package "Participantes y poderes" {
   }
 }
 
+package "Decisión del bot" {
+  class BotPlayer {
+    - decisionStrategy: BotDecisionStrategy
+    + decideAction(field: SoccerField): Set<String>
+    ~ decideAction(field: SoccerField, goalDifference: int, supportY: double): Set<String>
+    # createDecisionStrategy(): BotDecisionStrategy
+  }
+  class Clumsy {
+    # createDecisionStrategy(): BotDecisionStrategy
+  }
+  class Offensive {
+    # createDecisionStrategy(): BotDecisionStrategy
+  }
+  class Defensive {
+    # createDecisionStrategy(): BotDecisionStrategy
+  }
+  class Expert {
+    # createDecisionStrategy(): BotDecisionStrategy
+  }
+  interface BotDecisionStrategy {
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class BotDecisionStrategies <<interna>>
+  class RandomMovement {
+    {static} - DECISION_STEPS: int = 18
+    - remainingSteps: int
+    - action: String
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class Attack {
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class DefendGoal {
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class AdaptToScore {
+    - attack: Attack
+    - defense: DefendGoal
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class BotDecisionContext {
+    - elevatedBallInReach: boolean
+    ~ shouldJumpForBall(): boolean
+    ~ hasBall(): boolean
+    ~ ballX(): double
+    ~ ownGoalFrontX(): double
+    ~ ballInReach(): boolean
+    ~ goalDifference(): int
+    ~ moveToward(targetX: double): String
+  }
+}
+
 package "Cancha y respuesta física" {
   class SoccerField {
+    {static} - PARTICIPANT_HEIGHT_RATIO: double
     - courtWidth: double
     - courtHeight: double
     - fieldHitbox: RectangularHitbox
     - balls: Ball[]
     - collisions: CollisionFacade
     + advanceBalls(...): void
+    ~ rollSupportedBalls(participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double): void
+    ~ fitRestoredParticipantHitbox(participant: SessionParticipant): void
     + resetBall(x: double, y: double): void
   }
   class Ball {
@@ -124,10 +205,15 @@ package "Cancha y respuesta física" {
     + advance(...): void
     + applyImpulse(...): void
   }
-  class CollisionFacade
+  class CollisionFacade {
+    ~ rollSupportedBalls(participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double): void
+  }
   class CourtGeometry
   class BallCollisionResolver
-  class BallParticipantCollisionResolver
+  class BallParticipantCollisionResolver {
+    + rewindMissedContacts(balls: Ball[], participants: Iterable<SessionParticipant>): void
+    ~ rollSupportedBalls(balls: Ball[], participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double, geometry: CourtGeometry): void
+  }
   class CircleRectangleCollisionResolver <<internal>>
 }
 
@@ -159,6 +245,24 @@ BotPlayer <|-- Clumsy
 BotPlayer <|-- Offensive
 BotPlayer <|-- Defensive
 BotPlayer <|-- Expert
+PlayerVsBot ..> BotPlayer : ejecuta decisiones
+GameSession ..> CollisionDetector : valida el paso
+BotPlayer --> "0..1" BotDecisionStrategy : estrategia
+BotPlayer ..> BotDecisionContext : contexto de la decisión
+BotDecisionStrategy ..> BotDecisionContext
+BotDecisionStrategies +-- RandomMovement
+BotDecisionStrategies +-- Attack
+BotDecisionStrategies +-- DefendGoal
+BotDecisionStrategies +-- AdaptToScore
+BotDecisionStrategy <|.. RandomMovement
+BotDecisionStrategy <|.. Attack
+BotDecisionStrategy <|.. DefendGoal
+BotDecisionStrategy <|.. AdaptToScore
+AdaptToScore *-- "1" Attack
+AdaptToScore *-- "1" DefendGoal
+BotDecisionContext ..> SoccerField : observa cancha y balón
+BotDecisionContext ..> GameSession : consulta alcance de patada
+BotDecisionContext ..> SessionParticipant : consulta alcance de salto
 SessionParticipant *-- RectangularHitbox : hitbox
 SessionParticipant --> Stats
 SessionParticipant --> "0..*" StatusEffect
@@ -188,7 +292,9 @@ CollisionFacade *-- BallParticipantCollisionResolver
 CollisionFacade --> SoccerField
 CourtGeometry --> SoccerField
 BallCollisionResolver ..> Ball
+BallCollisionResolver ..> BallParticipantCollisionResolver : comprueba apoyo
 BallParticipantCollisionResolver ..> Ball
+BallParticipantCollisionResolver ..> CourtGeometry : valida posición del balón
 BallParticipantCollisionResolver ..> SessionParticipant
 CircleRectangleCollisionResolver ..> Ball
 CircleRectangleCollisionResolver ..> RectangularHitbox
@@ -213,5 +319,9 @@ end note
 note bottom of ParticipantState
   Las clases de estado pertenecen a SessionParticipant.
   El efecto de aturdimiento determina el estado activo.
+end note
+note bottom of BotDecisionStrategies
+  Clumsy usa RandomMovement, Offensive usa Attack,
+  Defensive usa DefendGoal y Expert usa AdaptToScore.
 end note
 @enduml

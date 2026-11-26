@@ -29,11 +29,25 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
-import domain.Game;
+import presentation.DOPOSoccerGUI.PresentationState;
 
 /**
  * Pantalla para personalizar la partida: modalidad, perfil de la máquina,
  * tipo de partido, tamaño de la cancha y personaje de cada jugador.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> los desplegables de modalidad, regla y bot
+ *       toman sus opciones de {@code DOPOSoccerGUI.PresentationState}.
+ *       Los perfiles están en {@code CHARACTER_PROFILES} y los límites se
+ *       introducen en {@code minutesTextField} o {@code goalsTextField}.</li>
+ *   <li><strong>Modificación:</strong> el usuario modifica los controles.
+ *       Al iniciar, {@code prepareControllerStart()} valida el límite,
+ *       {@code createMatchConfiguration()} reúne las selecciones y
+ *       {@code NavigationController.startMatch()} las entrega a la ventana.</li>
+ *   <li><strong>Actualización:</strong> {@code updateMode()} ajusta el selector
+ *       de bot, {@code updateMatchType()} cambia el campo de límite y
+ *       {@code updateCountry()} refresca la imagen y el texto del personaje.</li>
+ * </ul>
  */
 public class PersonalizationPanel extends BasePanel 
 {
@@ -97,24 +111,41 @@ public class PersonalizationPanel extends BasePanel
     private static final int BOTTOM_BUTTON_HEIGHT = 44;
     private static final int BOTTOM_BUTTONS_GAP = 20;
 
+    /** Controlador que coordina los cambios de pantalla. */
     private NavigationController navigationController;
-    private final Game game;
+    /** Selector del modo manual o contra un bot. */
     private JComboBox<String> modeComboBox;
+    /** Selector del perfil de comportamiento del bot. */
     private JComboBox<String> botProfileComboBox;
+    /** Selector de la regla de finalización del partido. */
     private JComboBox<String> matchTypeComboBox;
+    /** Entrada del límite de tiempo de la partida. */
     private JTextField minutesTextField;
+    /** Entrada del límite de goles de la partida. */
     private JTextField goalsTextField;
+    /** Contenedor que presenta el límite de la modalidad elegida. */
     private JPanel matchLimitPanel;
+    /** Selector de las dimensiones de cancha. */
     private JComboBox<String> fieldSizeComboBox;
+    /** Selector del país asociado al jugador 1. */
     private JComboBox<String> player1CountryComboBox;
+    /** Vista previa gráfica del personaje del jugador 1. */
     private JLabel player1PreviewLabel;
+    /** Descripción visible del personaje y del poder del jugador 1. */
     private JTextArea player1DescriptionTextArea;
+    /** Rótulo del segundo selector de personaje. */
     private JLabel player2TitleLabel;
+    /** Selector del país asociado al segundo participante. */
     private JComboBox<String> player2CountryComboBox;
+    /** Vista previa gráfica del personaje del segundo participante. */
     private JLabel player2PreviewLabel;
+    /** Descripción visible del personaje y del poder del segundo participante. */
     private JTextArea player2DescriptionTextArea;
+    /** Acción que abre la tienda de mejoras. */
     private JButton storeButton;
+    /** Acción que confirma la configuración del partido. */
     private JButton startButton;
+    /** Acción para regresar al menú principal. */
     private JButton backToMenuButton;
 
     /**
@@ -122,10 +153,9 @@ public class PersonalizationPanel extends BasePanel
      *
      * @param navigationController controlador que cambia de pantalla
      */
-    public PersonalizationPanel(NavigationController navigationController, Game game)
+    public PersonalizationPanel(NavigationController navigationController)
     {
         this.navigationController = navigationController;
-        this.game = game;
         prepareView();
         prepareController();
     }
@@ -206,9 +236,9 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareViewModeOptions(JPanel content) 
     {
-        modeComboBox = createGameOptionsComboBox(game.getSessionTypes());
+        modeComboBox = createGameOptionsComboBox(PresentationState.getSessionTypes());
         modeComboBox.setSelectedItem("PlayerVsBot");
-        botProfileComboBox = createGameOptionsComboBox(game.getBotTypes());
+        botProfileComboBox = createGameOptionsComboBox(PresentationState.getBotTypes());
         botProfileComboBox.setSelectedItem("Clumsy");
 
         JPanel row = new JPanel(new GridLayout(1, 2, GRID_HGAP, 0));
@@ -228,7 +258,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareViewMatchOptions(JPanel content) 
     {
-        matchTypeComboBox = createGameOptionsComboBox(game.getMatchTypes());
+        matchTypeComboBox = createGameOptionsComboBox(PresentationState.getMatchTypes());
         matchTypeComboBox.setSelectedItem("ByTime");
         fieldSizeComboBox = new JComboBox<>(FIELD_SIZES);
         prepareViewMatchLimit();

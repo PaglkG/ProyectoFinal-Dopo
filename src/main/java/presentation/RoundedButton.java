@@ -13,6 +13,8 @@ import javax.swing.JButton;
 /**
  * Botón con esquinas redondeadas y borde de color. Se aclara al pasar el
  * mouse y se oscurece al presionarlo.
+ * Recibe el texto y los colores en el constructor. {@code paintComponent}
+ * consulta el estado de pulsación de Swing y aplica el color de cada repintado.
  */
 class RoundedButton extends JButton 
 {

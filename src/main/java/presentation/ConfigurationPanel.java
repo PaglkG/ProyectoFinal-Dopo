@@ -16,16 +16,27 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JSlider;
 import javax.swing.SwingConstants;
 
 /**
- * Pantalla de configuración: sonido y controles de teclado de cada jugador.
+ * Pantalla de configuración de los controles de teclado de cada jugador.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> {@code prepareViewKeyGrid()} crea los
+ *       botones a partir de las asignaciones iniciales. Los eventos de teclado
+ *       llegan a {@code captureKey()} desde {@code prepareControllerKeyButton()}.</li>
+ *   <li><strong>Modificación:</strong> {@code assignKey()} comprueba si otra
+ *       acción usa esa tecla y registra el cambio en el texto del botón.
+ *       {@code prepareControllerSave()} regresa al menú. La persistencia de
+ *       las asignaciones queda pendiente.</li>
+ *   <li><strong>Actualización:</strong> {@code startKeyCapture()} muestra la
+ *       espera, {@code assignKey()} muestra la tecla elegida y
+ *       {@code cancelKeyCapture()} restaura el texto anterior.</li>
+ * </ul>
  */
 public class ConfigurationPanel extends BasePanel 
 {
@@ -42,7 +53,6 @@ public class ConfigurationPanel extends BasePanel
     private static final int CONTENT_PADDING_TOP = 18;
     private static final int CONTENT_PADDING_SIDES = 40;
     private static final int CONTENT_PADDING_BOTTOM = 18;
-    private static final int CARD_ARC = 24;
     private static final int SECTION_GAP = 14;
     private static final int TITLE_GAP = 8;
 
@@ -58,14 +68,17 @@ public class ConfigurationPanel extends BasePanel
     private static final String WAITING_PROPERTY = "waitingForKey";
     private static final String PREVIOUS_TEXT_PROPERTY = "previousKeyText";
 
+    /** Controlador que coordina los cambios de pantalla. */
     private NavigationController navigationController;
-    private JCheckBox musicCheckBox;
-    private JCheckBox effectsCheckBox;
-    private JSlider volumeSlider;
+    /** Nombres de las acciones de las filas de configuración. */
     private JLabel[] actionLabels;
+    /** Controles para editar las teclas asignadas al jugador 1. */
     private JButton[] player1KeyButtons;
+    /** Controles para editar las teclas asignadas al jugador 2. */
     private JButton[] player2KeyButtons;
+    /** Acción que aplica las asignaciones de teclas editadas. */
     private JButton saveButton;
+    /** Acción para regresar a la pantalla anterior. */
     private JButton backButton;
  
     /**
@@ -86,7 +99,6 @@ public class ConfigurationPanel extends BasePanel
     {
         prepareViewPanel();
         JPanel content = createContentPanel();
-        prepareViewSound(content);
         prepareViewControls(content);
         prepareViewButtons(content);
         add(content, BorderLayout.CENTER);
@@ -119,67 +131,6 @@ public class ConfigurationPanel extends BasePanel
     }
 
     
-    /**
-     * Crea la sección "Sonido y ambiente": opciones de sonido y volumen.
-     *
-     * @param content contenedor de la pantalla
-     */
-    private void prepareViewSound(JPanel content) 
-    {
-        content.add(createSectionTitle("SONIDO Y AMBIENTE"));
-        content.add(Box.createVerticalStrut(TITLE_GAP));
-        prepareViewSoundOptions(content);
-        content.add(Box.createVerticalStrut(TITLE_GAP));
-        prepareViewVolume(content);
-        content.add(Box.createVerticalStrut(SECTION_GAP));
-    }
-
-    /**
-     * Crea las dos casillas de sonido (música y efectos) en una misma fila.
-     *
-     * @param content contenedor de la pantalla
-     */
-    private void prepareViewSoundOptions(JPanel content) 
-    {
-        musicCheckBox = createCheckBox("Música");
-        effectsCheckBox = createCheckBox("Efectos de juego");
-
-        JPanel row = new JPanel(new GridLayout(1, 2, KEY_GRID_HGAP, 0));
-        row.setOpaque(false);
-        row.add(createCard(musicCheckBox));
-        row.add(createCard(effectsCheckBox));
-        limitHeight(row);
-        content.add(row);
-    }
-
-    /**
-     * Crea la barra de volumen con sus etiquetas "Bajo" y "Alto".
-     *
-     * @param content contenedor de la pantalla
-     */
-    private void prepareViewVolume(JPanel content) 
-    {
-        JLabel volumeLabel = new JLabel("VOLUMEN");
-        volumeLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        volumeLabel.setForeground(Theme.LABEL_COLOR);
-        volumeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        volumeSlider = new JSlider(0, 100, 50);
-        volumeSlider.setOpaque(false);
-
-        RoundedPanel card = new RoundedPanel(Color.WHITE, CARD_ARC);
-        card.setLayout(new BorderLayout(10, 0));
-        card.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
-        card.add(new JLabel("Bajo"), BorderLayout.WEST);
-        card.add(volumeSlider, BorderLayout.CENTER);
-        card.add(new JLabel("Alto"), BorderLayout.EAST);
-        limitHeight(card);
-
-        content.add(volumeLabel);
-        content.add(Box.createVerticalStrut(4));
-        content.add(card);
-    }
-
     // ----- Sección de controles -----
 
     /**
@@ -309,36 +260,6 @@ public class ConfigurationPanel extends BasePanel
     }
 
     /**
-     * Crea una casilla de verificación marcada y sin fondo propio.
-     *
-     * @param text texto de la casilla
-     * @return casilla marcada
-     */
-    private JCheckBox createCheckBox(String text) 
-    {
-        JCheckBox checkBox = new JCheckBox(text, true);
-        checkBox.setOpaque(false);
-        checkBox.setFont(new Font("SansSerif", Font.PLAIN, 15));
-        checkBox.setForeground(Theme.DARK_GREEN);
-        return checkBox;
-    }
-
-    /**
-     * Envuelve un componente en una tarjeta blanca redondeada.
-     *
-     * @param component componente que se colocará dentro
-     * @return tarjeta con el componente
-     */
-    private JPanel createCard(JComponent component) 
-    {
-        RoundedPanel card = new RoundedPanel(Color.WHITE, CARD_ARC);
-        card.setLayout(new BorderLayout());
-        card.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
-        card.add(component, BorderLayout.CENTER);
-        return card;
-    }
-
-    /**
      * Evita que un componente crezca en alto dentro del {@code BoxLayout}
      * y lo alinea a la izquierda. Debe llamarse cuando el componente ya
      * tiene sus hijos.
@@ -405,7 +326,7 @@ public class ConfigurationPanel extends BasePanel
      */
     private void prepareControllerSave() 
     {
-        // Pendiente: decidir dónde se guardan las teclas y el sonido.
+        // Pendiente: decidir dónde se guardan las teclas.
         saveButton.addActionListener(e -> 
             navigationController.showScreen(NavigationController.MAIN_MENU));
     }

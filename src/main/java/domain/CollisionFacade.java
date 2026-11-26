@@ -27,6 +27,13 @@ public final class CollisionFacade {
     public void resolveBallCollisions(double restitution) {
         ballResolver.resolveAll(field.balls(), restitution);
     }
+    /** Recupera los contactos que el balón cruzó entre dos posiciones.
+     * @param participants participantes que pueden interceptar el balón
+     */
+    void rewindMissedBallParticipantContacts(Iterable<SessionParticipant> participants) {
+        participantResolver.rewindMissedContacts(field.balls(), participants);
+    }
+
     /** Resuelve los contactos entre los balones de la cancha y los participantes indicados.
      * @param participants participantes que pueden contactar con los balones
      * @param restitution fracción de velocidad normal conservada en los rebotes
@@ -35,6 +42,11 @@ public final class CollisionFacade {
     public void resolveBallParticipantCollisions(Iterable<SessionParticipant> participants,
             double restitution, double minimumLandingSpeed) {
         participantResolver.resolveAll(field.balls(), participants, restitution, minimumLandingSpeed);
+    }
+
+    /** Traslada los balones apoyados y cede a la física libre al perder el apoyo. */
+    void rollSupportedBalls(Iterable<SessionParticipant> participants, double stepSeconds, double gravity) {
+        participantResolver.rollSupportedBalls(field.balls(), participants, stepSeconds, gravity, geometry);
     }
     /** Empuja los balones que alcanza un participante al caminar desde {@code previousX}.
      * @param moved participante que caminó

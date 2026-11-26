@@ -18,8 +18,11 @@ public class StatusEffect implements Serializable {
     public static final double STUN_DURATION_SECONDS = 3.0;
     private static final double STEP_SECONDS = 1.0 / 60.0;
 
+    /** Identificador del efecto temporal. */
     private String type;
+    /** Tiempo inicial del efecto en segundos. */
     private double duration;
+    /** Segundos que quedan antes de que expire el efecto. */
     private double remaining;
 
     /** Crea un efecto temporal con el tipo y la duración indicados.

@@ -1,5 +1,7 @@
 package domain;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
@@ -16,6 +18,9 @@ import domain.Expert;
  * @author Samuel Ahumada Florez
  */
 public class PlayerVsBot extends GameSession {
+    private static final long serialVersionUID = -5259341864465568882L;
+    /** Mantiene la solicitud de patada como una pulsación hasta que el bot deja de pedirla. */
+    private boolean kickHeld;
 
     /**
      * Crea una sesión con un jugador humano y un bot.
@@ -43,9 +48,46 @@ public class PlayerVsBot extends GameSession {
         human.setSpecialPower(PowerFactory.create(parametersPowers.get(0)));
         BotPlayer bot = createBot(parametersPowers.get(2));
         bot.setSpecialPower(PowerFactory.create(parametersPowers.get(1)));
-        participantsRight.add(human);
-        participantsLeft.add(bot);
+        participantsLeft.add(human);
+        participantsRight.add(bot);
         positionParticipants();
+    }
+
+    /** Refleja las partidas antiguas que guardaron al humano a la derecha.
+     * @param input flujo que contiene el estado serializado
+     * @throws IOException si falla la lectura de la partida
+     * @throws ClassNotFoundException si falta una clase almacenada
+     */
+    private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+        input.defaultReadObject();
+        if (!participantsLeft.isEmpty() && participantsLeft.get(0) instanceof BotPlayer) {
+            mirrorPlayingSides();
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void updateAutonomousParticipants() {
+        BotPlayer bot = (BotPlayer) participantsRight.get(0);
+        var actions = bot.decideAction(getField(), getGoalsRight() - getGoalsLeft(), jumpSupportY(bot));
+        boolean wantsKick = actions.contains("kick");
+        if (wantsKick && !kickHeld) kickPlayer(bot);
+        kickHeld = wantsKick;
+        for (String action : actions) {
+            switch (action) {
+                case "moveLeft" -> movePlayer(bot, false, true);
+                case "moveRight" -> movePlayer(bot, true, true);
+                case "jump" -> jumpPlayer(bot);
+                default -> { } // Una acción aún no conectada no cambia el estado.
+            }
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void restartRound() {
+        super.restartRound();
+        kickHeld = false;
     }
 
     /** Construye el perfil de bot solicitado y convierte errores de reflexión a GameException. */

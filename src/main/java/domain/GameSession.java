@@ -5,6 +5,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import domain.GameException;
 import domain.TypeOfMatch;
 
@@ -15,6 +16,7 @@ import domain.TypeOfMatch;
  * @author Samuel Ahumada Florez
  */
 public abstract class GameSession implements Serializable {
+    private static final long serialVersionUID = 3293638541171582728L;
     private static GameSession instance;
 
     /** Devuelve la sesión singleton existente sin crear una nueva.
@@ -36,6 +38,8 @@ public abstract class GameSession implements Serializable {
      */
     public static void restoreInstance(GameSession restoredSession) throws GameException {
         if (restoredSession == null) throw new GameException(GameException.NO_FOUND_SESSION);
+        restoredSession.participantsLeft.forEach(restoredSession.field::fitRestoredParticipantHitbox);
+        restoredSession.participantsRight.forEach(restoredSession.field::fitRestoredParticipantHitbox);
         instance = restoredSession;
     }
 
@@ -85,7 +89,8 @@ public abstract class GameSession implements Serializable {
         }
     }
 
-    private static final double STEP_SECONDS = 1.0 / 60.0;
+    /** Duración de un paso de física, en segundos. */
+    static final double STEP_SECONDS = 1.0 / 60.0;
     private static final double BOUNCE_RETENTION = 0.70;
     private static final double MIN_BOUNCE_SPEED = 0.5;
     private static final double GRAVITY = 40.0;
@@ -93,11 +98,17 @@ public abstract class GameSession implements Serializable {
     private static final double KICK_HORIZONTAL_IMPULSE = 150.0;
     private static final double KICK_VERTICAL_IMPULSE = -50.0;
 
+    /** Tiempo transcurrido de la sesión, en segundos. */
     private double timeLeft;
+    /** Regla aplicada al reloj y al marcador para decidir el final. */
     private TypeOfMatch TypeOfMatch;
+    /** Cancha que contiene los balones y los límites de esta sesión. */
     private SoccerField field;
+    /** Goles anotados por el lado izquierdo. */
     private int goalsLeft;
+    /** Goles anotados por el lado derecho. */
     private int goalsRight;
+    /** Indica si la regla del partido dio por finalizada la sesión. */
     private boolean finished;
     /** Participantes que la modalidad asigna al lado derecho. */
     protected List<SessionParticipant> participantsRight;
@@ -142,20 +153,125 @@ public abstract class GameSession implements Serializable {
     }
 
     /**
-     * Desplaza al participante si pertenece a esta sesión y la partida sigue activa.
+     * Desplaza al participante si pertenece a esta sesión, la partida sigue activa
+     * y el paso respeta los límites laterales, los arcos y las hitboxes de los demás.
      * {@code true} representa derecha y {@code false} izquierda.
      * @param user participante
      * @param direction dirección
      */
     public void movePlayer(SessionParticipant user, boolean direction) {
-        if (finished || user == null || (!participantsRight.contains(user) && !participantsLeft.contains(user))) {
+        movePlayer(user, direction, false);
+    }
+
+    /** Aplica el paso horizontal y permite que el bot salte si se topa con un rival. */
+    void movePlayer(SessionParticipant user, boolean direction, boolean jumpOverOpponent) {
+        if (finished || user == null || user.blocksMovement()
+                || (!participantsRight.contains(user) && !participantsLeft.contains(user))) {
             return;
         }
-        double previousX = user.getHitbox().getX();
-        user.move(direction);
+        RectangularHitbox current = user.getHitbox();
+        double step = user.horizontalStep();
+        double nextX = current.getX() + (direction ? step : -step);
+        double margin = field.boundaryThickness();
+        if (nextX <= field.courtX() + margin
+                || nextX + current.getWidth() >= field.courtX() + field.courtWidth() - margin) return;
+        RectangularHitbox path = new RectangularHitbox(Math.min(current.getX(), nextX),
+                current.getY(), current.getWidth() + step, current.getHeight());
+        for (RectangularHitbox goal : field.getGoalHitboxes()) {
+            if (blocksHorizontalStep(current, path, nextX, goal)) return;
+        }
+
         List<SessionParticipant> all = new ArrayList<>(participantsLeft);
         all.addAll(participantsRight);
+        for (SessionParticipant other : all) {
+            if (other == user || !blocksHorizontalStep(current, path, nextX, other.getHitbox())) continue;
+            if (jumpOverOpponent && participantsLeft.contains(other) != participantsLeft.contains(user)) {
+                jumpPlayer(user);
+            }
+            return;
+        }
+
+        double previousX = current.getX();
+        user.move(direction);
         field.resolveWalkingContact(user, previousX, all);
+    }
+
+    /** Inicia el salto de un participante de la sesión apoyado en el suelo o en otro jugador.
+     * @param user participante que solicita el salto
+     */
+    public void jumpPlayer(SessionParticipant user) {
+        if (finished || user == null
+                || (!participantsLeft.contains(user) && !participantsRight.contains(user))) return;
+        user.jumpFromSupport(jumpSupportY(user), field.courtY() + field.boundaryThickness());
+    }
+
+    /** Localiza el borde de apoyo que coincide con los pies; usa el suelo como referencia en el aire. */
+    final double jumpSupportY(SessionParticipant user) {
+        RectangularHitbox box = user.getHitbox();
+        double ground = field.groundY();
+        if (box.getY() == ground - box.getHeight()) return ground;
+
+        return Stream.concat(participantsLeft.stream(), participantsRight.stream())
+                .filter(other -> other != user)
+                .map(SessionParticipant::getHitbox)
+                .filter(other -> box.getY() == other.getY() - box.getHeight()
+                        && hasHorizontalOverlap(box, other))
+                .mapToDouble(RectangularHitbox::getY)
+                .findFirst()
+                .orElse(ground);
+    }
+
+    /** Avanza los saltos y recorta sus recorridos contra cancha, arcos y participantes. */
+    private void advanceJumps(List<SessionParticipant> participants) {
+        RectangularHitbox[] goals = field.getGoalHitboxes();
+        double ceiling = Math.nextUp(field.courtY() + field.boundaryThickness());
+        for (SessionParticipant participant : participants) {
+            RectangularHitbox box = participant.getHitbox();
+            double nextY = participant.nextJumpY(STEP_SECONDS);
+            if (nextY == box.getY()) continue;
+            double groundTop = field.groundY() - box.getHeight();
+            double allowedY = Math.clamp(nextY, ceiling, groundTop);
+            for (RectangularHitbox goal : goals) {
+                allowedY = limitVerticalStep(box, goal, allowedY);
+            }
+            for (SessionParticipant other : participants) {
+                if (other != participant) allowedY = limitVerticalStep(box, other.getHitbox(), allowedY);
+            }
+            participant.applyJumpStep(nextY, allowedY, groundTop);
+        }
+    }
+
+    /** Devuelve la altura alcanzable antes del primer borde que corta el recorrido vertical. */
+    private double limitVerticalStep(RectangularHitbox box, RectangularHitbox obstacle, double nextY) {
+        if (!hasHorizontalOverlap(box, obstacle)) return nextY;
+        double obstacleBottom = obstacle.getY() + obstacle.getHeight();
+        if (obstacle.getY() <= box.getY() - obstacle.getHeight() && nextY < obstacleBottom) {
+            return Math.min(box.getY(), obstacleBottom);
+        }
+        double obstacleTop = obstacle.getY() - box.getHeight();
+        if (box.getY() <= obstacleTop && nextY > obstacleTop) {
+            return obstacleTop;
+        }
+        return nextY;
+    }
+
+    /** Comprueba que las proyecciones X compartan superficie de apoyo. */
+    private static boolean hasHorizontalOverlap(RectangularHitbox first, RectangularHitbox second) {
+        return first.getX() > second.getX() - first.getWidth()
+                && second.getX() > first.getX() - second.getWidth();
+    }
+
+    /** Impide cruzar un obstáculo y permite alejarse si el contacto ya existía. */
+    private boolean blocksHorizontalStep(RectangularHitbox current, RectangularHitbox path,
+            double nextX, RectangularHitbox obstacle) {
+        if (current.getY() <= obstacle.getY() - current.getHeight()
+                || obstacle.getY() <= current.getY() - obstacle.getHeight()) return false;
+        if (!CollisionDetector.intersects(path, obstacle)) return false;
+        if (!CollisionDetector.intersects(current, obstacle)) return true;
+        double separation = current.getX() + current.getWidth() / 2
+                - obstacle.getX() - obstacle.getWidth() / 2;
+        double displacement = nextX - current.getX();
+        return separation != 0 && separation * displacement <= 0;
     }
 
     /**
@@ -171,7 +287,8 @@ public abstract class GameSession implements Serializable {
 
     /**
      * Registra el gol si {@code side} es {@code "left"} o {@code "right"}; en
-     * cualquier otro caso no cambia el marcador. Después reinicia la ronda y
+     * cualquier otro caso no cambia el marcador. Añade un cuarto de carga a
+     * los poderes del lado que recibió el gol. Después reinicia la ronda y
      * comprueba la regla del partido.
      * @param side lado que anotó; se aceptan {@code "left"} y {@code "right"}
      */
@@ -179,6 +296,11 @@ public abstract class GameSession implements Serializable {
         if ("left".equals(side)) goalsLeft++;
         else if ("right".equals(side)) goalsRight++;
         else return;
+        List<SessionParticipant> concedingSide = "left".equals(side)
+                ? participantsRight : participantsLeft;
+        for (SessionParticipant participant : concedingSide) {
+            if (participant.getSpecialPower() != null) participant.getSpecialPower().addGoalBonus();
+        }
         restartRound();
         checkTypeOfMatch();
     }
@@ -240,14 +362,19 @@ public abstract class GameSession implements Serializable {
             return true;
         }
         for (Ball ball : field.balls()) {
-            double closestX = Math.max(box.getX(), Math.min(ball.getX(), box.getX() + box.getWidth()));
-            double closestY = Math.max(box.getY(), Math.min(ball.getY(), box.getY() + box.getHeight()));
-            if (Math.hypot(ball.getX() - closestX, ball.getY() - closestY) <= ball.getRadius() + KICK_REACH) {
+            if (isBallInKickReach(box, ball)) {
                 ball.applyImpulse(direction * KICK_HORIZONTAL_IMPULSE, KICK_VERTICAL_IMPULSE);
                 return true;
             }
         }
         return false;
+    }
+
+    /** Comparte la regla de alcance de la patada con la observación del bot. */
+    static boolean isBallInKickReach(RectangularHitbox box, Ball ball) {
+        double closestX = Math.max(box.getX(), Math.min(ball.getX(), box.getX() + box.getWidth()));
+        double closestY = Math.max(box.getY(), Math.min(ball.getY(), box.getY() + box.getHeight()));
+        return Math.hypot(ball.getX() - closestX, ball.getY() - closestY) <= ball.getRadius() + KICK_REACH;
     }
 
     /** Busca el rival más cercano cuya hitbox esté dentro del alcance de patada. */
@@ -373,45 +500,51 @@ public abstract class GameSession implements Serializable {
     }
 
     /**
-     * Avanza una sesión activa un paso fijo: actualiza efectos temporales,
-     * incrementa el tiempo, integra el balón con gravedad, procesa contactos y
+     * Avanza una sesión activa un paso fijo: recarga poderes, actualiza efectos temporales,
+     * procesa participantes autónomos, incrementa el tiempo, integra el balón
+     * con gravedad, procesa contactos y
      * vuelve a consultar la regla si la sesión sigue activa.
      */
     public void updateGame() {
         if (finished) return;
+        for (SessionParticipant participant : participantsLeft) {
+            if (participant.getSpecialPower() != null) participant.getSpecialPower().update();
+        }
+        for (SessionParticipant participant : participantsRight) {
+            if (participant.getSpecialPower() != null) participant.getSpecialPower().update();
+        }
         for (SessionParticipant participant : participantsLeft) participant.updateStatusEffects();
         for (SessionParticipant participant : participantsRight) participant.updateStatusEffects();
+        updateAutonomousParticipants();
+        List<SessionParticipant> allParticipants = new ArrayList<>(participantsLeft);
+        allParticipants.addAll(participantsRight);
+        advanceJumps(allParticipants);
         timeLeft += STEP_SECONDS;
         field.advanceBalls(STEP_SECONDS, GRAVITY);
-        collision();
-        for (SessionParticipant participant : participantsLeft) participant.rememberCurrentPosition();
-        for (SessionParticipant participant : participantsRight) participant.rememberCurrentPosition();
+        collision(allParticipants);
+        for (SessionParticipant participant : allParticipants) participant.rememberCurrentPosition();
         if (!finished) checkTypeOfMatch();
     }
 
+    /** Ejecuta las decisiones autónomas de la modalidad, si tiene participantes de ese tipo. */
+    protected void updateAutonomousParticipants() { }
+
     /**
-     * Valida la posición de los participantes y comprueba si hay gol. Si no hay
+     * Valida la posición de los participantes, desplaza los balones apoyados,
+     * recupera contactos atravesados entre pasos y comprueba si hay gol. Si no hay
      * gol, resuelve los rebotes entre balones, luego el contacto con participantes
      * y finalmente los rebotes contra el contorno de la cancha y los arcos.
-     * @throws GameException si un participante está fuera del área permitida o
-     *         hace contacto con otro participante
+     * @param allParticipants todos los participantes que se actualizaron en el paso
+     * @throws GameException si un participante está fuera del área permitida
      */
-    private void collision() {
-        List<SessionParticipant> allParticipants = new ArrayList<>(participantsLeft);
-        allParticipants.addAll(participantsRight);
+    private void collision(List<SessionParticipant> allParticipants) {
         for (SessionParticipant participant : allParticipants) {
             if (field.isOutside(participant) || field.touchesForbiddenBoundary(participant)) {
                 throw new GameException(GameException.OBJECT_OUT_OF_MATCH);
             }
         }
-        for (int i = 0; i < allParticipants.size(); i++) {
-            for (int j = i + 1; j < allParticipants.size(); j++) {
-                if (allParticipants.get(i).intersects(allParticipants.get(j)).isContact()) {
-                    throw new GameException(GameException.OBJECTS_OVERLAPPED);
-                }
-            }
-        }
-
+        field.rollSupportedBalls(allParticipants, STEP_SECONDS, GRAVITY);
+        field.rewindMissedBallParticipantContacts(allParticipants);
         int leftBefore = goalsLeft;
         int rightBefore = goalsRight;
         goal();
@@ -424,6 +557,31 @@ public abstract class GameSession implements Serializable {
             field.bounceBallAtGround(ball, BOUNCE_RETENTION, MIN_BOUNCE_SPEED);
             field.keepBallInsideCourt(ball, BOUNCE_RETENTION);
         }
+    }
+
+    /** Refleja los lados de una partida guardada con la orientación anterior. */
+    protected final void mirrorPlayingSides() {
+        List<SessionParticipant> oldLeft = participantsLeft;
+        participantsLeft = participantsRight;
+        participantsRight = oldLeft;
+
+        int oldLeftGoals = goalsLeft;
+        goalsLeft = goalsRight;
+        goalsRight = oldLeftGoals;
+
+        double axis = 2 * field.courtX() + field.courtWidth();
+        for (SessionParticipant participant : participantsLeft) mirrorParticipant(participant, axis);
+        for (SessionParticipant participant : participantsRight) mirrorParticipant(participant, axis);
+        for (Ball ball : field.balls()) {
+            ball.reposition(axis - ball.getX(), ball.getY());
+            ball.applyImpulse(-2 * ball.getVelocityX(), 0);
+        }
+    }
+
+    /** Refleja la esquina de la hitbox y sincroniza la posición anterior. */
+    private static void mirrorParticipant(SessionParticipant participant, double axis) {
+        RectangularHitbox hitbox = participant.getHitbox();
+        participant.resetPosition(axis - hitbox.getX() - hitbox.getWidth(), hitbox.getY());
     }
 
     /**

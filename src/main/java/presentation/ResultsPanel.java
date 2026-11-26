@@ -17,34 +17,67 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
-import domain.Game;
+import presentation.DOPOSoccerGUI.PresentationState;
 
-/** Presenta el marcador final y datos disponibles de la partida terminada. */
+/**
+ * Presenta el resumen de la partida desde el último estado publicado.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> al mostrar la pantalla, la ventana llama
+ *       a {@code refreshFromState()}, que lee {@code PresentationState.getMatch()}.</li>
+ *   <li><strong>Modificación:</strong> los botones registrados en
+ *       {@code prepareController()} solicitan la navegación a la tienda o al menú.</li>
+ *   <li><strong>Actualización:</strong> {@code showResult()} copia el marcador
+ *       y el tiempo a las etiquetas y calcula el texto de victoria o empate.
+ *       {@code setMatchConfiguration()} actualiza nombres, imágenes, modalidad
+ *       y tamaño de cancha según la misma captura.</li>
+ * </ul>
+ */
 public class ResultsPanel extends BasePanel {
     private static final String COURT_IMAGE = "/images/ui/court@4x-8.png";
     private static final int CHARACTER_IMAGE_SIZE = 62;
     private static final int COUNTRY_FLAG_SIZE = 28;
 
+    /** Controlador que coordina los cambios de pantalla. */
     private final NavigationController navigationController;
+    /** Nombre visible del personaje del lado izquierdo. */
     private JLabel leftAnimalLabel;
+    /** Nombre visible del personaje del lado derecho. */
     private JLabel rightAnimalLabel;
+    /** Imagen de la cabeza del personaje izquierdo. */
     private JLabel leftHeadLabel;
+    /** Imagen de la cabeza del personaje derecho. */
     private JLabel rightHeadLabel;
+    /** Componente que presenta la bandera del lado izquierdo. */
     private JLabel leftCountryFlagLabel;
+    /** Componente que presenta la bandera del lado derecho. */
     private JLabel rightCountryFlagLabel;
+    /** Marcador visible del lado izquierdo. */
     private JLabel leftScoreLabel;
+    /** Marcador visible del lado derecho. */
     private JLabel rightScoreLabel;
+    /** Rótulo del desenlace de la partida. */
     private JLabel outcomeLabel;
+    /** Marcador combinado en el resumen de resultados. */
     private JLabel finalScoreLabel;
+    /** Duración de la partida que figura en el resumen. */
     private JLabel durationValueLabel;
+    /** Modalidad que figura en el resumen de la partida. */
     private JLabel modeValueLabel;
+    /** Tamaño de cancha que figura en el resumen. */
     private JLabel courtValueLabel;
+    /** Acción que abre la tienda de mejoras. */
     private JButton storeButton;
+    /** Acción que regresa al menú principal. */
     private JButton mainMenuButton;
+    /** Texto de victoria correspondiente al lado izquierdo. */
     private String leftWinnerText = "¡VICTORIA DEL EQUIPO IZQUIERDO!";
+    /** Texto de victoria correspondiente al lado derecho. */
     private String rightWinnerText = "¡VICTORIA DEL EQUIPO DERECHO!";
 
-    /** Crea la pantalla de resultados y conecta sus botones de navegación. */
+    /** Crea la pantalla de resultados y conecta sus botones de navegación.
+     * @param navigationController controlador que cambia de pantalla
+     */
     public ResultsPanel(NavigationController navigationController) {
         this.navigationController = navigationController;
         prepareView();
@@ -236,16 +269,18 @@ public class ResultsPanel extends BasePanel {
         return separator;
     }
 
-    /** Actualiza nombres, marcador y configuración para la partida preparada. */
+    /** Actualiza nombres, marcador y configuración para la partida preparada.
+     * @param configuration selección de la modalidad, la cancha y los personajes
+     */
     public void setMatchConfiguration(MatchConfiguration configuration) {
-        CharacterInfo leftCharacter = characterInfo(configuration.playerTwoCountryCode());
-        CharacterInfo rightCharacter = characterInfo(configuration.playerOneCountryCode());
+        CharacterInfo leftCharacter = characterInfo(configuration.countryCodeForSide(false));
+        CharacterInfo rightCharacter = characterInfo(configuration.countryCodeForSide(true));
         leftWinnerText = "¡VICTORIA PARA " + leftCharacter.winnerName() + "!";
         rightWinnerText = "¡VICTORIA PARA " + rightCharacter.winnerName() + "!";
         setCharacter(leftAnimalLabel, leftHeadLabel, leftCountryFlagLabel,
-                configuration.playerTwoCountryCode(), configuration.playerTwoHeadImage());
+                configuration.countryCodeForSide(false), configuration.headImageForSide(false));
         setCharacter(rightAnimalLabel, rightHeadLabel, rightCountryFlagLabel,
-                configuration.playerOneCountryCode(), configuration.playerOneHeadImage());
+                configuration.countryCodeForSide(true), configuration.headImageForSide(true));
 
         boolean byTime = configuration.typeMatch().contains("ByTime");
         modeValueLabel.setText(byTime ? "Por tiempo" : "Por goles");
@@ -255,12 +290,16 @@ public class ResultsPanel extends BasePanel {
         }
     }
 
-    /** Actualiza la vista con el marcador y el tiempo expuestos por Game.
-     * @param game fachada que entrega el estado de la sesión
-     */
-    public void updateResult(Game game) {
-        int leftGoals = game.getGoalsLeft();
-        int rightGoals = game.getGoalsRight();
+    /** Actualiza la pantalla con el último estado publicado por la ventana. */
+    void refreshFromState() {
+        PresentationState.getMatch().ifPresent(this::showResult);
+    }
+
+    /** Muestra la configuración, el marcador y el tiempo del mismo paso. */
+    private void showResult(MatchSnapshot match) {
+        setMatchConfiguration(match.getConfiguration());
+        int leftGoals = match.getLeftGoals();
+        int rightGoals = match.getRightGoals();
         leftScoreLabel.setText(Integer.toString(leftGoals));
         rightScoreLabel.setText(Integer.toString(rightGoals));
         finalScoreLabel.setText("Marcador final: " + leftGoals + " - " + rightGoals);
@@ -273,7 +312,7 @@ public class ResultsPanel extends BasePanel {
                     : rightWinnerText);
         }
 
-        int elapsedSeconds = (int) game.getElapsedSeconds();
+        int elapsedSeconds = (int) match.getElapsedSeconds();
         durationValueLabel.setText(String.format("%02d:%02d",
                 elapsedSeconds / 60, elapsedSeconds % 60));
     }
@@ -364,7 +403,8 @@ public class ResultsPanel extends BasePanel {
         private String winnerName() { return winnerName; }
     }
 
-    /** Dibuja la cancha como fondo y la oscurece para resaltar la tarjeta. */
+    /** Recibe la imagen de cancha en el constructor y aplica un oscurecimiento
+     * en cada repintado para resaltar la tarjeta de resultados. */
     private static final class CourtBackground extends JPanel {
         private final Image image = loadCourtImage();
 

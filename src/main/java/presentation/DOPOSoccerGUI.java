@@ -3,14 +3,30 @@ package presentation;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import domain.Game;
+import presentation.MatchSnapshot.Ball;
+import presentation.MatchSnapshot.Bounds;
+import presentation.MatchSnapshot.Participant;
 
 /**
  * Ventana principal de DOPOSoccer. Contiene todas las pantallas del juego.
+ * Lee los catálogos de {@code Game} al construir la ventana y publica la
+ * primera captura en {@link #startMatch(MatchConfiguration)}.
+ * {@code updateGame()} avanza la partida y {@code publishMatch()} reúne la
+ * geometría, los participantes, el tiempo y el marcador en {@link MatchSnapshot}.
+ * La captura queda disponible en {@link PresentationState#getMatch()} antes
+ * de refrescar la vista. {@link #showScreen(String)} refresca la pantalla
+ * de destino y controla el temporizador. {@code improveStatistic()} procesa
+ * la compra con la fachada, publica el resultado y refresca la tienda.
  */
 
 public class DOPOSoccerGUI extends JFrame 
@@ -20,17 +36,31 @@ public class DOPOSoccerGUI extends JFrame
     private static final int WINDOW_HEIGHT = 600;
     private static final int COURT_WINDOW_WIDTH_MARGIN = 40;
     private static final int COURT_WINDOW_HEIGHT_MARGIN = 140;
+    private static final int MATCH_UPDATE_DELAY_MS = 1000 / 60;
 
+    /** Controlador que coordina los cambios de pantalla. */
     private final NavigationController navigationController;
+    /** Fachada que suministra el estado y las operaciones de la partida. */
     private final Game game;
+    /** Avanza la sesión mientras se muestra la cancha. */
+    private final Timer matchTimer;
+    /** Configuración con la que se inició la sesión administrada. */
     private MatchConfiguration startedConfiguration;
+    /** Pantalla inicial con los accesos a las demás opciones. */
     private MainMenuPanel mainMenuPanel;
+    /** Pantalla de asignación de teclas. */
     private ConfigurationPanel configurationPanel;
+    /** Pantalla de selección de modalidad, cancha y personajes. */
     private PersonalizationPanel personalizationPanel;
+    /** Pantalla de consulta y compra de mejoras. */
     private StoreImprovementPanel storeImprovementPanel;
+    /** Pantalla previa al inicio de la partida. */
     private PreparationPanel preparationPanel;
+    /** Pantalla donde se presenta la cancha de la partida. */
     private MatchPanel matchPanel;
+    /** Pantalla de pausa con las acciones disponibles durante una partida. */
     private PausePanel pausePanel;
+    /** Pantalla que resume el resultado de la partida. */
     private ResultsPanel resultsPanel;
  
     /**
@@ -40,6 +70,9 @@ public class DOPOSoccerGUI extends JFrame
     {
         super(TITLE);
         game = new Game();
+        PresentationState.setOptions(game.getSessionTypes(), game.getMatchTypes(), game.getBotTypes());
+        PresentationState.setMatch(null);
+        matchTimer = new Timer(MATCH_UPDATE_DELAY_MS, event -> updateGame());
         navigationController = new NavigationController(this);
         prepareView();
         prepareController();
@@ -71,15 +104,13 @@ public class DOPOSoccerGUI extends JFrame
     {
         mainMenuPanel = new MainMenuPanel(navigationController);
         configurationPanel = new ConfigurationPanel(navigationController);
-        personalizationPanel = new PersonalizationPanel(navigationController, game);
-        storeImprovementPanel = new StoreImprovementPanel(navigationController);
+        personalizationPanel = new PersonalizationPanel(navigationController);
+        storeImprovementPanel = new StoreImprovementPanel(navigationController, this::improveStatistic);
         preparationPanel = new PreparationPanel(navigationController);
         resultsPanel = new ResultsPanel(navigationController);
-        matchPanel = new MatchPanel(game, navigationController, () -> {
-            resultsPanel.updateResult(game);
-            showScreen(NavigationController.RESULTS);
-        });
-        pausePanel = new PausePanel(navigationController, this::showResultsPreview);
+        matchPanel = new MatchPanel(navigationController);
+        pausePanel = new PausePanel(navigationController,
+                () -> showScreen(NavigationController.RESULTS));
     }
 
     /**
@@ -142,6 +173,24 @@ public class DOPOSoccerGUI extends JFrame
      */
     public void showScreen(String screen) 
     {
+        matchTimer.stop();
+        if (NavigationController.MATCH.equals(screen)) {
+            MatchSnapshot match = PresentationState.getMatch().orElse(null);
+            if (match == null) return;
+            if (match.isFinished()) {
+                screen = NavigationController.RESULTS;
+            } else {
+                matchPanel.refreshMatchView();
+                matchTimer.start();
+            }
+        }
+        if (NavigationController.RESULTS.equals(screen)) {
+            resultsPanel.refreshFromState();
+        } else if (NavigationController.STORE_IMPROVEMENT.equals(screen)) {
+            storeImprovementPanel.refreshFromState();
+        } else if (NavigationController.PREPARATION.equals(screen)) {
+            preparationPanel.refreshFromState();
+        }
         resizeWindowForScreen(screen);
         CardLayout layout = (CardLayout) getContentPane().getLayout();
         layout.show(getContentPane(), screen);
@@ -197,22 +246,126 @@ public class DOPOSoccerGUI extends JFrame
         game.startSession(configuration.parametersRules(), configuration.parametersPowers(),
                 configuration.typeGame(), configuration.typeMatch(), configuration.playerOne());
         startedConfiguration = configuration;
-        resultsPanel.setMatchConfiguration(configuration);
-        preparationPanel.setCountryCodes(configuration.playerTwoCountryCode(),
-                configuration.playerOneCountryCode());
-        preparationPanel.setReady();
-        matchPanel.setCharacterImages(
-                "/images/outfits/heads/" + configuration.playerOneHeadImage(),
-                "/images/outfits/heads/" + configuration.playerTwoHeadImage());
-        matchPanel.setAgainstBot(configuration.againstBot());
-        matchPanel.refreshMatchView();
+        publishMatch();
         showScreen(NavigationController.PREPARATION);
     }
 
-    /** Muestra el estado actual para previsualizar la pantalla de resultados desde pausa. */
-    private void showResultsPreview() {
-        resultsPanel.updateResult(game);
-        showScreen(NavigationController.RESULTS);
+    /** Avanza un paso, publica su estado y refresca la vista que muestra el partido. */
+    private void updateGame() {
+        game.updateGame();
+        MatchSnapshot match = publishMatch();
+        matchPanel.refreshMatchView();
+        if (match.isFinished()) {
+            showScreen(NavigationController.RESULTS);
+        }
+    }
+
+    /** Captura en un solo objeto los datos que las vistas pueden consultar en Game. */
+    private MatchSnapshot publishMatch() {
+        Bounds court = new Bounds(game.getCourtX(), game.getCourtY(),
+                game.getCourtWidth(), game.getCourtHeight());
+        List<Bounds> goals = new ArrayList<>(2);
+        for (int index = 0; index < 2; index++) {
+            goals.add(new Bounds(game.getGoalX(index), game.getGoalY(index),
+                    game.getGoalWidth(index), game.getGoalHeight(index)));
+        }
+        int ballCount = game.getBallCount();
+        List<Ball> balls = new ArrayList<>(ballCount);
+        for (int index = 0; index < ballCount; index++) {
+            balls.add(new Ball(game.getBallX(index), game.getBallY(index), game.getBallRadius(index),
+                    game.getBallVelocityX(index), game.getBallVelocityY(index)));
+        }
+        boolean leftIsPlayerOne = startedConfiguration.againstBot() && startedConfiguration.playerOne();
+        List<String> score = game.getMatchState();
+        boolean suddenDeath = score.size() > 3 && Boolean.parseBoolean(score.get(3));
+        MatchSnapshot match = new MatchSnapshot(startedConfiguration, court, goals, balls,
+                readParticipant(leftIsPlayerOne), readParticipant(!leftIsPlayerOne),
+                game.getGoalsLeft(), game.getGoalsRight(), game.getElapsedSeconds(), suddenDeath,
+                game.isFinished());
+        PresentationState.setMatch(match);
+        return match;
+    }
+
+    /**
+     * Es el punto donde los getters de {@code Game} alimentan la hitbox,
+     * la vida, la recarga, los puntos y la velocidad de cada participante.
+     * Los paneles acceden a esos valores a través de {@link MatchSnapshot.Participant}.
+     * @param playerOne indica si se consulta la identidad del jugador 1
+     * @return datos del participante para la captura que se va a publicar
+     */
+    private Participant readParticipant(boolean playerOne) {
+        Bounds bounds = new Bounds(game.getPlayerX(playerOne), game.getPlayerY(playerOne),
+                game.getPlayerWidth(playerOne), game.getPlayerHeight(playerOne));
+        return new Participant(bounds, game.getPlayerLife(playerOne), game.getPlayerMaxLife(playerOne),
+                game.getPlayerPowerRemainingSeconds(playerOne), game.getPlayerPoints(playerOne),
+                game.getPlayerSpeed(playerOne));
+    }
+
+    /** Solicita la compra para el humano seleccionado y publica el saldo resultante. */
+    private void improveStatistic(boolean playerOne, String statistic) {
+        MatchSnapshot match = PresentationState.getMatch().orElse(null);
+        if (match == null || !match.isFinished() || match.getHumanPlayer(playerOne).isEmpty()) return;
+        boolean rightSide = !match.getConfiguration().againstBot() && playerOne;
+        try {
+            game.improveStatistics(rightSide, statistic);
+            publishMatch();
+            storeImprovementPanel.refreshFromState();
+        } catch (IllegalArgumentException exception) {
+            JOptionPane.showMessageDialog(storeImprovementPanel, exception.getMessage(),
+                    "No se pudo comprar la mejora", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    /** Detiene el avance de la partida al cerrar la ventana. */
+    @Override
+    public void dispose() {
+        matchTimer.stop();
+        super.dispose();
+    }
+
+    /** Punto de lectura de catálogos y de la última captura de la presentación
+     * oficial. La ventana escribe con {@code setOptions()} y {@code setMatch()};
+     * cada panel consulta los getters cuando necesita refrescarse. */
+    public static final class PresentationState {
+        private static volatile MatchSnapshot match;
+        private static volatile List<String> sessionTypes = List.of();
+        private static volatile List<String> matchTypes = List.of();
+        private static volatile List<String> botTypes = List.of();
+
+        /** Impide crear instancias del estado compartido. */
+        private PresentationState() { }
+
+        /** Devuelve el último estado publicado.
+         * @return datos inmutables de la partida, o vacío antes de iniciarla
+         */
+        public static Optional<MatchSnapshot> getMatch() { return Optional.ofNullable(match); }
+
+        /** Devuelve las modalidades de sesión disponibles.
+         * @return lista inmutable de nombres simples
+         */
+        public static List<String> getSessionTypes() { return sessionTypes; }
+
+        /** Devuelve las reglas de partido disponibles.
+         * @return lista inmutable de nombres simples
+         */
+        public static List<String> getMatchTypes() { return matchTypes; }
+
+        /** Devuelve los perfiles de bot disponibles.
+         * @return lista inmutable de nombres simples
+         */
+        public static List<String> getBotTypes() { return botTypes; }
+
+        /** Publica una captura completa de la partida con una sola asignación. */
+        private static void setMatch(MatchSnapshot value) {
+            match = value;
+        }
+
+        /** Publica copias inmutables de las opciones que ofrece Game. */
+        private static void setOptions(List<String> sessions, List<String> rules, List<String> bots) {
+            sessionTypes = List.copyOf(sessions);
+            matchTypes = List.copyOf(rules);
+            botTypes = List.copyOf(bots);
+        }
     }
 
     /**

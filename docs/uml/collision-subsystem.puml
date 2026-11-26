@@ -7,6 +7,7 @@ hide empty members
 
 package "Resolución física" {
   class SoccerField {
+    {static} - PARTICIPANT_HEIGHT_RATIO: double
     - fieldHitbox: RectangularHitbox
     - LeftGoalHitbox: RectangularHitbox
     - RightGoalHitbox: RectangularHitbox
@@ -16,6 +17,8 @@ package "Resolución física" {
     + getGoalHitboxes(): RectangularHitbox[2]
     + resolveBallCollisions(restitution: double): void
     + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    ~ rollSupportedBalls(participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double): void
+    ~ rewindMissedBallParticipantContacts(participants: Iterable<SessionParticipant>): void
     + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>): void
     + isOutside(ball: Ball): boolean
     + isOutside(participant: SessionParticipant): boolean
@@ -31,6 +34,8 @@ package "Resolución física" {
     - ballResolver: BallCollisionResolver
     + resolveBallCollisions(restitution: double): void
     + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    ~ rollSupportedBalls(participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double): void
+    ~ rewindMissedBallParticipantContacts(participants: Iterable<SessionParticipant>): void
     + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>): void
     + isOutside(ball: Ball): boolean
     + isOutside(participant: SessionParticipant): boolean
@@ -61,12 +66,16 @@ package "Resolución física" {
   }
 
   class BallParticipantCollisionResolver {
+    {static} - HEAD_ROLL_SPEED: double
+    ~ rollSupportedBalls(balls: Ball[], participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double, geometry: CourtGeometry): void
+    + rewindMissedContacts(balls: Ball[], participants: Iterable<SessionParticipant>): void
     + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
     + resolve(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
     - resolve(ball: Ball, participant: SessionParticipant, previousBallX: double, previousBallY: double, previousParticipantX: double, previousParticipantY: double, restitution: double, minimumLandingSpeed: double): void
   }
 
   class CircleRectangleCollisionResolver <<package-private>> {
+    {static} ~ firstContactFraction(box: RectangularHitbox, radius: double, x: double, y: double, dx: double, dy: double): double
     {static} ~ resolveAgainstFixedRectangle(ball: Ball, rectangle: RectangularHitbox, restitution: double): Resolution
     {static} ~ resolve(ball: Ball, rectangle: RectangularHitbox, previousBallX: double, previousBallY: double, previousRectangleX: double, previousRectangleY: double, restitution: double): Resolution
   }
@@ -151,9 +160,12 @@ CourtGeometry --> "1" SoccerField
 BallCollisionResolver ..> CourtGeometry
 BallCollisionResolver ..> Ball
 BallCollisionResolver ..> SessionParticipant
+BallCollisionResolver ..> BallParticipantCollisionResolver : comprueba apoyo
 BallParticipantCollisionResolver ..> Ball
+BallParticipantCollisionResolver ..> CourtGeometry : valida posición del balón
 BallParticipantCollisionResolver ..> SessionParticipant
 BallParticipantCollisionResolver ..> CircleRectangleCollisionResolver
+BallParticipantCollisionResolver ..> CollisionDetector : reconoce contacto al final
 CourtGeometry ..> CircleRectangleCollisionResolver
 CircleRectangleCollisionResolver +-- Resolution
 Ball *-- "1" CircularHitbox
@@ -185,6 +197,12 @@ end note
 note bottom of CourtGeometry
   La cancha usa un rectángulo exterior.
   Sus bordes definen los límites estáticos.
+end note
+
+note bottom of SessionParticipant
+  Su hitbox en la cancha abarca desde la coronilla hasta los pies.
+  El jugador que está debajo puede caminar; el de arriba
+  puede saltar desde ese apoyo o caer al perderlo.
 end note
 
 note bottom of ParticipantState

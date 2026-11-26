@@ -9,6 +9,7 @@ import domain.GameException;
  */
 public class ByGoals extends TypeOfMatch {
 
+    /** Cantidad exacta de goles que pone fin al partido. */
     private int goals;
 
     /**

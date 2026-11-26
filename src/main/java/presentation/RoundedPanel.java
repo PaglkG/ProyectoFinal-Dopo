@@ -10,6 +10,8 @@ import javax.swing.JPanel;
 /**
  * Panel con esquinas redondeadas. Su color de fondo se dibuja como un
  * rectángulo redondeado en vez de un rectángulo normal.
+ * El constructor recibe el color y la curvatura. {@code paintComponent}
+ * vuelve a dibujar el fondo con el color y el tamaño actuales del componente.
  */
 class RoundedPanel extends JPanel 
 {

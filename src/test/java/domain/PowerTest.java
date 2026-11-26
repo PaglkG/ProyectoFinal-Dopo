@@ -12,6 +12,58 @@ import domain.GameException;
 /** Pruebas de carga de los tipos concretos de poder seleccionables. */
 class PowerTest {
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "domain.BlueAura", "domain.Lightning", "domain.Tornado", "domain.Illusion"})
+    void allPowersFinishChargingAfterSixHundredUpdates(String type) {
+        Power power = PowerFactory.create(type);
+        assertEquals(10.0, power.getRemainingSeconds());
+
+        for (int step = 0; step < 600; step++) power.update();
+
+        assertEquals(0.0, power.getRemainingSeconds());
+        org.junit.jupiter.api.Assertions.assertTrue(power.isUsable());
+    }
+
+    @Test
+    void goalBonusAddsOneQuarterOfCharge() {
+        Power power = new BlueAura();
+
+        power.addGoalBonus();
+
+        assertEquals(7.5, power.getRemainingSeconds());
+    }
+
+    @Test
+    void goalBonusCannotOverchargeAPower() {
+        Power power = new Lightning();
+        for (int step = 0; step < 599; step++) power.update();
+
+        power.addGoalBonus();
+
+        assertEquals(0.0, power.getRemainingSeconds());
+    }
+
+    @Test
+    void usePowerConsumesAFullCharge() {
+        Power power = new Tornado();
+        for (int step = 0; step < 600; step++) power.update();
+
+        power.usePower();
+
+        assertEquals(10.0, power.getRemainingSeconds());
+    }
+
+    @Test
+    void usePowerDoesNotConsumeAnIncompleteCharge() {
+        Power power = new Illusion();
+        power.addGoalBonus();
+
+        power.usePower();
+
+        assertEquals(7.5, power.getRemainingSeconds());
+    }
+
     @Test
     void factoryCreatesBlueAuraByItsFullClassName() throws GameException {
         Power power = PowerFactory.create(BlueAura.class.getName());

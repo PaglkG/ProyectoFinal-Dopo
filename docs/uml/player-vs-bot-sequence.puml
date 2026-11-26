@@ -17,18 +17,18 @@ alt player == true
 else player == false
   S -> P ++: new Player(2)
 end
-S -> S: participantsRight.add(human)
 S -> WP ++: PowerFactory.create(parametersPowers[0])
 S -> P: setSpecialPower(WP)
 S -> S: resolver perfil parametersPowers[2]
 S -> B ++: crearBotReflectivo(nombreCompletoPerfil)
 S -> WB ++: PowerFactory.create(parametersPowers[1])
 S -> B: setSpecialPower(WB)
-S -> S: participantsLeft.add(bot)
+S -> S: participantsLeft.add(human)
+S -> S: participantsRight.add(bot)
 S -> S: positionParticipants()
 S --> Cliente --: sesión lista
 note over S,B
-  El humano queda a la derecha y el bot a la izquierda,
+  El humano queda a la izquierda y el bot a la derecha,
   según la regla confirmada. parametersPowers contiene
   poder del humano, poder del bot y perfil del bot, en ese orden.
 end note

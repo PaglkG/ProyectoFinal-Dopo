@@ -11,6 +11,8 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 **Atributos:** `session: GameSession` conserva la sesión administrada; `DEFAULT_SAVE_FILE` es el nombre inicial propuesto para guardar.
 
 **Métodos:** `startSession(...)` inicia o reutiliza la sesión; `resetSession()` reinicia la ronda; `movePlayer(...)` y `kickPlayer(...)` delegan movimiento y patada por identidad; los getters `getPlayerX/Y/Width/Height/Speed`, `getBallX/Y/Radius/VelocityX/VelocityY/Count`, `getGoalX/Y/Width/Height`, `getCourtX/Y/Width/Height`, `getGoalsLeft/Right`, `getElapsedSeconds`, `isFinished` y `getMatchState` exponen datos escalares a la presentación. `getSessionType`, `getSessionTypes`, `getMatchTypes` y `getBotTypes` describen sesiones/reglas disponibles; `powerPlayer` es un punto de extensión vacío; `improveStatistics`, `save(File)`, `open(File)` y `updateGame()` modifican la sesión administrada.
+`jumpPlayer(player)` solicita el salto por identidad y `getPlayerY(player)` devuelve la altura de la hitbox física.
+
 ### `GameSession` (abstracta)
 
 **Responsabilidad:** mantener el estado de una partida concreta y coordinar participantes, cancha, marcador, movimiento, colisiones, goles y condición de término.
@@ -38,7 +40,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | Método | Qué hace |
 |---|---|
 | `GameSession(player, typeMatche, parametersRules)` | Crea las listas, instancia reflectivamente la modalidad, crea la cancha y fija el tiempo inicial en cero. |
-| `movePlayer(user, direction)` | Valida participante y sesión, guarda la coordenada anterior, delega el paso de movimiento en el participante y delega a `SoccerField` la resolución del contacto con balones. |
+| `movePlayer(user, direction)` | Valida participante y sesión, proyecta el paso para comprobar que evitará penetrar en un límite lateral, un arco u otro participante y, si procede, mueve y delega a `SoccerField` el contacto con balones. |
 | `restartRound()` | Centra y detiene todos los balones y posiciona los participantes. |
 | `goal(side)` | Si `side` es `left` o `right`, incrementa ese marcador, reinicia la ronda y consulta la modalidad. Otros textos no producen cambios. |
 | `goal()` | Privado: busca un balón cuyo centro esté en un arco y registra el punto para el lado opuesto al arco. |
@@ -47,9 +49,10 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `createMatchRule(typeGame, parametersRules)` | Privado: carga una modalidad por nombre, valida su tipo y constructor, y la instancia. |
 | `checkTypeOfMatch()` | Pasa marcadores y, para `ByTime`, minutos completos transcurridos a la modalidad; actualiza `finished`. |
 | `improveStatistics(player, stats)` | Mejora una habilidad del lado elegido con el costo vigente de su jugador; al terminar el partido se otorgan 100 puntos por victoria y 25 por derrota o empate. |
-| `updateGame()` | Si la sesión sigue activa, avanza los efectos temporales un paso, suma tiempo, delega el avance de balones a la cancha, procesa colisiones y comprueba el término. |
-| `collision()` | Privado: valida participantes, procesa goles, delega en la cancha las colisiones entre balones y entre balones y participantes, y procesa rebotes contra límites/arcos/suelo; puede lanzar `GameException`. |
-| `positionParticipants()` | Público: delega a `SoccerField` la colocación simétrica del primer participante de cada lado, si ambos lados tienen uno. |
+| `jumpPlayer(user)` | Inicia el salto de un participante registrado, habilitado para actuar y apoyado en el suelo o en la cabeza de otro participante. |
+| `updateGame()` | Si la sesión sigue activa, avanza efectos y saltos, suma tiempo, avanza los balones, procesa colisiones y comprueba el término. |
+| `collision(allParticipants)` | Privado: valida posiciones, actualiza los balones apoyados, recupera contactos atravesados, procesa goles y delega los rebotes a la cancha. |
+| `positionParticipants()` | Público: delega a `SoccerField` la colocación simétrica y el ajuste de la hitbox a la coronilla de cada participante, si ambos lados tienen uno. |
 | `getGoalsLeft()`, `getGoalsRight()` | Devuelven el marcador correspondiente. |
 | `isFinished()` | Devuelve si la sesión terminó. |
 | `getElapsedSeconds()` | Devuelve el tiempo transcurrido en segundos. |
@@ -74,7 +77,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Métodos:**
 
-- `PlayerVsBot(player, typeMatche, parametersRules, parametersPowers)`: crea al jugador 1 o 2 según `player`, lo agrega a la derecha, crea el perfil bot indicado en el tercer elemento y lo agrega a la izquierda. Asocia los poderes del primer y segundo elemento, respectivamente, y posiciona ambos.
+- `PlayerVsBot(player, typeMatche, parametersRules, parametersPowers)`: crea al jugador 1 o 2 según `player`, lo agrega a la izquierda, crea el perfil bot indicado en el tercer elemento y lo agrega a la derecha. Asocia los poderes del primer y segundo elemento, respectivamente, y posiciona ambos.
 
 ### `SoccerField`
 
@@ -176,6 +179,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 | Método | Qué hace |
 |---|---|
+| `rewindMissedContacts(balls, participants)` | Recupera el primer contacto atravesado en el recorrido relativo de cada balón antes de comprobar un gol. |
 | `resolveAll(balls, participants, restitution, minimumLandingSpeed)` | Resuelve los contactos de cada balón con los participantes recibidos. |
 | `resolve(ball, participant, restitution, minimumLandingSpeed)` | Corrige la penetración, refleja la componente normal de velocidad si se aproximan y aplica la velocidad mínima de aterrizaje al contacto desde arriba. |
 
@@ -234,7 +238,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 | `takeDamage(damage)` | Reduce vida sin bajar de cero; al llegar a cero aplica `StatusEffect.STUNNED` por 3 segundos. |
 | `blocksMovement()` / `updateStatusEffects()` | Bloquea movimiento durante el aturdimiento, avanza su temporizador y restaura vida máxima al expirar. |
 | `getHitboxAsInterface()` | Devuelve la hitbox asociada usando el tipo general `Hitbox`. |
-| `jump()` | Está vacío; no modifica el estado. |
+| `jump()` | Inicia el impulso vertical del participante si puede actuar y aún no está saltando. |
 | `resetPosition(x, y)` | Delega el cambio de posición a `reposition`. |
 | `power()` | Está vacío; no aplica poder. |
 | `getSpecialPower()` | Devuelve el poder asociado. |
@@ -257,14 +261,28 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **`BotPlayer` — responsabilidad:** base común para participantes controlados por la máquina.
 
-**Atributos:** ninguno declarado.
+**Relaciones:** `BotPlayer` hereda de `SessionParticipant`, conserva una `BotDecisionStrategy` y crea un `BotDecisionContext` por decisión. `PlayerVsBot` hereda de `GameSession` y ejecuta las acciones del bot derecho mediante los métodos de la sesión.
 
-**Métodos:**
+**Métodos de `BotPlayer`:**
 
-- `BotPlayer()`: constructor sin estado de decisión adicional.
-- `decideAction(field)`: punto de extensión con retorno `Set<String>` para nombres de acciones; actualmente devuelve `null` y no decide acciones.
+- `BotPlayer()` crea el participante. Su política se construye al decidir por primera vez.
+- `decideAction(field)` aplica el flujo común con una diferencia de goles neutra. Conserva el contrato `Set<String>`.
+- `decideAction(field, goalDifference, supportY)` descarta el paso si el bot está aturdido o falta la cancha, observa el alcance desde el apoyo actual y devuelve como máximo una acción.
+- `createDecisionStrategy()` habilita que cada perfil proporcione su política al flujo común. La política base espera.
 
-**Perfiles derivados:** `Clumsy`, `Offensive`, `Defensive` y `Expert` representan perfiles diferenciados por nombre. No declaran atributos, constructores ni métodos propios; heredan el constructor implícito y el comportamiento de `BotPlayer`. Los perfiles aún no implementan estrategias distintas.
+**Tipos nuevos:**
+
+- `BotDecisionStrategy` define `chooseAction(context)`. Las estrategias devuelven un nombre de acción o texto vacío y reciben una observación sin referencias modificables a entidades del partido.
+- `BotDecisionContext` captura el centro del bot, el balón más cercano, el alcance de la patada, la entrada del arco derecho y la diferencia de goles. `hasBall()`, `ballX()`, `ownGoalFrontX()`, `ballInReach()` y `goalDifference()` consultan esos datos. `moveToward(targetX)` devuelve una dirección cuando un paso acerca al objetivo.
+
+**Integración:** `GameSession.updateGame()` llama a `updateAutonomousParticipants()` antes de avanzar el balón. `PlayerVsBot` implementa este paso y solicita el movimiento al mismo `movePlayer` que usa el humano. `GameSession.fitsHorizontalStep(user, right, participants)` usa `SessionParticipant.horizontalStep()` para validar la posición proyectada. `GameSession.isBallInKickReach(box, ball)` proporciona la misma comprobación de alcance a `kickPlayer` y a la observación.
+
+**Perfiles derivados:** `Clumsy`, `Offensive`, `Defensive` y `Expert` redefinen `createDecisionStrategy()` para crear su política de `BotDecisionStrategies`. Las cuatro políticas implementan `BotDecisionStrategy`:
+
+- `RandomMovement.chooseAction(context)` mantiene izquierda, derecha o espera durante 18 pasos y luego vuelve a sortear.
+- `Attack.chooseAction(context)` se acerca al balón más cercano o pide patear si un balón está al alcance.
+- `DefendGoal.chooseAction(context)` pide despejar si hay un balón al alcance. Si no, se posiciona entre el balón y la entrada del arco propio.
+- `AdaptToScore.chooseAction(context)` delega en `DefendGoal` con ventaja y en `Attack` en empate o desventaja.
 
 ### `Stats`
 
@@ -313,7 +331,7 @@ Este documento describe los tipos declarados en `src/main/java` según su implem
 
 **Responsabilidad:** comunicar errores del dominio como `IllegalArgumentException`, con mensajes compartidos para usos conocidos.
 
-**Atributos:** constantes públicas de mensaje. `NO_FOUND_TYPE_GAME` indica que no se encontró la modalidad; `NO_FOUND_SESSION`, que no se encontró la sesión; `NO_CONSTRUCTOR_FOUND`, que no existe el constructor requerido; `NO_INSTANTIATE_CLASS`, que no se pudo instanciar; `NO_ACCESSIBLE_CONSTRUCTOR`, que el constructor no es accesible; `EXCEPTION_IN_METHOD`, que un constructor o método interno lanzó una excepción; `MINUTES_NOT_NEGATIVE` y `GOALS_NOT_NEGATIVE` identifican parámetros negativos; `OBJECT_OUT_OF_MATCH` indica objeto fuera de partida; `OBJECTS_OVERLAPPED` indica participantes superpuestos; `INVALID_BALL` identifica un balón nulo o una instancia ya agregada.
+**Atributos:** constantes públicas de mensaje. `NO_FOUND_TYPE_GAME` indica que no se encontró la modalidad; `NO_FOUND_SESSION`, que no se encontró la sesión; `NO_CONSTRUCTOR_FOUND`, que no existe el constructor requerido; `NO_INSTANTIATE_CLASS`, que no se pudo instanciar; `NO_ACCESSIBLE_CONSTRUCTOR`, que el constructor no es accesible; `EXCEPTION_IN_METHOD`, que un constructor o método interno lanzó una excepción; `MINUTES_NOT_NEGATIVE` y `GOALS_NOT_NEGATIVE` identifican parámetros negativos; `OBJECT_OUT_OF_MATCH` indica objeto fuera de partida; `OBJECTS_OVERLAPPED` conserva el mensaje histórico de superposición; `INVALID_BALL` identifica un balón nulo o una instancia ya agregada.
 
 **Métodos:** `GameException(message)` construye la excepción con mensaje; `GameException(message, cause)` conserva además la causa original.
 
@@ -392,7 +410,7 @@ La aplicación principal usa Swing y todavía no está conectada a una sesión d
 - DOPOSoccerGUI crea la ventana, registra las pantallas en un CardLayout y configura el cierre.
 - NavigationController cambia la pantalla visible y cierra la ventana.
 - BasePanel es la clase abstracta con los contratos prepareView() y prepareController().
-- MainMenuPanel, ConfigurationPanel, PersonalizationPanel y StoreImprovementPanel implementan interfaces locales. La configuración de teclado y sonido no se persiste; la tienda mantiene niveles y precios provisionales en memoria.
+- MainMenuPanel, ConfigurationPanel, PersonalizationPanel y StoreImprovementPanel implementan interfaces locales. La configuración de teclado no se persiste; la tienda mantiene niveles y precios provisionales en memoria.
 - PreparationPanel, MatchPanel y PausePanel son pantallas sin lógica de partida conectada.
 - RoundedButton, RoundedPanel y Theme aportan componentes y estilos compartidos.
 
@@ -416,9 +434,9 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 
 ### `PresentationMovement`
 
-**Responsabilidad:** repetir movimiento mientras se mantiene una tecla y simular saltos visuales a través de `Game`.
+**Responsabilidad:** repetir el movimiento horizontal mientras se mantiene una tecla.
 
-**Controles:** `A/D` desplazan al participante izquierdo; `W` lo hace saltar; flechas izquierda/derecha mueven al participante derecho y flecha arriba lo hace saltar. El salto visual usa impulso de 121 unidades/s y gravedad de 180 unidades/s², limita la posición a la cancha, permite apoyarse en el balón y mueve con el jugador un balón que parte apoyado sobre su cabeza.
+**Controles:** `A/D` desplazan al participante izquierdo y las flechas horizontales al derecho en modo manual. El banco solicita saltos a `Game.jumpPlayer` con `W` a la izquierda y flecha arriba a la derecha en modo manual.
 
 ### `MechanicsTestPanel`
 
@@ -444,4 +462,4 @@ No hay clases App, GameGUI, GameController, Screen ni ScreenManager en el códig
 ## Estado de las implementaciones
 
 
-Los métodos vacíos y los campos no inicializados se describen como tales porque esta referencia documenta el código actual, no las funciones previstas. En especial, los poderes, efectos y salto del dominio tienen partes aún no implementadas; la persistencia guarda la sesión serializable y el banco muestra hitboxes/vector, compone sprites de personajes, mantiene el movimiento mientras se presiona una tecla y simula el salto fuera del dominio.
+La persistencia guarda la sesión serializable. El banco muestra las hitboxes y el vector del balón, compone los sprites y refleja su posición física al caminar y saltar. La activación de poderes y parte de sus efectos están pendientes.

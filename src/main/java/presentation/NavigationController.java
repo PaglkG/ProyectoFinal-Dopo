@@ -2,6 +2,10 @@ package presentation;
  
 /**
  * Controla la navegación entre las pantallas de la ventana principal.
+ * Recibe las solicitudes de los botones en {@link #showScreen(String)} y la
+ * configuración elegida en {@link #startMatch(MatchConfiguration)}.
+ * Delega ambas solicitudes a {@link DOPOSoccerGUI}, que realiza el cambio de
+ * pantalla y el refresco correspondiente.
  */
 public class NavigationController 
 {
@@ -19,6 +23,7 @@ public class NavigationController
     public static final String MATCH = "MATCH";
     /** Identificador de la pantalla de pausa. */
     public static final String PAUSE = "PAUSE";
+    /** Identificador de la pantalla de resultados. */
     public static final String RESULTS = "RESULTS";
 
     private final DOPOSoccerGUI doposoccerGUI;

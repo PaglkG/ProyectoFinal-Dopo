@@ -12,8 +12,11 @@ public class CircularHitbox implements Hitbox, Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Coordenada horizontal del centro del círculo. */
     private double x;
+    /** Coordenada vertical del centro del círculo. */
     private double y;
+    /** Radio de la hitbox circular en unidades de juego. */
     private double radius;
 
     /**

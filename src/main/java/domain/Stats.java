@@ -34,8 +34,11 @@ public class Stats implements Serializable {
     /** Incremento del multiplicador de patada por cada nivel de habilidad. */
     public static final double KICK_MULTIPLIER_PER_LEVEL = 0.10;
 
+    /** Saldo de puntos disponible para comprar mejoras. */
     private int points;
+    /** Costo aplicable a la siguiente compra de este jugador. */
     private int nextUpgradeCost = INITIAL_UPGRADE_COST;
+    /** Niveles vigentes de las habilidades mejorables por nombre. */
     private final Map<String, Integer> action = new HashMap<>(Map.of(
             "speed", 1,
             "jump", 1,

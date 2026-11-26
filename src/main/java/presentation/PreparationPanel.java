@@ -22,7 +22,21 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.SwingConstants;
 
-/** Pantalla de presentación que anuncia la preparación del partido. */
+/**
+ * Pantalla que anuncia la preparación del partido.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> la ventana llama a {@code refreshFromState()}
+ *       al abrir la pantalla. El método lee {@code PresentationState.getMatch()}
+ *       y obtiene los códigos de país de la configuración publicada.</li>
+ *   <li><strong>Modificación:</strong> {@code prepareControllerCancel()} y
+ *       {@code prepareControllerContinue()} solicitan la navegación a
+ *       personalización y a la cancha, respectivamente.</li>
+ *   <li><strong>Actualización:</strong> {@code setCountryCodes()} actualiza
+ *       las banderas y {@code setReady()} marca el progreso al 100 % y cambia
+ *       el mensaje cuando ya hay una partida publicada.</li>
+ * </ul>
+ */
 public class PreparationPanel extends BasePanel {
     private static final String LOADING_BACKGROUND = "/images/ui/FONDO DE CARGA.png";
     private static final String BALL_IMAGE = "/images/ball/ball@4x-8.png";
@@ -32,14 +46,22 @@ public class PreparationPanel extends BasePanel {
     private static final int COUNTRY_CARD_HEIGHT = 94;
     private static final int PROGRESS_BAR_HEIGHT = 28;
 
+    /** Controlador que coordina los cambios de pantalla. */
     private final NavigationController navigationController;
 
+    /** Componente que presenta la bandera del lado izquierdo. */
     private JLabel leftCountryFlagLabel;
+    /** Componente que presenta la bandera del lado derecho. */
     private JLabel rightCountryFlagLabel;
+    /** Texto de estado de la preparación de la partida. */
     private JLabel statusLabel;
+    /** Texto orientativo que acompaña al indicador de preparación. */
     private JLabel progressHintLabel;
+    /** Indicador visual del avance de la preparación. */
     private JProgressBar progressBar;
+    /** Acción para cancelar la preparación. */
     private JButton cancelButton;
+    /** Acción para pasar de la preparación a la partida. */
     private JButton continueButton;
 
     /**
@@ -243,6 +265,16 @@ public class PreparationPanel extends BasePanel {
         };
     }
 
+    /** Muestra los países y confirma que la ventana ya publicó una partida. */
+    void refreshFromState() {
+        DOPOSoccerGUI.PresentationState.getMatch().ifPresent(match -> {
+            MatchConfiguration configuration = match.getConfiguration();
+            setCountryCodes(configuration.countryCodeForSide(false),
+                    configuration.countryCodeForSide(true));
+            setReady();
+        });
+    }
+
     /** Marca el progreso real como completo después de crear la sesión en Game. */
     public void setReady() {
         progressBar.setIndeterminate(false);
@@ -290,7 +322,8 @@ public class PreparationPanel extends BasePanel {
         return new ImageIcon(image);
     }
 
-    /** Panel que dibuja el recurso de cancha como fondo. */
+    /** Recibe la imagen de cancha en el constructor y la dibuja en
+     * {@code paintComponent} con el tamaño actual del panel. */
     private static final class FieldBackgroundPanel extends JPanel {
         private final Image backgroundImage;
 

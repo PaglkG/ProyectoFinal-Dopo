@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.function.Consumer;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -35,7 +36,22 @@ import javax.swing.Timer;
 import javax.swing.ImageIcon;
 import java.awt.Image;
 
-/** Banco visual configurable para inspeccionar los datos de juego y las hitboxes. */
+/**
+ * Banco visual configurable para inspeccionar los datos de juego y las hitboxes.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> el constructor recibe el perfil opcional del
+ *       bot. {@code refreshLabels()} y {@code GameCanvas.paintComponent()}
+ *       leen el estado de la fachada obtenida con {@code controller.game()}.</li>
+ *   <li><strong>Modificación:</strong> {@code bindKeys()} conecta movimiento,
+ *       salto y patada con el controlador. {@code resetRound()} solicita el
+ *       reinicio y {@code buildSideMenu()} alterna las capas visibles del banco.</li>
+ *   <li><strong>Actualización:</strong> el temporizador ejecuta {@code tick()},
+ *       que llama a {@code controller.update()}, refresca las etiquetas
+ *       y repinta la cancha. Las capas de vida y poder muestran textos
+ *       fijos de diagnóstico en {@code drawLife()} y {@code drawPower()}.</li>
+ * </ul>
+ */
 public final class MechanicsTestPanel extends JPanel {
     private static final Color BACKGROUND = new Color(25, 31, 40);
     private static final Color TEXT = new Color(238, 242, 246);
@@ -44,8 +60,6 @@ public final class MechanicsTestPanel extends JPanel {
     private static final double CHARACTER_HEAD_HEIGHT_RATIO = 0.16;
     private static final double CHARACTER_BODY_HEIGHT_RATIO = 0.09;
     private static final double CHARACTER_BODY_WIDTH_RATIO = 0.62;
-    private static final double CHARACTER_HEAD_BODY_OVERLAP_RATIO = 0.18;
-    private static final double CHARACTER_FLOOR_RATIO = 0.985;
     private static final CharacterStyle LEFT_CHARACTER = new CharacterStyle("Lobo",
             "/images/outfits/heads/Heads Scaled/wolf_referencia.png",
             "/images/outfits/shoes/PATAWOLF.png", true);
@@ -53,23 +67,45 @@ public final class MechanicsTestPanel extends JPanel {
             "/images/outfits/heads/Heads Scaled/tiger_escalado.png",
             "/images/outfits/shoes/tiger@4x-8.png", false);
 
-    private final MechanicsTestController controller = new MechanicsTestController();
+    /** Intermediario entre los controles del banco y la fachada de juego. */
+    private final MechanicsTestController controller;
+    /** Escenarios disponibles para preparar el banco. */
     private final List<TestScenario> scenarios = new ArrayList<>();
+    /** Elementos que el usuario puede mostrar u ocultar en la cancha. */
     private final List<LayerOption> layers = new ArrayList<>();
+    /** Selector de escenarios registrados en el banco. */
     private final JComboBox<TestScenario> scenarioMenu = new JComboBox<>();
+    /** Contenedor de las opciones para mostrar las capas. */
     private final JPanel layerMenu = new JPanel();
+    /** Mensaje sobre la ejecución del escenario o un fallo del banco. */
     private final JLabel status = new JLabel("Simulación lista");
+    /** Rótulo que muestra marcador y tiempo actualizados. */
     private final JLabel score = new JLabel();
+    /** Componente que dibuja la cancha y los datos de depuración. */
     private final GameCanvas canvas = new GameCanvas();
+    /** Temporizador Swing que solicita cada actualización del banco. */
     private final Timer timer = new Timer(16, event -> tick());
-    private final Set<Integer> kickKeysDown = new HashSet<>();
+    /** Teclas de acción presionadas que esperan su liberación. */
+    private final Set<Integer> actionKeysDown = new HashSet<>();
+    /** Indica si la simulación espera un reinicio tras una excepción. */
+    private boolean updateFailed;
+    /** Progreso restante de la animación de patada izquierda. */
     private double leftKickProgress;
+    /** Progreso restante de la animación de patada derecha. */
     private double rightKickProgress;
 
-    /** Construye los menús, registra las capas iniciales y conecta los controles.
-     */
+    /** Construye el banco con control manual para los dos jugadores. */
     public MechanicsTestPanel() {
+        this(null);
+    }
+
+    /** Construye el banco con el perfil seleccionado antes de abrir la sesión.
+     * @param botProfile nombre simple del perfil disponible en {@link Game#getBotTypes()},
+     *        o {@code null} para dos jugadores con control manual
+     */
+    public MechanicsTestPanel(String botProfile) {
         super(new BorderLayout(10, 10));
+        controller = new MechanicsTestController(botProfile);
         setBackground(BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         registerDefaultScenarios();
@@ -81,14 +117,28 @@ public final class MechanicsTestPanel extends JPanel {
         refreshLabels();
     }
 
-    /** Inicia la actualización periódica de la sesión.
+    /** Inicia la actualización periódica si la ronda no espera un reinicio.
      */
-    public void start() { timer.start(); }
+    public void start() {
+        if (!updateFailed) {
+            timer.start();
+            canvas.requestFocusInWindow();
+        }
+    }
 
-    /** Detiene la actualización periódica de la sesión.
-     */
-    public void stop() { timer.stop(); }
+    /** Pausa la actualización periódica y libera los controles sostenidos. */
+    public void stop() {
+        timer.stop();
+        releaseControls();
+    }
 
+    /** Libera los controles cuando Swing puede dejar de recibir eventos de teclado. */
+    void releaseControls() {
+        controller.releaseMovement();
+        actionKeysDown.clear();
+    }
+
+    /** Arma el selector de escenarios, las acciones de partida y el marcador. */
     private JPanel buildToolbar() {
         JPanel toolbar = new JPanel(new BorderLayout(8, 4));
         toolbar.setOpaque(false);
@@ -98,15 +148,14 @@ public final class MechanicsTestPanel extends JPanel {
         runScenario.addActionListener(event -> runSelectedScenario());
         JButton reset = new JButton("Reiniciar");
         reset.addActionListener(event -> {
-            controller.reset();
-            leftKickProgress = rightKickProgress = 0;
+            resetRound();
             status.setText("Ronda reiniciada");
             refreshLabels();
             canvas.repaint();
         });
         JButton pause = new JButton("Pausar / continuar");
         pause.addActionListener(event -> {
-            if (timer.isRunning()) timer.stop(); else timer.start();
+            if (timer.isRunning()) stop(); else start();
         });
         controls.add(scenarioMenu);
         controls.add(runScenario);
@@ -121,6 +170,7 @@ public final class MechanicsTestPanel extends JPanel {
         return toolbar;
     }
 
+    /** Construye las casillas de capas y la ayuda de teclas del modo elegido. */
     private JScrollPane buildSideMenu() {
         layerMenu.setOpaque(false);
         layerMenu.setLayout(new javax.swing.BoxLayout(layerMenu, javax.swing.BoxLayout.Y_AXIS));
@@ -138,7 +188,12 @@ public final class MechanicsTestPanel extends JPanel {
             });
             layerMenu.add(toggle);
         }
-        JLabel help = new JLabel("<html>A / D: mover izquierda<br>← / →: mover derecha<br>F / Enter: patear</html>");
+        String instructions = controller.hasBot()
+                ? "<html>Humano: lado izquierdo<br>Bot: lado derecho<br>A / D: mover · F: patear"
+                        + "<br>W: salto del humano</html>"
+                : "<html>A / D: mover jugador izquierdo<br>← / →: mover jugador derecho<br>F / Enter: patear"
+                        + "<br>W / ↑: salto izquierdo / derecho</html>";
+        JLabel help = new JLabel(instructions);
         help.setForeground(TEXT);
         layerMenu.add(help);
         JScrollPane scroll = new JScrollPane(layerMenu);
@@ -149,8 +204,9 @@ public final class MechanicsTestPanel extends JPanel {
         return scroll;
     }
 
+    /** Registra las pruebas disponibles al abrir el banco. */
     private void registerDefaultScenarios() {
-        addScenario("Partida libre", () -> controller.reset());
+        addScenario(controller.matchLabel(), this::resetRound);
     }
 
     /** Añade una opción al menú de escenarios. Para extender el banco, registrar aquí una nueva acción.
@@ -163,6 +219,7 @@ public final class MechanicsTestPanel extends JPanel {
         scenarioMenu.addItem(scenario);
     }
 
+    /** Registra las capas de dibujo y sus estados iniciales. */
     private void registerDefaultLayers() {
         layers.add(new LayerOption("Hitbox completa de cancha", true));
         layers.add(new LayerOption("Hitboxes de arcos", true));
@@ -175,6 +232,7 @@ public final class MechanicsTestPanel extends JPanel {
         layers.add(new LayerOption("Marcador y tiempo", true));
     }
 
+    /** Ejecuta la preparación seleccionada y devuelve el foco a la cancha. */
     private void runSelectedScenario() {
         TestScenario selected = (TestScenario) scenarioMenu.getSelectedItem();
         if (selected == null) return;
@@ -182,20 +240,46 @@ public final class MechanicsTestPanel extends JPanel {
             selected.action().run();
             status.setText("Prueba: " + selected.label());
             refreshLabels();
+            canvas.requestFocusInWindow();
             canvas.repaint();
         } catch (RuntimeException exception) {
             status.setText("No se pudo preparar: " + exception.getMessage());
         }
     }
 
+    /** Recoloca la partida, limpia las teclas y reanuda si se detuvo por un error de actualización. */
+    /** Restablece la ronda, los controles y las animaciones de patada. */
+    private void resetRound() {
+        controller.reset();
+        actionKeysDown.clear();
+        leftKickProgress = rightKickProgress = 0;
+        if (updateFailed) {
+            updateFailed = false;
+            start();
+        }
+    }
+
+    /** Detiene la simulación si el dominio rechaza un paso y conserva la vista para inspeccionarla. */
+    /** Avanza la simulación y pausa el banco si la partida emite una excepción. */
     private void tick() {
-        controller.update();
+        try {
+            controller.update();
+        } catch (RuntimeException exception) {
+            stop();
+            updateFailed = true;
+            String detail = exception.getMessage() == null
+                    ? exception.getClass().getSimpleName() : exception.getMessage();
+            status.setText("Simulación detenida: " + detail + ". Pulsa Reiniciar.");
+            canvas.repaint();
+            return;
+        }
         leftKickProgress = Math.max(0, leftKickProgress - 0.08);
         rightKickProgress = Math.max(0, rightKickProgress - 0.08);
         refreshLabels();
         canvas.repaint();
     }
 
+    /** Actualiza el marcador y el tiempo con las consultas de Game. */
     private void refreshLabels() {
         Game game = controller.game();
         score.setText(game.getGoalsLeft() + "  :  " + game.getGoalsRight()
@@ -203,49 +287,63 @@ public final class MechanicsTestPanel extends JPanel {
                         (int) game.getElapsedSeconds() % 60));
     }
 
+    /** Asigna teclas a los lados que controla la persona. */
     private void bindKeys() {
         bindControl(KeyEvent.VK_A, "left-player-left", false, false);
         bindControl(KeyEvent.VK_D, "left-player-right", false, true);
-        bindControl(KeyEvent.VK_LEFT, "right-player-left", true, false);
-        bindControl(KeyEvent.VK_RIGHT, "right-player-right", true, true);
+        bindJump(KeyEvent.VK_W, "left-jump", false);
         bindKick(KeyEvent.VK_F, "left-kick", false);
-        bindKick(KeyEvent.VK_ENTER, "right-kick", true);
+        if (!controller.hasBot()) {
+            bindControl(KeyEvent.VK_LEFT, "right-player-left", true, false);
+            bindControl(KeyEvent.VK_RIGHT, "right-player-right", true, true);
+            bindJump(KeyEvent.VK_UP, "right-jump", true);
+            bindKick(KeyEvent.VK_ENTER, "right-kick", true);
+        }
     }
 
+    /** Registra los eventos de una tecla direccional como estado sostenido. */
     private void bindControl(int keyCode, String name, boolean rightPlayer, boolean rightDirection) {
-        String pressedName = name + "-pressed";
-        String releasedName = name + "-released";
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), pressedName);
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), releasedName);
-        getActionMap().put(pressedName, new AbstractAction() {
-            @Override public void actionPerformed(java.awt.event.ActionEvent event) {
-                controller.setMovementControl(rightPlayer, rightDirection, true);
-            }
-        });
-        getActionMap().put(releasedName, new AbstractAction() {
-            @Override public void actionPerformed(java.awt.event.ActionEvent event) {
-                controller.setMovementControl(rightPlayer, rightDirection, false);
-            }
+        bindInput(keyCode, name, pressed -> controller.setMovementControl(rightPlayer, rightDirection, pressed));
+    }
+
+    /** Envía una solicitud de salto por pulsación mientras la simulación está activa. */
+    private void bindJump(int keyCode, String name, boolean rightSide) {
+        bindInput(keyCode, name, pressed -> {
+            if (!pressed) actionKeysDown.remove(keyCode);
+            else if (actionKeysDown.add(keyCode) && timer.isRunning()) controller.jump(rightSide);
         });
     }
 
+    /** Envía solo una patada por pulsación, aunque el teclado repita el evento. */
     private void bindKick(int keyCode, String name, boolean rightSide) {
+        bindInput(keyCode, name, pressed -> {
+            if (pressed) {
+                if (actionKeysDown.add(keyCode)) kick(rightSide);
+            } else {
+                actionKeysDown.remove(keyCode);
+            }
+        });
+    }
+
+    /** Envía los dos eventos de una tecla de juego al mismo consumidor. */
+    private void bindInput(int keyCode, String name, Consumer<Boolean> onInput) {
         String pressedName = name + "-pressed";
         String releasedName = name + "-released";
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), pressedName);
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), releasedName);
         getActionMap().put(pressedName, new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent event) {
-                if (kickKeysDown.add(keyCode)) kick(rightSide);
+                onInput.accept(true);
             }
         });
         getActionMap().put(releasedName, new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent event) {
-                kickKeysDown.remove(keyCode);
+                onInput.accept(false);
             }
         });
     }
 
+    /** Inicia la animación de la pata y muestra si la patada alcanzó un objetivo. */
     private void kick(boolean rightSide) {
         if (rightSide) rightKickProgress = 1; else leftKickProgress = 1;
         boolean hit = controller.kick(rightSide);
@@ -266,6 +364,7 @@ public final class MechanicsTestPanel extends JPanel {
          * @param bodyPath ruta del cuerpo
          * @param bodyFacesRightAtSource orientación original del cuerpo
          */
+        /** Registra las rutas y la orientación original del personaje. */
         private CharacterStyle(String name, String headPath, String bodyPath,
                 boolean bodyFacesRightAtSource) {
             this.name = name;
@@ -291,6 +390,7 @@ public final class MechanicsTestPanel extends JPanel {
          * @param body imagen del cuerpo
          * @param bodyFacesRightAtSource orientación original del cuerpo
          */
+        /** Conserva las dos partes recortadas y la orientación original de la pata. */
         private CharacterSprite(BufferedImage head, BufferedImage body,
                 boolean bodyFacesRightAtSource) {
             this.head = head;
@@ -338,6 +438,7 @@ public final class MechanicsTestPanel extends JPanel {
          * @param label texto visible
          * @param action preparación que se ejecuta al seleccionar el escenario
          */
+        /** Asocia la etiqueta visible del escenario con su acción de preparación. */
         private TestScenario(String label, Runnable action) {
             this.label = label;
             this.action = action;
@@ -352,7 +453,9 @@ public final class MechanicsTestPanel extends JPanel {
         @Override public String toString() { return label; }
     }
 
-    /** Lienzo que representa cancha, entidades, hitboxes y capas opcionales.
+    /** Lee geometría y velocidades desde {@code controller.game()} en
+     * {@code paintComponent}. El panel exterior solicita el repintado al
+     * avanzar la simulación, reiniciar la ronda o cambiar una capa.
      */
     private final class GameCanvas extends JPanel {
         private final Image courtImage = loadImage("/images/ui/court@4x-8.png");
@@ -363,6 +466,7 @@ public final class MechanicsTestPanel extends JPanel {
 
         /** Prepara el lienzo y carga recursos gráficos del proyecto. */
         GameCanvas() {
+            setFocusable(true);
             setBackground(new Color(25, 135, 95));
             setMinimumSize(new Dimension(500, 360));
             setBorder(BorderFactory.createLineBorder(new Color(226, 208, 156), 2));
@@ -400,6 +504,7 @@ public final class MechanicsTestPanel extends JPanel {
             g.dispose();
         }
 
+        /** Despacha el dibujo de la capa seleccionada por su nombre. */
         private void drawLayer(Graphics2D g, Game game, String layer,
                 double originX, double originY, double scale) {
             switch (layer) {
@@ -415,6 +520,7 @@ public final class MechanicsTestPanel extends JPanel {
             }
         }
 
+        /** Dibuja el rectángulo de cada arco con las medidas del dominio. */
         private void drawGoals(Graphics2D g, Game game, double ox, double oy, double scale) {
             g.setColor(new Color(255, 209, 60, 210));
             g.setStroke(new BasicStroke(3));
@@ -423,16 +529,19 @@ public final class MechanicsTestPanel extends JPanel {
                     game.getGoalHeight(i) * scale));
         }
 
+        /** Traza los rectángulos físicos de los participantes en colores por lado. */
         private void drawPlayerHitboxes(Graphics2D g, Game game, double ox, double oy, double scale) {
             for (boolean right : new boolean[] {false, true}) {
                 Color color = right ? RIGHT_COLOR : LEFT_COLOR;
-                double x = game.getPlayerX(right), y = game.getPlayerY(right);
-                double width = game.getPlayerWidth(right), height = game.getPlayerHeight(right);
+                boolean identity = controller.playerIdentity(right);
+                double x = game.getPlayerX(identity), y = game.getPlayerY(identity);
+                double width = game.getPlayerWidth(identity), height = game.getPlayerHeight(identity);
                 outline(g, new Rectangle2D.Double(ox + x * scale, oy + y * scale,
                         width * scale, height * scale), color, 3);
             }
         }
 
+        /** Traza un círculo con el radio real de cada balón. */
         private void drawBallHitboxes(Graphics2D g, Game game, double ox, double oy, double scale) {
             g.setColor(Color.WHITE);
             g.setStroke(new BasicStroke(2));
@@ -443,6 +552,7 @@ public final class MechanicsTestPanel extends JPanel {
             }
         }
 
+        /** Representa la dirección y la magnitud de la velocidad de cada balón. */
         private void drawBallVectors(Graphics2D g, Game game, double ox, double oy, double scale) {
             g.setColor(new Color(255, 42, 230));
             g.setStroke(new BasicStroke(3));
@@ -455,13 +565,15 @@ public final class MechanicsTestPanel extends JPanel {
             }
         }
 
+        /** Posiciona los personajes y los balones usando sus coordenadas físicas. */
         private void drawActors(Graphics2D g, Game game, double ox, double oy, double scale) {
             for (boolean right : new boolean[] {false, true}) {
-                double x = game.getPlayerX(right), y = game.getPlayerY(right);
-                double width = game.getPlayerWidth(right), height = game.getPlayerHeight(right);
+                boolean identity = controller.playerIdentity(right);
+                double x = game.getPlayerX(identity), y = game.getPlayerY(identity);
+                double width = game.getPlayerWidth(identity), height = game.getPlayerHeight(identity);
                 double kickProgress = isLayerEnabled("Animación de patada")
                         ? right ? rightKickProgress : leftKickProgress : 0;
-                drawCharacter(g, game, right ? rightPlayer : leftPlayer, right,
+                drawCharacter(g, game, identity ? rightPlayer : leftPlayer, right,
                         x, y, width, height, kickProgress,
                         ox, oy, scale);
             }
@@ -474,10 +586,12 @@ public final class MechanicsTestPanel extends JPanel {
             }
         }
 
+        /** Consulta si una capa registrada está visible en el menú. */
         private boolean isLayerEnabled(String layer) {
             return layers.stream().anyMatch(option -> option.label().equals(layer) && option.enabled());
         }
 
+        /** Alinea la coronilla con el borde superior de la hitbox y la pata con su base. */
         private void drawCharacter(Graphics2D g, Game game, CharacterSprite sprite, boolean right,
                 double x, double y, double width, double height, double kickProgress,
                 double ox, double oy, double scale) {
@@ -497,7 +611,7 @@ public final class MechanicsTestPanel extends JPanel {
             int bodyX = (int) (centerX - bodyWidth / 2.0);
             int bodyY = (int) (baselineY - bodyHeight);
             int headX = (int) (centerX - headWidth / 2.0);
-            int headY = bodyY - headHeight + (int) (headHeight * CHARACTER_HEAD_BODY_OVERLAP_RATIO);
+            int headY = (int) (oy + y * scale);
             boolean onLeftSide = !right;
             boolean flipBody = onLeftSide != sprite.bodyFacesRightAtSource();
             boolean flipHead = right;
@@ -508,6 +622,7 @@ public final class MechanicsTestPanel extends JPanel {
             drawCharacterPart(g, sprite.head(), headX, headY, headWidth, headHeight, flipHead);
         }
 
+        /** Pinta una de las partes y la refleja horizontalmente si corresponde. */
         private void drawCharacterPart(Graphics2D g, BufferedImage image,
                 int x, int y, int width, int height, boolean flipHorizontal) {
             if (!flipHorizontal) {
@@ -521,11 +636,13 @@ public final class MechanicsTestPanel extends JPanel {
             flipped.dispose();
         }
 
+        /** Carga las partes que corresponden al personaje elegido. */
         private CharacterSprite loadCharacter(CharacterStyle style) {
             return new CharacterSprite(loadTrimmedSprite(style.headPath()),
                     loadTrimmedSprite(style.bodyPath()), style.bodyFacesRightAtSource());
         }
 
+        /** Recorta el margen transparente y reutiliza el resultado en cuadros posteriores. */
         private BufferedImage loadTrimmedSprite(String resourcePath) {
             if (trimmedSprites.containsKey(resourcePath)) return trimmedSprites.get(resourcePath);
             URL imageUrl = getClass().getResource(resourcePath);
@@ -557,18 +674,21 @@ public final class MechanicsTestPanel extends JPanel {
             }
         }
 
+        /** Pinta los indicadores reservados para la vida de ambos lados. */
         private void drawLife(Graphics2D g) {
             drawGauge(g, 16, 16, 180, "Vida: API no disponible", LEFT_COLOR);
             drawGauge(g, Math.max(205, getWidth() - 196), 16, 180,
                     "Vida: API no disponible", RIGHT_COLOR);
         }
 
+        /** Pinta los indicadores reservados para la carga de poder. */
         private void drawPower(Graphics2D g) {
             drawGauge(g, 16, 46, 180, "Poder: no implementado", new Color(177, 110, 255));
             drawGauge(g, Math.max(205, getWidth() - 196), 46, 180,
                     "Poder: no implementado", new Color(177, 110, 255));
         }
 
+        /** Dibuja el marco y el texto de un indicador de estado. */
         private void drawGauge(Graphics2D g, int x, int y, int width, String label, Color color) {
             g.setFont(g.getFont().deriveFont(Font.BOLD, 11f));
             g.setColor(Color.WHITE);
@@ -579,6 +699,7 @@ public final class MechanicsTestPanel extends JPanel {
             g.drawRoundRect(x, y + 14, width, 10, 8, 8);
         }
 
+        /** Superpone el tiempo y el marcador dentro de la cancha de pruebas. */
         private void drawHud(Graphics2D g, Game game) {
             g.setColor(Color.WHITE);
             g.setFont(g.getFont().deriveFont(Font.BOLD, 15f));
@@ -588,18 +709,22 @@ public final class MechanicsTestPanel extends JPanel {
                     Math.max(16, (getWidth() - 260) / 2), 26);
         }
 
+        /** Identifica el origen de los contornos que muestra el banco. */
         private void drawFooter(Graphics2D g) {
             g.setColor(new Color(255, 255, 255, 210));
             g.setFont(g.getFont().deriveFont(11f));
-            g.drawString("Los colores y contornos representan las hitboxes que entrega Game.", 12, getHeight() - 8);
+            g.drawString("Contornos: hitboxes de Game.",
+                    12, getHeight() - 8);
         }
 
+        /** Traza un perímetro rectangular con el color y grosor indicados. */
         private void outline(Graphics2D g, Rectangle2D rectangle, Color color, float stroke) {
             g.setColor(color);
             g.setStroke(new BasicStroke(stroke));
             g.draw(rectangle);
         }
 
+        /** Carga una imagen del classpath cuando el recurso está disponible. */
         private Image loadImage(String resource) {
             URL url = getClass().getResource(resource);
             return url == null ? null : new ImageIcon(url).getImage();

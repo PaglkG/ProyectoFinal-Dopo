@@ -20,13 +20,21 @@ import domain.GameException;
 public class SoccerField implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    /** Proporción de la cancha desde la coronilla hasta la planta de la pata. */
+    private static final double PARTICIPANT_HEIGHT_RATIO = 0.2212;
 
+    /** Altura exterior de la cancha. */
     private final double courtHeight;
+    /** Anchura exterior de la cancha. */
     private final double courtWidth;
 
+    /** Rectángulo que delimita el sector del arco izquierdo. */
     private RectangularHitbox LeftGoalHitbox;
+    /** Rectángulo que delimita el sector del arco derecho. */
     private RectangularHitbox RightGoalHitbox;
+    /** Rectángulo exterior del que se derivan los límites de la cancha. */
     private RectangularHitbox fieldHitbox;
+    /** Balones activos contenidos en la cancha. */
     private Ball[] balls;
     private transient CollisionFacade collisions;
 
@@ -101,6 +109,16 @@ public class SoccerField implements Serializable {
     public void resolveBallParticipantCollisions(Iterable<SessionParticipant> participants,
             double restitution, double minimumLandingSpeed) {
         collisions.resolveBallParticipantCollisions(participants, restitution, minimumLandingSpeed);
+    }
+
+    /** Actualiza los balones apoyados en la superficie superior de un participante. */
+    void rollSupportedBalls(Iterable<SessionParticipant> participants, double stepSeconds, double gravity) {
+        collisions.rollSupportedBalls(participants, stepSeconds, gravity);
+    }
+
+    /** Conserva el primer contacto atravesado antes de evaluar un gol. */
+    void rewindMissedBallParticipantContacts(Iterable<SessionParticipant> participants) {
+        collisions.rewindMissedBallParticipantContacts(participants);
     }
 
     /** Resuelve contactos creados al caminar empujando balones en su dirección de avance.
@@ -310,7 +328,7 @@ public class SoccerField implements Serializable {
     }
 
     /**
-     * Ajusta hitboxes al tamaño provisional de cancha y coloca al primer
+     * Ajusta las hitboxes hasta la coronilla y coloca al primer
      * participante a un cuarto del ancho y al segundo a tres cuartos, ambos
      * apoyados sobre el suelo.
      *
@@ -319,14 +337,24 @@ public class SoccerField implements Serializable {
      */
     public void positionParticipants(SessionParticipant left, SessionParticipant right) {
         double width = courtWidth() / 20;
-        double height = courtHeight() / 3;
+        double height = courtHeight() * PARTICIPANT_HEIGHT_RATIO;
         double floor = groundY();
         left.resizeHitbox(width, height);
         right.resizeHitbox(width, height);
-        left.reposition(courtX() + courtWidth() / 4 - width / 2, floor - height);
-        right.reposition(courtX() + courtWidth() * 3 / 4 - width / 2, floor - height);
-        left.rememberCurrentPosition();
-        right.rememberCurrentPosition();
+        left.resetPosition(courtX() + courtWidth() / 4 - width / 2, floor - height);
+        right.resetPosition(courtX() + courtWidth() * 3 / 4 - width / 2, floor - height);
+    }
+
+    /** Ajusta la geometría del guardado anterior conservando la altura de los pies y el salto. */
+    void fitRestoredParticipantHitbox(SessionParticipant participant) {
+        RectangularHitbox box = participant.getHitbox();
+        if (box.getWidth() != courtWidth() / 20 || box.getHeight() != courtHeight() / 3) return;
+        double floor = groundY();
+        double feetY = box.getY() == floor - box.getHeight() ? floor : box.getY() + box.getHeight();
+        double height = courtHeight() * PARTICIPANT_HEIGHT_RATIO;
+        participant.resizeHitbox(box.getWidth(), height);
+        participant.repositionForCollision(box.getX(), feetY - height);
+        participant.rememberCurrentPosition();
     }
 
 

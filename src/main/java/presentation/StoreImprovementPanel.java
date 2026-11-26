@@ -6,30 +6,48 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.util.function.BiConsumer;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
+import presentation.DOPOSoccerGUI.PresentationState;
+import presentation.MatchSnapshot.Participant;
 /**
  * Pantalla de la tienda de mejoras: cada jugador gasta sus puntos
  * en subir sus estadísticas.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> {@code refreshFromState()} lee
+ *       {@code PresentationState.getMatch()} una vez. {@code refreshPlayer()}
+ *       selecciona el humano por identidad con {@code getHumanPlayer()} y
+ *       obtiene su saldo con {@code getPoints()}.</li>
+ *   <li><strong>Modificación:</strong> {@code prepareControllerUpgrades()}
+ *       envía la identidad y la clave de la habilidad por el callback recibido
+ *       en el constructor. {@code DOPOSoccerGUI.improveStatistic()} tramita
+ *       la compra con {@code Game.improveStatistics()} y vuelve a publicar el estado.</li>
+ *   <li><strong>Actualización:</strong> {@code refreshPlayer()} escribe el saldo,
+ *       actualiza las barras, los precios y la habilitación de los botones.
+ *       {@code displayedLevel()} consulta la velocidad y deriva el nivel de vida
+ *       a partir de la vida máxima. Los niveles de salto y patada y el precio
+ *       de la siguiente compra requieren datos adicionales en la captura.</li>
+ * </ul>
  */
 public class StoreImprovementPanel extends BasePanel 
 {
     // Estadísticas que se pueden mejorar
     private static final String[] STAT_NAMES = {"Velocidad", "Salto", "Patada", "Vida"};
+    private static final String[] STAT_KEYS = {"speed", "jump", "kick", "survival"};
 
-    // Valores provisionales mientras el dominio no maneje los puntos y los niveles
     private static final int PLAYER_COUNT = 2;
-    private static final int INITIAL_POINTS = 0;
-    private static final int UPGRADE_PRICE = 500;
+    private static final int INITIAL_UPGRADE_PRICE = 500;
     private static final int MAX_LEVEL = 10;
+    private static final String UNAVAILABLE = "—";
 
     // Símbolos de la barra de nivel
     private static final String FILLED_LEVEL = "●";
@@ -50,33 +68,40 @@ public class StoreImprovementPanel extends BasePanel
     private static final int BACK_BUTTON_WIDTH = 280;
     private static final int BACK_BUTTON_HEIGHT = 44;
 
-    private NavigationController navigationController;
-    private int[] points;
-    private int[][] levels;
+    /** Controlador que coordina los cambios de pantalla. */
+    private final NavigationController navigationController;
+    /** Acción de compra que recibe la identidad humana y el nombre de la habilidad. */
+    private final BiConsumer<Boolean, String> upgradeAction;
+    /** Saldo de puntos visible del jugador 1. */
     private JLabel player1PointsLabel;
+    /** Saldo de puntos visible del jugador 2. */
     private JLabel player2PointsLabel;
+    /** Niveles visibles de las mejoras del jugador 1. */
     private JLabel[] player1LevelLabels;
+    /** Precios visibles de las mejoras del jugador 1. */
     private JLabel[] player1PriceLabels;
+    /** Acciones de mejora para las habilidades del jugador 1. */
     private JButton[] player1UpgradeButtons;
+    /** Niveles visibles de las mejoras del jugador 2. */
     private JLabel[] player2LevelLabels;
+    /** Precios visibles de las mejoras del jugador 2. */
     private JLabel[] player2PriceLabels;
+    /** Acciones de mejora para las habilidades del jugador 2. */
     private JButton[] player2UpgradeButtons;
+    /** Acción para regresar a la pantalla anterior. */
     private JButton backButton;
 
     /**
      * Crea el panel de la tienda de mejoras.
      *
      * @param navigationController controlador que cambia de pantalla
+     * @param upgradeAction acción de la fachada para solicitar una mejora por identidad
      */
-    public StoreImprovementPanel(NavigationController navigationController)
+    public StoreImprovementPanel(NavigationController navigationController,
+            BiConsumer<Boolean, String> upgradeAction)
     {
         this.navigationController = navigationController;
-        points = new int[PLAYER_COUNT];
-        levels = new int[PLAYER_COUNT][STAT_NAMES.length];
-        for (int player = 0; player < PLAYER_COUNT; player++) 
-        {
-            points[player] = INITIAL_POINTS;
-        }
+        this.upgradeAction = upgradeAction;
         prepareView();
         prepareController();
     }
@@ -89,8 +114,7 @@ public class StoreImprovementPanel extends BasePanel
         prepareViewPlayers(content);
         prepareViewBackButton(content);
         add(content, BorderLayout.CENTER);
-        refreshPlayer(0);
-        refreshPlayer(1);
+        refreshFromState();
     }
 
     /**
@@ -255,7 +279,7 @@ public class StoreImprovementPanel extends BasePanel
      */
     private JLabel createPriceLabel() 
     {
-        JLabel label = new JLabel("Precio: " + UPGRADE_PRICE, SwingConstants.CENTER);
+        JLabel label = new JLabel("", SwingConstants.CENTER);
         label.setFont(new Font("SansSerif", Font.PLAIN, 11));
         label.setForeground(Theme.LABEL_COLOR);
         label.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -310,8 +334,8 @@ public class StoreImprovementPanel extends BasePanel
     @Override
     public void prepareController() 
     {
-        prepareControllerUpgrades(player1UpgradeButtons, 0);
-        prepareControllerUpgrades(player2UpgradeButtons, 1);
+        prepareControllerUpgrades(player1UpgradeButtons, true);
+        prepareControllerUpgrades(player2UpgradeButtons, false);
         prepareControllerBack();
     }
 
@@ -319,14 +343,14 @@ public class StoreImprovementPanel extends BasePanel
      * Asocia cada botón Mejorar de un jugador con la compra de esa mejora.
      *
      * @param buttons botones Mejorar del jugador
-     * @param player índice del jugador (0 o 1)
+     * @param playerOne indica si los botones corresponden al jugador 1
      */
-    private void prepareControllerUpgrades(JButton[] buttons, int player) 
+    private void prepareControllerUpgrades(JButton[] buttons, boolean playerOne)
     {
         for (int stat = 0; stat < buttons.length; stat++) 
         {
-            final int selectedStat = stat;
-            buttons[stat].addActionListener(e -> upgrade(player, selectedStat));
+            String statistic = STAT_KEYS[stat];
+            buttons[stat].addActionListener(e -> upgradeAction.accept(playerOne, statistic));
         }
     }
 
@@ -341,62 +365,55 @@ public class StoreImprovementPanel extends BasePanel
 
     // ----- Acciones -----
 
-    /**
-     * Suma puntos a un jugador (por ejemplo, los ganados en un partido).
-     *
-     * @param player índice del jugador (0 o 1)
-     * @param amount puntos que se suman
-     */
-    public void addPoints(int player, int amount) 
-    {
-        // Pendiente: reemplazar por los puntos que entregue el dominio.
-        points[player] += amount;
-        refreshPlayer(player);
+    /** Refresca ambas columnas con los datos del mismo paso publicado. */
+    void refreshFromState() {
+        MatchSnapshot match = PresentationState.getMatch().orElse(null);
+        refreshPlayer(true, match);
+        refreshPlayer(false, match);
     }
 
     /**
-     * Compra una mejora si el jugador tiene puntos y la estadística no está al máximo.
-     *
-     * @param player índice del jugador (0 o 1)
-     * @param stat índice de la estadística
+     * Muestra los valores disponibles para la identidad indicada.
+     * {@code player.getPoints()} alimenta {@code player1PointsLabel} o
+     * {@code player2PointsLabel}. Para cambiar las barras o los precios
+     * visibles, usa el bucle que relaciona cada índice de {@code STAT_KEYS}
+     * con sus etiquetas y su botón de compra.
+     * @param playerOne indica si se refresca la columna del jugador 1
+     * @param match captura publicada, o {@code null} antes de iniciar la partida
      */
-    private void upgrade(int player, int stat) 
+    private void refreshPlayer(boolean playerOne, MatchSnapshot match)
     {
-        // Pendiente: delegar la compra al dominio cuando maneje puntos y niveles.
-        if (levels[player][stat] >= MAX_LEVEL) 
-        {
-            return;
+        JLabel pointsLabel = playerOne ? player1PointsLabel : player2PointsLabel;
+        JLabel[] levelLabels = playerOne ? player1LevelLabels : player2LevelLabels;
+        JLabel[] priceLabels = playerOne ? player1PriceLabels : player2PriceLabels;
+        JButton[] buttons = playerOne ? player1UpgradeButtons : player2UpgradeButtons;
+        boolean beforeMatch = match == null;
+        Participant player = beforeMatch ? null : match.getHumanPlayer(playerOne).orElse(null);
+        String points = beforeMatch ? "0" : UNAVAILABLE;
+
+        if (player != null) points = Integer.toString(player.getPoints());
+        
+        pointsLabel.setText(points);
+        boolean canBuy = player != null && match.isFinished();
+        for (int stat = 0; stat < STAT_NAMES.length; stat++) {
+            int level = displayedLevel(STAT_KEYS[stat], player, beforeMatch);
+            boolean maxLevel = level >= MAX_LEVEL;
+            levelLabels[stat].setText(level == 0 ? UNAVAILABLE : buildLevelBar(level));
+            String price = beforeMatch ? "Precio: " + INITIAL_UPGRADE_PRICE : "Precio: " + UNAVAILABLE;
+            priceLabels[stat].setText(maxLevel ? MAX_PRICE_TEXT : price);
+            buttons[stat].setEnabled(canBuy && !maxLevel);
         }
-        if (points[player] < UPGRADE_PRICE) 
-        {
-            JOptionPane.showMessageDialog(this,
-                    "No tienes puntos suficientes para mejorar " + STAT_NAMES[stat] + ".",
-                    "Puntos insuficientes", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        points[player] -= UPGRADE_PRICE;
-        levels[player][stat]++;
-        refreshPlayer(player);
     }
 
-    /**
-     * Actualiza en pantalla los puntos, los niveles y los precios de un jugador.
-     *
-     * @param player índice del jugador (0 o 1)
-     */
-    private void refreshPlayer(int player) 
-    {
-        JLabel pointsLabel = (player == 0) ? player1PointsLabel : player2PointsLabel;
-        JLabel[] levelLabels = (player == 0) ? player1LevelLabels : player2LevelLabels;
-        JLabel[] priceLabels = (player == 0) ? player1PriceLabels : player2PriceLabels;
-
-        pointsLabel.setText(String.valueOf(points[player]));
-        for (int stat = 0; stat < STAT_NAMES.length; stat++) 
-        {
-            levelLabels[stat].setText(buildLevelBar(levels[player][stat]));
-            priceLabels[stat].setText(levels[player][stat] >= MAX_LEVEL
-                    ? MAX_PRICE_TEXT : "Precio: " + UPGRADE_PRICE);
-        }
+    /** Devuelve el nivel visible, o cero para una habilidad sin consulta disponible. */
+    private int displayedLevel(String statistic, Participant player, boolean beforeMatch) {
+        if (beforeMatch) return 1;
+        if (player == null) return 0;
+        return switch (statistic) {
+            case "speed" -> player.getSpeedLevel();
+            case "survival" -> 1 + (player.getMaxLife() - 100) / 10;
+            default -> 0;
+        };
     }
 
     /**
