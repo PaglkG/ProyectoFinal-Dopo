@@ -1,9 +1,5 @@
 package domain;
 
-import domain.Ball;
-import domain.SessionParticipant;
-import domain.RectangularHitbox;
-
 /** Corrige la penetración y aplica el rebote de los balones contra los participantes. */
 public final class BallParticipantCollisionResolver {
     private static final double HEAD_ROLL_SPEED = 4.0;
