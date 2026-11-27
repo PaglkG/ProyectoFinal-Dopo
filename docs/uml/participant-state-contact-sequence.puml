@@ -6,6 +6,7 @@ participant "Atacante: SessionParticipant" as Attacker
 participant "Estado activo del atacante" as AttackerState
 participant "Rival: SessionParticipant" as Target
 participant "StunnedState" as Stun
+participant "Balón: Ball" as Ball
 
 Session -> Attacker: blocksMovement()
 Attacker -> AttackerState: blocksMovement()
@@ -13,12 +14,20 @@ AttackerState --> Attacker: bloqueo según estado
 Attacker --> Session: bloqueo
 alt atacante aturdido
   Session -> Session: cancelar patada
-else atacante registrado, sesión activa y rival al alcance
-  Session -> Target: takeDamage(daño de patada)
-  Target -> Target: descontar vida hasta un mínimo de cero
-  opt vida igual a cero
-    Target -> Stun: enter(rival)
-    Stun -> Target: applyStatusEffect(aturdimiento de 3 s)
+else atacante registrado y sesión activa
+  alt rival al alcance
+    Session -> Target: takeDamage(daño de patada)
+    Target -> Target: descontar vida hasta un mínimo de cero
+    opt vida igual a cero
+      Target -> Stun: enter(rival)
+      Stun -> Target: applyStatusEffect(aturdimiento de 3 s)
+    end
+  else sin rival y balón al alcance
+    Session -> Ball: applyImpulse(dirección × 260, -70)
+    note right of Ball
+      El impulso se suma a la velocidad del balón.
+      La dirección apunta al arco contrario.
+    end note
   end
 end
 

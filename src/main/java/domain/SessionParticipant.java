@@ -41,6 +41,8 @@ public abstract class SessionParticipant implements Serializable, Collidable {
     private List<StatusEffect> status;
     /** Poder asociado al participante al configurar la partida. */
     private Power specialPower;
+    /** Indica que el participante pidió el poder y espera tocar el balón. */
+    private boolean powerActive;
     /** Vida que conserva el participante durante la partida. */
     private int life = Stats.BASE_LIFE;
 
@@ -49,6 +51,14 @@ public abstract class SessionParticipant implements Serializable, Collidable {
         stats = new Stats();
         status = new ArrayList<>();
         UserHitbox = new RectangularHitbox(0, 0, 450.0 / 20, 150.0 / 3);
+    }
+
+    /** Añade un efecto temporal al participante.
+     * @param effect efecto que se aplicará
+     */
+    public void addStatusEffect(StatusEffect effect) {
+        if (effect == null) throw new GameException(GameException.INVALID_STATUS_EFFECT);
+        status.add(effect);
     }
 
     /**
@@ -63,7 +73,9 @@ public abstract class SessionParticipant implements Serializable, Collidable {
 
     /** Distancia horizontal de un paso de movimiento para la velocidad actual. */
     final double horizontalStep() {
-        return 150.0 * stats.getSpeed() / 60.0;
+        double speedFactor = status.stream().mapToDouble(StatusEffect::getSpeedFactor)
+                .min().orElse(1.0);
+        return 150.0 * stats.getSpeed() * speedFactor / 60.0;
     }
 
     /** Devuelve las estadísticas asociadas a este participante.
@@ -104,12 +116,12 @@ public abstract class SessionParticipant implements Serializable, Collidable {
         if (life == 0) STUNNED_STATE.enter(this);
     }
 
-    /** Agrega un efecto y reemplaza cualquier efecto previo del mismo tipo.
+    /** Reemplaza los efectos vigentes por el efecto temporal recibido.
      * @param effect efecto temporal que se aplicará
      */
     public void applyStatusEffect(StatusEffect effect) {
         if (effect == null) throw new GameException(GameException.INVALID_STATUS_EFFECT);
-        status.removeIf(active -> active.getType().equals(effect.getType()));
+        status.clear();
         status.add(effect);
     }
 
@@ -142,6 +154,7 @@ public abstract class SessionParticipant implements Serializable, Collidable {
         life = stats.getMaxLife();
         status.clear();
         finishJump();
+        powerActive = false;
         if (specialPower != null) specialPower.resetCharge();
     }
 
@@ -158,14 +171,16 @@ public abstract class SessionParticipant implements Serializable, Collidable {
      * una trayectoria vertical activa. La sesión valida el apoyo antes de invocarlo.
      */
     public void jump() {
-        if (jumping || blocksMovement()) return;
+        if (jumping || blocksMovement() || blocksJump()) return;
         jumping = true;
         jumpVelocity = -JUMP_SPEED;
     }
 
+
+
     /** Indica si los pies están sobre el apoyo identificado por la sesión y permiten despegar. */
     boolean canStartJump(double supportY, double ceilingY) {
-        return jumpVelocity >= 0 && !blocksMovement()
+        return jumpVelocity >= 0 && !blocksMovement() && !blocksJump()
                 && UserHitbox.getY() == supportY - UserHitbox.getHeight()
                 && UserHitbox.getY() > ceilingY;
     }
@@ -176,6 +191,20 @@ public abstract class SessionParticipant implements Serializable, Collidable {
         jumping = false;
         jump();
     }
+
+    /** fuerza el salto del participante para que sea lanzado para arriba */
+    public void forceJump() {
+        jumping = true;
+        jumpVelocity = -JUMP_SPEED;
+    }
+
+    /** Indica si un efecto vigente impide saltar aunque permita caminar.
+     * @return {@code true} si el participante está aturdido o electrocutado
+     */
+    private boolean blocksJump() {
+        return status.stream().anyMatch(StatusEffect::blocksJump);
+    }
+
 
     /** Calcula la subida máxima con el mismo paso discreto que usa la simulación. */
     static double maximumJumpRise(double stepSeconds) {
@@ -216,8 +245,39 @@ public abstract class SessionParticipant implements Serializable, Collidable {
         rememberCurrentPosition();
     }
 
-    /** Método reservado para activar el poder especial; aún no tiene implementación. */
+
+    /** Indica si el poder asignado terminó de recargarse.
+     * @return {@code true} cuando existe un poder con carga completa
+     */
+    public boolean isPowerUsable() {
+        return specialPower != null && specialPower.isUsable();
+    }
+
+    /** Indica si el participante activó el poder y aún espera tocar el balón.
+     * @return {@code true} mientras el poder esté armado
+     */
+    public boolean isPowerActive() {
+        return powerActive;
+    }
+
+    /** Arma el poder cargado y consume su carga hasta el próximo contacto con el balón. */
     public void power() {
+        if (!powerActive && specialPower != null && specialPower.isUsable()) {
+            specialPower.usePower();
+            powerActive = true;
+        }
+    }
+
+    /** Devuelve el poder armado, si lo hay.
+     * @return poder pendiente de ejecutarse o {@code null}
+     */
+    Power getActivePower() {
+        return powerActive ? specialPower : null;
+    }
+
+    /** Desarma el poder después de que su trayectoria se haya iniciado. */
+    void finishPowerActivation() {
+        powerActive = false;
     }
 
     /** Devuelve el poder asignado a este participante.

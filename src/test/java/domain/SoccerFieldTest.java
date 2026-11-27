@@ -53,11 +53,13 @@ class SoccerFieldTest {
         RectangularHitbox rightGoal = readGoal(field, "RightGoalHitbox");
 
         assertEquals(0.0, readValue(leftGoal, "x"));
-        assertEquals(98.5, readValue(leftGoal, "y"));
+        assertEquals(103.5, readValue(leftGoal, "y"));
         assertEquals(45.0, readValue(leftGoal, "width"));
-        assertEquals(50.0, readValue(leftGoal, "height"));
+        assertEquals(45.0, readValue(leftGoal, "height"));
         assertEquals(405.0, readValue(rightGoal, "x"));
-        assertEquals(98.5, readValue(rightGoal, "y"));
+        assertEquals(103.5, readValue(rightGoal, "y"));
+        assertEquals(45.0, readValue(rightGoal, "width"));
+        assertEquals(45.0, readValue(rightGoal, "height"));
     }
 
     @Test

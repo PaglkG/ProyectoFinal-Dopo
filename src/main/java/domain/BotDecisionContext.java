@@ -41,6 +41,7 @@ final class BotDecisionContext {
                     hitbox.getY() + hitbox.getHeight() - highestY);
         }
         for (Ball ball : field.balls()) {
+            if (ball.isIllusionDecoy()) continue;
             double distance = Math.hypot(ball.getX() - playerX, ball.getY() - playerY);
             if (distance < closestDistance) {
                 closestDistance = distance;

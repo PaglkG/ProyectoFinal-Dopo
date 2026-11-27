@@ -25,6 +25,16 @@ public class Ball implements Serializable, Collidable {
     private double previousY;
     /** Círculo que contiene la posición del balón y su radio. */
     private CircularHitbox BallHitbox;
+    /** Poder y lado que originaron el tiro pendiente de impacto. */
+    private Power powerShot;
+    /** Lado atacante del tiro pendiente; {@code true} corresponde al lado izquierdo. */
+    private boolean powerShotAttackerOnLeft;
+    /** Multiplicador de patada del atacante que originó el tiro pendiente. */
+    private double powerShotKickMultiplier;
+    /** Indica que este balón es una copia falsa de Illusion. */
+    private boolean illusionDecoy;
+    /** Tiempo restante antes de retirar una copia falsa de Illusion. */
+    private double illusionRemainingSeconds;
 
     /**
      * Crea el balón en el centro geométrico de las dimensiones indicadas.
@@ -49,6 +59,7 @@ public class Ball implements Serializable, Collidable {
         previousY = getY();
         velocityX = 0;
         velocityY = 0;
+        clearPowerShot();
     }
 
     /**
@@ -116,6 +127,37 @@ public class Ball implements Serializable, Collidable {
         velocityY += deltaY;
     }
 
+    /** Registra el poder que debe aplicarse al próximo contacto con el rival. */
+    void markPowerShot(Power power, boolean attackerOnLeft, double kickMultiplier) {
+        powerShot = power;
+        powerShotAttackerOnLeft = attackerOnLeft;
+        powerShotKickMultiplier = kickMultiplier;
+    }
+
+    /** Devuelve el poder asociado al tiro pendiente, para que el resolutor evalúe el contacto. */
+    Power getPowerShot() {
+        return powerShot;
+    }
+
+    /** Indica el lado físico que originó el tiro pendiente.
+     * @return {@code true} si el atacante estaba a la izquierda
+     */
+    boolean isPowerShotAttackerOnLeft() {
+        return powerShotAttackerOnLeft;
+    }
+
+    /** Devuelve el multiplicador de patada guardado al iniciar el tiro de poder. */
+    double getPowerShotKickMultiplier() {
+        return powerShotKickMultiplier;
+    }
+
+    /** Retira la atribución del tiro después de que el resolutor aplique su impacto. */
+    void clearPowerShot() {
+        powerShot = null;
+        powerShotAttackerOnLeft = false;
+        powerShotKickMultiplier = 0;
+    }
+
     /**
      * Asegura que la velocidad horizontal apunte hacia la dirección indicada.
      * Solo reemplaza la componente cuando es cero o apunta en sentido contrario;
@@ -144,6 +186,31 @@ public class Ball implements Serializable, Collidable {
         BallHitbox.reposition(
                 getX() + velocityX * deltaSeconds,
                 getY() + velocityY * deltaSeconds);
+        if (illusionDecoy) {
+            illusionRemainingSeconds = Math.max(0, illusionRemainingSeconds - deltaSeconds);
+        }
+    }
+
+    /** Marca este balón como copia falsa y configura su duración en la cancha.
+     * @param durationSeconds duración positiva de la copia
+     */
+    void startIllusionDecoy(double durationSeconds) {
+        illusionDecoy = true;
+        illusionRemainingSeconds = durationSeconds;
+    }
+
+    /** Indica si este balón es una copia falsa, no válida para marcar ni golpear jugadores.
+     * @return {@code true} si es una copia de Illusion
+     */
+    boolean isIllusionDecoy() {
+        return illusionDecoy;
+    }
+
+    /** Indica si expiró la duración de la copia falsa.
+     * @return {@code true} si debe retirarse de la cancha
+     */
+    boolean isIllusionExpired() {
+        return illusionDecoy && illusionRemainingSeconds <= 0;
     }
 
     /**

@@ -5,7 +5,16 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
-/** Consulta los textos, campos y recursos visuales de las opciones del juego. */
+/**
+ * Consulta los textos, campos y recursos visuales de {@code options.properties}.
+ * Los catálogos de Game determinan qué opciones existen y este recurso indica
+ * cómo se muestran y qué datos visuales corresponden a cada personaje.
+ *
+ * <p><strong>Para mostrar una opción nueva:</strong> agrega sus propiedades en
+ * {@code options.properties}. El catálogo de {@code Game} determina las clases
+ * disponibles; esta clase aporta etiquetas, campos de regla e imágenes, sin
+ * sustituir la lista dinámica del dominio.</p>
+ */
 final class PresentationOptions {
     private static final Properties OPTIONS = load();
 

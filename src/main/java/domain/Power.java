@@ -18,6 +18,21 @@ public abstract class Power implements Serializable {
     public Power() {
     }
 
+
+    /** Aplica el efecto del tiro cuando el balón impacta a un participante rival.
+     * @param player participante alcanzado por el balón
+     * @param ball balón que conserva la atribución del tiro
+     * @param attackerOnLeft indica si el participante atacante estaba a la izquierda
+     */
+    public abstract void applyImpact(SessionParticipant player, Ball ball, boolean attackerOnLeft);
+
+    /** Inicia la trayectoria del poder desde el contacto con el balón.
+     * @param ball balón que recibirá el impulso
+     * @param attackerOnLeft indica si el participante atacante está a la izquierda
+     * @return {@code true} si la trayectoria se inició
+     */
+    public abstract boolean startTrajectory(Ball ball, boolean attackerOnLeft);
+
     /** Consume la carga completa; sin carga suficiente no hace cambios.
      * Los efectos específicos del tiro siguen pendientes.
      */

@@ -94,6 +94,7 @@ package "domain" {
     + applyStatusEffect(effect: StatusEffect): void
     + updateStatusEffects(): void
     + jump(): void
+    + forceJump(): void
     + power(): void
     + getSpecialPower(): Power
     + setSpecialPower(specialPower: Power): void
@@ -123,6 +124,7 @@ package "domain" {
     - fieldHitbox: RectangularHitbox
     - balls: Ball[]
     - collisions: CollisionFacade
+    ~ createIllusionDecoys(source: Ball): void
     + advanceBalls(deltaSeconds: double, gravity: double): void
     + addBall(ball: Ball): void
     + resolveBallCollisions(restitution: double): void
@@ -191,6 +193,7 @@ package "domain" {
   }
   class BallParticipantCollisionResolver {
     + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveAll(balls: Ball[], field: SoccerField, participantsLeft: Iterable<SessionParticipant>, participantsRight: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
     + resolve(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
     ~ resolve(ball: Ball, participant: SessionParticipant, previousBallX: double, previousBallY: double, previousParticipantX: double, previousParticipantY: double, restitution: double, minimumLandingSpeed: double): void
   }
@@ -208,6 +211,8 @@ package "domain" {
     - previousX: double
     - previousY: double
     - BallHitbox: CircularHitbox
+    - illusionDecoy: boolean
+    - illusionRemainingSeconds: double
     + resetBall(width: double, height: double): void
     + getHitbox(): CircularHitbox
     + getX(): double
@@ -252,6 +257,7 @@ package "domain" {
   }
   class StatusEffect {
     + STUNNED: String = "stunned" {static, readOnly}
+    + ELECTROCUTED: String = "electrocuted" {static, readOnly}
     + STUN_DURATION_SECONDS: double = 3.0 {static, readOnly}
     - type: String
     - duration: double
@@ -266,6 +272,7 @@ package "domain" {
     + getSpeedFactor(): double
     + getJumpFactor(): double
     + blocksMovement(): boolean
+    + blocksJump(): boolean
   }
   enum Action {
     LEFT

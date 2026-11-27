@@ -9,6 +9,14 @@ import java.util.List;
 /**
  * Lee y escribe la configuración visual al final de una partida guardada.
  * La sesión serializada por Game permanece al inicio del archivo.
+ * El marcador final permite encontrar la configuración sin leer primero
+ * el objeto de dominio. La ventana usa esta lectura con guardados integrados
+ * anteriores cuando no encuentra un auxiliar {@code .ui}.
+ *
+ * <p><strong>Para extender el formato visual:</strong> actualiza a la vez
+ * {@code appendConfiguration()} y {@code readConfiguration()}. La ventana
+ * coordina este auxiliar con {@link domain.Game#save(java.io.File)} y
+ * {@link domain.Game#open(java.io.File)}; no serialices aquí objetos de dominio.</p>
  */
 final class MatchFile {
     private static final int FORMAT_MARKER = 0x44504F31; // DPO1
@@ -69,11 +77,13 @@ final class MatchFile {
         return new IOException("El archivo no contiene la configuración de una partida guardada desde el juego.");
     }
 
+    /** Escribe el tamaño de la lista y luego sus textos en el mismo orden. */
     private static void writeList(RandomAccessFile data, List<String> values) throws IOException {
         data.writeInt(values.size());
         for (String value : values) data.writeUTF(value);
     }
 
+    /** Recupera los textos después de validar que el tamaño cabe en el archivo. */
     private static List<String> readList(RandomAccessFile data) throws IOException {
         int size = data.readInt();
         if (size < 0 || size > (data.length() - data.getFilePointer()) / Short.BYTES) {

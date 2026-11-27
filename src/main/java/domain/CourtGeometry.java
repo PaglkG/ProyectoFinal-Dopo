@@ -30,6 +30,7 @@ public final class CourtGeometry {
                 || candidate.getY() - radius < field.courtY() + field.boundaryThickness()
                 || candidate.getY() + radius > field.groundY()) return false;
         for (Ball other : field.balls()) {
+            if (other.isIllusionDecoy()) continue;
             if (other != candidate && candidate.intersects(other).isContact()) return false;
         }
         for (SessionParticipant participant : participants) {

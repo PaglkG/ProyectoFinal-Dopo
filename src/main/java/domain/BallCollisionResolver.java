@@ -15,6 +15,7 @@ public final class BallCollisionResolver {
     public void resolveAll(Ball[] balls, double restitution) {
         for (int first = 0; first < balls.length; first++) {
             for (int second = first + 1; second < balls.length; second++) {
+                if (balls[first].isIllusionDecoy() || balls[second].isIllusionDecoy()) continue;
                 resolvePair(balls[first], balls[second], restitution);
             }
         }
@@ -33,6 +34,7 @@ public final class BallCollisionResolver {
         if (movement == 0) return;
         int direction = movement > 0 ? 1 : -1;
         for (Ball ball : balls) {
+            if (ball.isIllusionDecoy()) continue;
             if (!ball.intersects(moved).isContact()) continue;
             RectangularHitbox box = moved.getHitbox();
             if (BallParticipantCollisionResolver.restsOnHead(ball, previousX, box.getY(), box.getWidth())) continue;

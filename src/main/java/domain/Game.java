@@ -185,6 +185,15 @@ public class Game {
         return findPlayer(player).getSpecialPower().getRemainingSeconds();
     }
 
+    /** Indica si el participante seleccionable tiene un poder armado.
+     * @param player {@code true} para el jugador 1; {@code false} para el jugador 2
+     * @return {@code true} hasta que su próximo contacto con el balón inicie el tiro
+     * @throws GameException si no hay sesión o el participante no existe
+     */
+    public boolean isPlayerPowerActive(boolean player) {
+        return findPlayer(player).isPowerActive();
+    }
+
     /** Devuelve la coordenada horizontal del centro del balón indicado.
      * @param index índice del balón
      * @return coordenada horizontal del centro
@@ -395,13 +404,13 @@ public class Game {
         return balls[ballIndex];
     }
 
-    /**
-     * Punto de extensión para activar el poder. El cuerpo está vacío y no aplica
-     * efectos; el comportamiento del poder aún no está implementado.
-     *
-     * @param player participante que usará el poder
+    /** Solicita activar el poder del participante identificado desde la presentación.
+     * @param player {@code true} para el jugador 1; {@code false} para el jugador 2
+     * @throws GameException si no hay sesión o el participante no existe
      */
-    public void powerPlayer(SessionParticipant player) {
+    public void powerPlayer(boolean player) {
+        GameSession active = requireSession();
+        active.powerPlayer(findPlayer(player));
     }
 
     /**

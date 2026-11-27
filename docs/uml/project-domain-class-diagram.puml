@@ -20,6 +20,7 @@ package "Sesión y reglas" {
     + movePlayer(player: boolean, direction: boolean): void
     + jumpPlayer(player: boolean): void
     + kickPlayer(player: boolean): boolean
+    + powerPlayer(player: boolean): void
     + getBotTypes(): List<String>
     + getSessionTypes(): List<String>
     + getMatchTypes(): List<String>
@@ -28,6 +29,7 @@ package "Sesión y reglas" {
     + getPlayerLife(player: boolean): int
     + getPlayerMaxLife(player: boolean): int
     + getPlayerPowerRemainingSeconds(player: boolean): double
+    + isPlayerPowerActive(player: boolean): boolean
     + save(file: File): void
     + open(file: File): void
   }
@@ -38,6 +40,9 @@ package "Sesión y reglas" {
   }
   abstract class GameSession {
     {static} - instance: GameSession
+    {static} - GRAVITY: double = 80.0
+    {static} - KICK_HORIZONTAL_IMPULSE: double = 260.0
+    {static} - KICK_VERTICAL_IMPULSE: double = -70.0
     - timeLeft: double
     - field: SoccerField
     - TypeOfMatch: TypeOfMatch
@@ -62,6 +67,7 @@ package "Sesión y reglas" {
     + restartRound(): void
     + resetRoundInputState(): void
     + kickPlayer(player: SessionParticipant): boolean
+    + powerPlayer(player: SessionParticipant): void
     {static} ~ isBallInKickReach(box: RectangularHitbox, ball: Ball): boolean
   }
   class PlayerVsPlayer
@@ -92,16 +98,21 @@ package "Participantes y poderes" {
     - stats: Stats
     - status: List<StatusEffect>
     - specialPower: Power
+    - powerActive: boolean
     + move(direction: boolean): void
     ~ horizontalStep(): double
     + takeDamage(damage: int): void
     + jump(): void
     ~ canStartJump(supportY: double, ceilingY: double): boolean
     ~ jumpFromSupport(supportY: double, ceilingY: double): void
+    + forceJump(): void
     {static} ~ maximumJumpRise(stepSeconds: double): double
     ~ nextJumpY(stepSeconds: double): double
     ~ applyJumpStep(nextY: double, allowedY: double, groundTop: double): void
     + power(): void
+    + isPowerActive(): boolean
+    ~ getActivePower(): Power
+    ~ finishPowerActivation(): void
     - currentState(): ParticipantState
   }
   interface ParticipantState <<privada>>
@@ -118,10 +129,13 @@ package "Participantes y poderes" {
     + improveStatistics(stat: String): void
   }
   class StatusEffect {
+    {static} + ELECTROCUTED: String
     - type: String
     - duration: double
     - remaining: double
     + update(): void
+    + getSpeedFactor(): double
+    + blocksJump(): boolean
   }
   abstract class Power {
     - chargePower: int
@@ -194,13 +208,19 @@ package "Decisión del bot" {
 
 package "Cancha y respuesta física" {
   class SoccerField {
+    {static} - ILLUSION_DURATION_SECONDS: double = 2.5
+    {static} - ILLUSION_DECOY_COUNT: int = 7
     {static} - PARTICIPANT_HEIGHT_RATIO: double
+    {static} - GOAL_HEIGHT_RATIO: double = 0.30
     - courtWidth: double
     - courtHeight: double
     - fieldHitbox: RectangularHitbox
     - balls: Ball[]
     - collisions: CollisionFacade
     + advanceBalls(...): void
+    ~ createIllusionDecoys(source: Ball): void
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveBallParticipantCollisions(participantsLeft: Iterable<SessionParticipant>, participantsRight: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
     ~ rollSupportedBalls(participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double): void
     ~ fitRestoredParticipantHitbox(participant: SessionParticipant): void
     + resetBall(x: double, y: double): void
@@ -211,17 +231,35 @@ package "Cancha y respuesta física" {
     - previousX: double
     - previousY: double
     - BallHitbox: CircularHitbox
+    - powerShot: Power
+    - powerShotAttackerOnLeft: boolean
+    - powerShotKickMultiplier: double
+    - illusionDecoy: boolean
+    - illusionRemainingSeconds: double
     + advance(...): void
     + applyImpulse(...): void
+    ~ markPowerShot(power: Power, attackerOnLeft: boolean, kickMultiplier: double): void
+    ~ getPowerShot(): Power
+    ~ isPowerShotAttackerOnLeft(): boolean
+    ~ getPowerShotKickMultiplier(): double
+    ~ clearPowerShot(): void
+    ~ startIllusionDecoy(durationSeconds: double): void
+    ~ isIllusionDecoy(): boolean
+    ~ isIllusionExpired(): boolean
   }
   class CollisionFacade {
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveBallParticipantCollisions(participantsLeft: Iterable<SessionParticipant>, participantsRight: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
     ~ rollSupportedBalls(participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double): void
   }
   class CourtGeometry
   class BallCollisionResolver
   class BallParticipantCollisionResolver {
     + rewindMissedContacts(balls: Ball[], participants: Iterable<SessionParticipant>): void
+    + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveAll(balls: Ball[], field: SoccerField, participantsLeft: Iterable<SessionParticipant>, participantsRight: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
     ~ rollSupportedBalls(balls: Ball[], participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double, geometry: CourtGeometry): void
+    - resolveForSide(ball: Ball, participants: Iterable<SessionParticipant>, participantOnLeft: boolean, restitution: double, minimumLandingSpeed: double, field: SoccerField): void
   }
   class CircleRectangleCollisionResolver <<internal>>
 }
@@ -282,6 +320,7 @@ SessionParticipant --> "1" StunnedState : STUNNED_STATE {static}
 NormalState ..|> ParticipantState
 StunnedState ..|> ParticipantState
 SessionParticipant --> Power : poder asociado
+Ball --> Power : tiro armado
 PlayerVsPlayer ..> PowerFactory
 PlayerVsBot ..> PowerFactory
 PowerFactory ..> Power
@@ -305,6 +344,9 @@ CourtGeometry --> SoccerField
 BallCollisionResolver ..> Ball
 BallCollisionResolver ..> BallParticipantCollisionResolver : comprueba apoyo
 BallParticipantCollisionResolver ..> Ball
+BallParticipantCollisionResolver ..> SoccerField : agrega copias Illusion
+BallParticipantCollisionResolver ..> SoccerField : agrega copias Illusion
+BallParticipantCollisionResolver ..> Power
 BallParticipantCollisionResolver ..> CourtGeometry : valida posición del balón
 BallParticipantCollisionResolver ..> SessionParticipant
 CircleRectangleCollisionResolver ..> Ball
@@ -323,6 +365,11 @@ note bottom of GameSession
   La sesión es singleton y coordina el ciclo del partido.
   SoccerField conserva la geometría y delega las respuestas
   físicas en CollisionFacade.
+end note
+note bottom of SoccerField
+  En canchas nuevas cada arco mide un décimo del ancho
+  y el 30 % de la altura de la cancha. Su base toca el suelo.
+  Las partidas guardadas conservan las dimensiones de sus arcos.
 end note
 note bottom of CollisionDetector
   Evalúa el contacto según las formas recibidas.

@@ -32,6 +32,11 @@ import presentation.DOPOSoccerGUI.PresentationState;
  *       {@code setMatchConfiguration()} actualiza nombres, imágenes, modalidad
  *       y tamaño de cancha según la misma captura.</li>
  * </ul>
+ *
+ * <p><strong>Para mostrar un valor final nuevo:</strong> agréguelo a
+ * {@link MatchSnapshot} y asígnelo a una etiqueta desde {@code showResult()}.
+ * Agrega los botones de navegación en {@code prepareViewResult()} y registra
+ * sus callbacks en {@code prepareController()}.</p>
  */
 public class ResultsPanel extends BasePanel {
     private static final String COURT_IMAGE = "/images/ui/court@4x-8.png";
@@ -165,6 +170,8 @@ public class ResultsPanel extends BasePanel {
 
     /** Construye la tarjeta central con ganador, marcador y datos disponibles. */
     private JPanel prepareViewResult() {
+        // Menú de resultados: agrega los botones debajo del marcador en card.
+        // Conecta en prepareController() el clic que selecciona la pantalla de destino.
         JPanel holder = new JPanel(new java.awt.GridBagLayout());
         holder.setOpaque(false);
 
@@ -428,6 +435,7 @@ public class ResultsPanel extends BasePanel {
     private static final class CourtBackground extends JPanel {
         private final Image image = loadCourtImage();
 
+        /** Prepara la superficie que dibuja la cancha detrás de los resultados. */
         private CourtBackground() {
             setOpaque(true);
             setBackground(new Color(0x247FA0));

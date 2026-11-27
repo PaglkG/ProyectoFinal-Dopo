@@ -344,8 +344,8 @@ class GameTest {
 
         assertTrue(game.kickPlayer(true));
 
-        assertEquals(-150, game.getBallVelocityX(0));
-        assertEquals(-50, game.getBallVelocityY(0));
+        assertEquals(-260, game.getBallVelocityX(0));
+        assertEquals(-70, game.getBallVelocityY(0));
     }
 
     @Test

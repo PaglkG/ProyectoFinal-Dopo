@@ -72,7 +72,7 @@ end note
 @enduml
 
 @startuml
-title powerPlayer (PDF: intención; código sin implementar)
+title powerPlayer (flujo implementado)
 actor Usuario
 participant "game: Game" as G
 participant "session: GameSession" as S
@@ -80,14 +80,21 @@ participant "player: SessionParticipant" as P
 participant "power: Power" as W
 Usuario -> G: powerPlayer(player)
 G -> S: powerPlayer(player)
-S -> P: power()
-P -> W: usePower()
-opt isUsable()
-  W -> W: activar poder
+alt sesión terminada, participante inválido o bloqueado
+  S --> G: ignorar solicitud
+else carga completa y sin otro poder armado
+  S -> P: power()
+  P -> W: isUsable()
+  W --> P: true
+  P -> W: usePower()
+  P -> P: powerActive = true
+  P --> G: poder armado; espera contacto con balón
+else carga incompleta o poder ya armado
+  P --> G: no cambia el estado
 end
 note over G,W
-  El PDF propone usar el poder solo si es usable.
-  Los métodos Java de esta ruta están vacíos.
+  El siguiente contacto con el balón ejecuta la trayectoria
+  desde BallParticipantCollisionResolver y apaga el aura.
 end note
 @enduml
 
@@ -211,6 +218,9 @@ else sesión activa
     opt aturdimiento expirado
       P -> P: restaurar vida máxima actual (según survival)
     end
+    opt electrocución expirada
+      P -> P: retirar efecto y restaurar velocidad/salto
+    end
   end
   S -> S: tiempo += 1/60 s
   S -> F: advanceBalls(1/60, 40)
@@ -228,12 +238,16 @@ else sesión activa
   end
   S -> S: goal()
   loop cada balón
-    S -> F: goalSideFor(ball)
+    alt balón es copia falsa de Illusion
+      S -> S: ignorar para marcar gol
+    else balón real
+      S -> F: goalSideFor(ball)
     alt centro dentro de un arco
       S -> S: sumar punto al lado opuesto
       S -> F: resetBall(centro)
       S -> S: reposicionar participantes simétricamente
       S -> S: checkTypeOfMatch()
+    end
     end
   end
   alt se anotó un gol
@@ -250,7 +264,7 @@ else sesión activa
     end
     S -> F: resolveBallParticipantCollisions(participants, 70%, 0.5)
     F -> C: resolveBallParticipantCollisions(...)
-    C -> PR: resolveAll(balls, participants, 70%, 0.5)
+    C -> PR: resolveAll(balls, field, participantsLeft, participantsRight, 70%, 0.5)
     loop cada balón y participante en contacto
       PR -> CR: resolver contacto círculo-rectángulo exacto
       CR -> AR: clasificar eje con overlap AABB actual/anterior
@@ -261,6 +275,12 @@ else sesión activa
       end
       opt participante desciende sobre el balón y su velocidad es menor a 0.5
         PR -> B: establecer velocidad vertical descendente mínima (0.5)
+      end
+      opt el participante ejecuta Illusion
+        PR -> F: createIllusionDecoys(ball)
+        F -> F: agregar siete copias en posiciones y trayectorias aleatorias
+        note over F: Las copias duran 2,5 s; solo rebotan con cancha y arcos.
+        note over F: No colisionan con participantes ni cuentan para goles.
       end
     end
     loop cada balón

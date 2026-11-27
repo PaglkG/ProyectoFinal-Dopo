@@ -5,6 +5,8 @@ import java.awt.Color;
 /**
  * Colores compartidos por todas las pantallas del juego.
  * Para cambiar la paleta basta con editar los valores de esta clase.
+ * Los componentes reutilizables {@link RoundedButton} y {@link RoundedPanel}
+ * reciben estos colores desde los paneles que construyen cada pantalla.
  */
 final class Theme 
 {
@@ -18,6 +20,7 @@ final class Theme
     static final Color RED_BORDER = new Color(0xE05252);
     static final Color LABEL_COLOR = new Color(0x5B6B7A);
 
+    /** La paleta se consulta mediante constantes compartidas. */
     private Theme() 
     {
     }

@@ -6,6 +6,15 @@ package presentation;
  * configuración elegida en {@link #startMatch(MatchConfiguration)}.
  * Delega ambas solicitudes a {@link DOPOSoccerGUI}, que realiza el cambio de
  * pantalla y el refresco correspondiente.
+ *
+ * <p>Los botones llaman a {@code showScreen(...)} desde su {@code ActionListener}.
+ * La constante del destino debe coincidir con la clave registrada en
+ * {@code DOPOSoccerGUI.prepareViewScreens()}. La ventana usa esa clave en
+ * {@code CardLayout.show(...)} para mostrar el panel seleccionado.</p>
+ *
+ * <p><strong>Para agregar un destino:</strong> declara su constante aquí,
+ * crea y registra el panel en {@code DOPOSoccerGUI.prepareViewScreens()}, y
+ * llama a {@link #showScreen(String)} desde el listener del botón que lo abre.</p>
  */
 public class NavigationController 
 {

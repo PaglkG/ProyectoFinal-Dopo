@@ -15,6 +15,7 @@ import domain.ByGoals;
 import domain.ByTime;
 
 class GameSessionUpdateTest {
+    private static final double BALL_GRAVITY_PER_STEP = 80.0 / 60;
 
     @BeforeEach
     void resetSingleton() throws ReflectiveOperationException {
@@ -132,7 +133,7 @@ class GameSessionUpdateTest {
         session.updateGame();
 
         assertEquals(6.0 / 60, ball.getX() - 225, 1e-9);
-        assertEquals(40.0 / 60, ball.getVelocityY(), 1e-9);
+        assertEquals(BALL_GRAVITY_PER_STEP, ball.getVelocityY(), 1e-9);
         assertEquals(1.0 / 60, session.getElapsedSeconds(), 1e-9);
     }
 
@@ -365,6 +366,8 @@ class GameSessionUpdateTest {
         Ball ball = ball(session);
         double x = head.getX() + head.getWidth() / 2;
         ball.reposition(x, head.getY() - ball.getRadius() - 0.005);
+        // Llega a la cabeza con velocidad suficiente para tocarla y un rebote menor a 0,5.
+        ball.applyImpulse(0, 0.4 - BALL_GRAVITY_PER_STEP);
 
         session.updateGame();
         session.updateGame();
@@ -451,10 +454,11 @@ class GameSessionUpdateTest {
         session.updateGame();
 
         assertEquals(138.5, ball.getY(), 1e-9);
-        assertEquals(-((10 + 40.0 / 60) * 0.70), ball.getVelocityY(), 1e-9);
+        assertEquals(-((10 + BALL_GRAVITY_PER_STEP) * 0.70), ball.getVelocityY(), 1e-9);
 
         ball.reposition(225, 138.5);
-        setVelocityY(ball, 0.01);
+        // Después de aplicar la gravedad, alcanza el suelo a 0,25 unidades/s.
+        setVelocityY(ball, 0.25 - BALL_GRAVITY_PER_STEP);
         session.updateGame();
         assertEquals(0, ball.getVelocityY());
     }
@@ -482,20 +486,20 @@ class GameSessionUpdateTest {
         session.updateGame();
 
         assertEquals(11.5, ball.getY(), 1e-9);
-        assertEquals(20 * 0.7 - 40.0 / 60 * 0.7, ball.getVelocityY(), 1e-9);
+        assertEquals((20 - BALL_GRAVITY_PER_STEP) * 0.70, ball.getVelocityY(), 1e-9);
     }
 
     @Test
     void ballBouncesOffGoalFrameWhenItsCenterHasNotEnteredGoal() throws Exception {
         PlayerVsPlayer session = session(5);
         Ball ball = ball(session);
-        ball.reposition(46.2, 97.5);
+        var goal = session.getField().getGoalHitboxes()[0];
+        ball.reposition(goal.getX() + goal.getWidth() + 1.2, goal.getY() - 1);
         ball.applyImpulse(-10, 0);
 
         session.updateGame();
 
         assertEquals(0, session.getGoalsRight());
-        var goal = session.getField().getGoalHitboxes()[0];
         double outsideDistanceY = goal.getY() - ball.getY();
         double expectedX = goal.getX() + goal.getWidth()
                 + Math.sqrt(ball.getRadius() * ball.getRadius() - outsideDistanceY * outsideDistanceY);
@@ -515,8 +519,8 @@ class GameSessionUpdateTest {
         ball.reposition(box.getX() + box.getWidth() + ball.getRadius() + 8, box.getY() + box.getHeight() / 2);
 
         assertTrue(session.kickPlayer(left));
-        assertEquals(150, ball.getVelocityX());
-        assertEquals(-50, ball.getVelocityY());
+        assertEquals(260, ball.getVelocityX());
+        assertEquals(-70, ball.getVelocityY());
     }
 
     @Test
@@ -754,7 +758,7 @@ class GameSessionUpdateTest {
         Ball ball = ball(session);
         ball.reposition(box.getX() + box.getWidth() / 2,
                 box.getY() + box.getHeight() + ball.getRadius() + 0.1);
-        ball.applyImpulse(0, -ball.getVelocityY() - 40.0 / 60);
+        ball.applyImpulse(0, -ball.getVelocityY() - BALL_GRAVITY_PER_STEP);
 
         session.updateGame();
 

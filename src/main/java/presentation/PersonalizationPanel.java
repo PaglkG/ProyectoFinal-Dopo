@@ -50,6 +50,12 @@ import presentation.DOPOSoccerGUI.PresentationState;
  *       de bot, {@code updateMatchType()} cambia el campo de límite y
  *       {@code updateCountry()} refresca la imagen y el texto del personaje.</li>
  * </ul>
+ *
+ * <p><strong>Para añadir una opción dinámica:</strong> registra su clase en
+ * el catálogo de dominio correspondiente y agrega su etiqueta/recurso visual
+ * a {@code options.properties}. Este panel combina ambos orígenes; actualiza
+ * {@code prepareView...} para el control, {@code update...} para visibilidad
+ * o dependencias y {@code createMatchConfiguration()} para incluir la selección.</p>
  */
 public class PersonalizationPanel extends BasePanel 
 {
@@ -345,6 +351,8 @@ public class PersonalizationPanel extends BasePanel
         bottomRow.setAlignmentX(Component.LEFT_ALIGNMENT);
         bottomRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, BOTTOM_BUTTON_HEIGHT));
         bottomRow.setPreferredSize(new Dimension(100, BOTTOM_BUTTON_HEIGHT));
+        // Menú de botones: inicio y regreso van en bottomRow; Tienda va en content.
+        // Conecta la navegación o la validación del formulario en prepareController().
         bottomRow.add(startButton);
         bottomRow.add(backToMenuButton);
 

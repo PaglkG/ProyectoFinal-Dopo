@@ -36,6 +36,11 @@ import javax.swing.SwingConstants;
  *       las banderas y {@code setReady()} marca el progreso al 100 % y cambia
  *       el mensaje cuando ya hay una partida publicada.</li>
  * </ul>
+ *
+ * <p><strong>Para agregar un dato previo al partido:</strong> publícalo en
+ * {@link MatchSnapshot} y lee la captura desde {@code refreshFromState()}.
+ * Los botones se agregan en {@code prepareViewPreparationButtons()} y sus
+ * rutas se conectan en los métodos {@code prepareController...()}.</p>
  */
 public class PreparationPanel extends BasePanel {
     private static final String LOADING_BACKGROUND = "/images/ui/FONDO DE CARGA.png";
@@ -215,6 +220,8 @@ public class PreparationPanel extends BasePanel {
         cancelButton.setMaximumSize(new Dimension(170, 40));
         continueButton = new RoundedButton("Entrar a la cancha", Theme.GREEN, Color.WHITE,
                 Theme.GREEN, 14);
+        // Menú de preparación: agrega los botones nuevos a esta fila.
+        // Los clics que cambian de pantalla se conectan en prepareController().
         buttons.add(cancelButton);
         buttons.add(continueButton);
         body.add(buttons);
@@ -329,6 +336,7 @@ public class PreparationPanel extends BasePanel {
     private static final class FieldBackgroundPanel extends JPanel {
         private final Image backgroundImage;
 
+        /** Prepara el fondo de la pantalla que se muestra antes del partido. */
         private FieldBackgroundPanel() {
             URL imageUrl = PreparationPanel.class.getResource(LOADING_BACKGROUND);
             backgroundImage = imageUrl == null ? null : new ImageIcon(imageUrl).getImage();

@@ -13,6 +13,7 @@ public final class BallParticipantCollisionResolver {
             double stepSeconds, double gravity, CourtGeometry geometry) {
         double gravityStep = gravity * stepSeconds;
         for (Ball ball : balls) {
+            if (ball.isIllusionDecoy()) continue;
             if (Math.abs(ball.getVelocityY() - gravityStep) > SUPPORT_TOLERANCE
                     || Math.abs(ball.getVelocityX()) > HEAD_ROLL_SPEED + SUPPORT_TOLERANCE) continue;
             for (SessionParticipant participant : participants) {
@@ -59,6 +60,7 @@ public final class BallParticipantCollisionResolver {
      */
     public void rewindMissedContacts(Ball[] balls, Iterable<SessionParticipant> participants) {
         for (Ball ball : balls) {
+            if (ball.isIllusionDecoy()) continue;
             double endX = ball.getX();
             double endY = ball.getY();
             double radius = Math.abs(ball.getRadius());
@@ -104,8 +106,55 @@ public final class BallParticipantCollisionResolver {
     public void resolveAll(Ball[] balls, Iterable<SessionParticipant> participants,
             double restitution, double minimumLandingSpeed) {
         for (Ball ball : balls) {
+            if (ball.isIllusionDecoy()) continue;
             for (SessionParticipant participant : participants) {
                 resolve(ball, participant, restitution, minimumLandingSpeed);
+            }
+        }
+    }
+
+    /** Resuelve las colisiones por lado y ejecuta únicamente poderes previamente armados.
+     * @param balls balones que se comprobarán
+     * @param field cancha a la que se agregan las copias falsas de Illusion
+     * @param participantsLeft participantes del lado izquierdo
+     * @param participantsRight participantes del lado derecho
+     * @param restitution fracción de velocidad normal conservada en el rebote
+     * @param minimumLandingSpeed velocidad vertical mínima al aterrizar sobre un balón
+     */
+    public void resolveAll(Ball[] balls, SoccerField field,
+            Iterable<SessionParticipant> participantsLeft,
+            Iterable<SessionParticipant> participantsRight, double restitution,
+            double minimumLandingSpeed) {
+        for (Ball ball : balls) {
+            if (ball.isIllusionDecoy()) continue;
+            resolveForSide(ball, participantsLeft, true, restitution, minimumLandingSpeed, field);
+            resolveForSide(ball, participantsRight, false, restitution, minimumLandingSpeed, field);
+        }
+    }
+
+    /** Decide la activación o impacto de poder según el contacto y el lado físico. */
+    private void resolveForSide(Ball ball, Iterable<SessionParticipant> participants,
+            boolean participantOnLeft, double restitution, double minimumLandingSpeed,
+            SoccerField field) {
+        for (SessionParticipant participant : participants) {
+            CircleRectangleCollisionResolver.Resolution result = resolve(ball, participant,
+                    ball.getPreviousX(), ball.getPreviousY(),
+                    participant.getPreviousX(), participant.getPreviousY(),
+                    restitution, minimumLandingSpeed);
+            if (result == null) continue;
+
+            Power incomingPower = ball.getPowerShot();
+            if (incomingPower != null && ball.isPowerShotAttackerOnLeft() != participantOnLeft) {
+                incomingPower.applyImpact(participant, ball, ball.isPowerShotAttackerOnLeft());
+                ball.clearPowerShot();
+            }
+
+            Power activePower = participant.getActivePower();
+            if (activePower != null && activePower.startTrajectory(ball, participantOnLeft)) {
+                participant.finishPowerActivation();
+                ball.markPowerShot(activePower, participantOnLeft,
+                        participant.getStats().getKickMultiplier());
+                if (activePower instanceof Illusion) field.createIllusionDecoys(ball);
             }
         }
     }
@@ -123,8 +172,10 @@ public final class BallParticipantCollisionResolver {
                 restitution, minimumLandingSpeed);
     }
 
-    /** Usa las posiciones anteriores de ambas entidades para elegir el eje del rebote. */
-    void resolve(Ball ball, SessionParticipant participant,
+    /** Usa las posiciones anteriores para elegir el eje y devuelve el resultado del contacto.
+     * @return clasificación del contacto o {@code null} si no hubo colisión
+     */
+    CircleRectangleCollisionResolver.Resolution resolve(Ball ball, SessionParticipant participant,
             double previousBallX, double previousBallY,
             double previousParticipantX, double previousParticipantY,
             double restitution, double minimumLandingSpeed) {
@@ -132,7 +183,7 @@ public final class BallParticipantCollisionResolver {
         CircleRectangleCollisionResolver.Resolution result = CircleRectangleCollisionResolver.resolve(
                 ball, box, previousBallX, previousBallY,
                 previousParticipantX, previousParticipantY, restitution);
-        if (result == null || result.isHorizontal()) return;
+        if (result == null || result.isHorizontal()) return result;
 
         if (result.side() > 0 && box.getY() > previousParticipantY
                 && ball.getVelocityY() < minimumLandingSpeed) {
@@ -142,5 +193,6 @@ public final class BallParticipantCollisionResolver {
                 && touchesHead(ball.getX(), ball.getY(), ball.getRadius(), box.getX(), box.getY(), box.getWidth())) {
             ball.applyImpulse(0, -ball.getVelocityY());
         }
+        return result;
     }
 }

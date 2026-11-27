@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.concurrent.ThreadLocalRandom;
 import domain.Hitbox;
 import domain.HitboxContact;
 import domain.CircularHitbox;
@@ -22,6 +23,12 @@ public class SoccerField implements Serializable {
     private static final long serialVersionUID = 1L;
     /** Proporción de la cancha desde la coronilla hasta la planta de la pata. */
     private static final double PARTICIPANT_HEIGHT_RATIO = 0.2212;
+    /** Altura de los arcos de una cancha nueva respecto a su altura exterior. */
+    private static final double GOAL_HEIGHT_RATIO = 0.30;
+    /** Duración de las copias falsas de Illusion, en segundos. */
+    private static final double ILLUSION_DURATION_SECONDS = 2.5;
+    /** Cantidad de copias falsas creadas por cada tiro Illusion. */
+    private static final int ILLUSION_DECOY_COUNT = 7;
 
     /** Altura exterior de la cancha. */
     private final double courtHeight;
@@ -79,6 +86,9 @@ public class SoccerField implements Serializable {
         for (Ball ball : balls) {
             ball.advance(deltaSeconds, gravity);
         }
+        balls = Arrays.stream(balls)
+                .filter(ball -> !ball.isIllusionExpired())
+                .toArray(Ball[]::new);
     }
 
     /** Agrega a la cancha un balón nuevo, conservando sus coordenadas y estado iniciales.
@@ -92,6 +102,36 @@ public class SoccerField implements Serializable {
         Ball[] expanded = Arrays.copyOf(balls, balls.length + 1);
         expanded[balls.length] = ball;
         balls = expanded;
+    }
+
+    /** Crea copias aleatorias que rebotan en la cancha y los marcos de arco.
+     * @param source balón real del tiro Illusion
+     */
+    void createIllusionDecoys(Ball source) {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        double radius = source.getRadius();
+        double minX = courtX() + radius + boundaryThickness();
+        double maxX = courtX() + courtWidth() - radius - boundaryThickness();
+        double minY = courtY() + radius + boundaryThickness();
+        double maxY = groundY() - radius;
+        double sourceSpeed = Math.max(160, Math.hypot(source.getVelocityX(), source.getVelocityY()));
+
+        for (int index = 0; index < ILLUSION_DECOY_COUNT; index++) {
+            Ball decoy = new Ball(courtWidth, courtHeight, radius);
+            decoy.reposition(randomCoordinate(random, minX, maxX, courtX() + courtWidth() / 2),
+                    randomCoordinate(random, minY, maxY, courtY() + courtHeight() / 2));
+            double angle = random.nextDouble(0, Math.PI * 2);
+            double speed = sourceSpeed * random.nextDouble(0.7, 1.3);
+            decoy.applyImpulse(Math.cos(angle) * speed, Math.sin(angle) * speed);
+            decoy.startIllusionDecoy(ILLUSION_DURATION_SECONDS);
+            addBall(decoy);
+        }
+    }
+
+    /** Elige una coordenada aleatoria válida o el centro si no hay intervalo disponible. */
+    private double randomCoordinate(ThreadLocalRandom random, double minimum,
+            double maximum, double fallback) {
+        return minimum < maximum ? random.nextDouble(minimum, maximum) : fallback;
     }
 
     /** Resuelve las colisiones entre todos los pares de balones con masas iguales.
@@ -109,6 +149,19 @@ public class SoccerField implements Serializable {
     public void resolveBallParticipantCollisions(Iterable<SessionParticipant> participants,
             double restitution, double minimumLandingSpeed) {
         collisions.resolveBallParticipantCollisions(participants, restitution, minimumLandingSpeed);
+    }
+
+    /** Resuelve contactos identificando el lado de cada participante.
+     * @param participantsLeft participantes del lado izquierdo
+     * @param participantsRight participantes del lado derecho
+     * @param restitution fracción de velocidad normal conservada en los rebotes
+     * @param minimumLandingSpeed velocidad vertical mínima al aterrizar sobre un balón
+     */
+    public void resolveBallParticipantCollisions(Iterable<SessionParticipant> participantsLeft,
+            Iterable<SessionParticipant> participantsRight, double restitution,
+            double minimumLandingSpeed) {
+        collisions.resolveBallParticipantCollisions(participantsLeft, participantsRight,
+                restitution, minimumLandingSpeed);
     }
 
     /** Actualiza los balones apoyados en la superficie superior de un participante. */
@@ -165,6 +218,9 @@ public class SoccerField implements Serializable {
      * @param y coordenada vertical del centro
      */
     public void resetBall(double x, double y) {
+        balls = Arrays.stream(balls)
+                .filter(ball -> !ball.isIllusionDecoy())
+                .toArray(Ball[]::new);
         for (Ball ball : balls) {
             ball.resetBall(x * 2, y * 2);
         }
@@ -438,26 +494,29 @@ public class SoccerField implements Serializable {
         double height = courtHeight;
         double boundaryThickness = height / 100;
         double goalWidth = width / 10;
-        double goalHeight = height / 3;
-        double goalY = y + height - boundaryThickness - goalHeight;
+        double goalHeight = height * GOAL_HEIGHT_RATIO;
+        double floor = y + height - boundaryThickness;
         double previousCenterX = fieldHitbox == null ? x + width / 2 : courtX() + width / 2;
         double previousCenterY = fieldHitbox == null ? y + height / 2 : courtY() + height / 2;
 
         if (LeftGoalHitbox == null) {
-            LeftGoalHitbox = new RectangularHitbox(x, goalY, goalWidth, goalHeight);
+            LeftGoalHitbox = new RectangularHitbox(x, floor - goalHeight, goalWidth, goalHeight);
         }
         else {
-            LeftGoalHitbox.reposition(x, goalY);
+            // Una partida guardada puede conservar otra altura. Mantén el apoyo en el suelo.
+            LeftGoalHitbox.reposition(x, floor - LeftGoalHitbox.getHeight());
         }
         for (Ball ball : balls) {
             ball.reposition(ball.getX() + (x + width / 2 - previousCenterX),
                     ball.getY() + (y + height / 2 - previousCenterY));
         }
         if (RightGoalHitbox == null) {
-            RightGoalHitbox = new RectangularHitbox(x + width - goalWidth, goalY, goalWidth, goalHeight);
+            RightGoalHitbox = new RectangularHitbox(x + width - goalWidth,
+                    floor - goalHeight, goalWidth, goalHeight);
         }
         else {
-            RightGoalHitbox.reposition(x + width - goalWidth, goalY);
+            RightGoalHitbox.reposition(x + width - RightGoalHitbox.getWidth(),
+                    floor - RightGoalHitbox.getHeight());
         }
         if (fieldHitbox == null) fieldHitbox = new RectangularHitbox(x, y, width, height);
         else fieldHitbox.reposition(x, y);

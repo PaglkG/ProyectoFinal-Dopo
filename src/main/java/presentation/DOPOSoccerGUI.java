@@ -4,6 +4,7 @@ import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.event.KeyEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
@@ -46,6 +47,18 @@ import presentation.MatchSnapshot.Participant;
  * de refrescar la vista. {@link #showScreen(String)} refresca la pantalla
  * de destino y controla el temporizador. {@code improveStatistic()} procesa
  * la compra con la fachada, publica el resultado y refresca la tienda.
+ *
+ * <p><strong>Para extender la presentación:</strong> registra pantallas en
+ * {@code prepareViewScreens()} y rutas en {@link NavigationController}; el
+ * panel recibe acciones por callbacks. La presentación consulta {@link Game}
+ * solo desde esta ventana. Si un panel necesita otro dato de partida, léelo
+ * en {@code publishMatch()}, agrégalo a {@link MatchSnapshot} y consúmelo desde
+ * {@link PresentationState}; no conectes el panel directamente con el dominio.</p>
+ *
+ * <p><strong>Teclado durante el partido:</strong> {@code prepareControllerKeyboard()}
+ * instala acciones de presión y liberación en {@link MatchPanel}. Cada acción
+ * mantiene la tecla en el conjunto correspondiente; {@code updateHumanMovement()}
+ * consulta ese conjunto y envía movimiento, salto, patada o poder a {@link Game}.</p>
  */
 
 public class DOPOSoccerGUI extends JFrame 
@@ -65,6 +78,10 @@ public class DOPOSoccerGUI extends JFrame
     private final Timer matchTimer;
     /** Teclas sostenidas para aplicar movimiento continuamente durante el juego. */
     private final Set<Integer> pressedKeys = new HashSet<>();
+    /** Códigos asignados en la configuración, en el orden de las acciones. */
+    private int[] playerOneMatchKeys;
+    /** Códigos asignados para la segunda identidad. */
+    private int[] playerTwoMatchKeys;
     /** Configuración con la que se inició la sesión administrada. */
     private MatchConfiguration startedConfiguration;
     /** Pantalla inicial con los accesos a las demás opciones. */
@@ -131,7 +148,7 @@ public class DOPOSoccerGUI extends JFrame
         storeImprovementPanel = new StoreImprovementPanel(navigationController, this::improveStatistic);
         preparationPanel = new PreparationPanel(navigationController);
         resultsPanel = new ResultsPanel(navigationController);
-        matchPanel = new MatchPanel(navigationController);
+        matchPanel = new MatchPanel(navigationController, this::requestPlayerKick);
         pausePanel = new PausePanel(navigationController,
                 () -> showScreen(NavigationController.RESULTS), this::restartMatch,
                 this::saveMatch, Game.DEFAULT_SAVE_FILE);
@@ -191,23 +208,12 @@ public class DOPOSoccerGUI extends JFrame
         setDefaultCloseOperation(EXIT_ON_CLOSE);
     }
 
-    /** Conecta los controles predeterminados visibles en configuración con el partido activo. */
+    /** Limpia las teclas sostenidas cuando la ventana pierde el foco. */
     private void prepareControllerKeyboard() {
-        bindMatchKey(KeyEvent.VK_A, "player-one-left", null);
-        bindMatchKey(KeyEvent.VK_D, "player-one-right", null);
-        bindMatchKey(KeyEvent.VK_W, "player-one-jump",
-                () -> requestPlayerAction(true, () -> game.jumpPlayer(true)));
-        bindMatchKey(KeyEvent.VK_SPACE, "player-one-kick",
-                () -> requestPlayerAction(true, () -> game.kickPlayer(true)));
-
-        bindMatchKey(KeyEvent.VK_LEFT, "player-two-left", null);
-        bindMatchKey(KeyEvent.VK_RIGHT, "player-two-right", null);
-        bindMatchKey(KeyEvent.VK_UP, "player-two-jump",
-                () -> requestPlayerAction(false, () -> game.jumpPlayer(false)));
-        bindMatchKey(KeyEvent.VK_0, "player-two-kick",
-                () -> requestPlayerAction(false, () -> game.kickPlayer(false)));
-
         addWindowFocusListener(new WindowAdapter() {
+            /** Limpia las teclas cuando la liberación puede ocurrir fuera de la ventana.
+             * @param event evento de pérdida de foco enviado por Swing
+             */
             @Override
             public void windowLostFocus(WindowEvent event) {
                 clearPressedKeys();
@@ -215,22 +221,42 @@ public class DOPOSoccerGUI extends JFrame
         });
     }
 
-    /** Registra una pareja de acciones Swing para la presión y liberación de una tecla. */
+    /**
+     * Registra la tecla en el {@code InputMap} de MatchPanel y su respuesta
+     * en el {@code ActionMap}. Swing busca la asociación mientras la ventana
+     * tiene el foco. Se registran dos eventos por tecla: presionar y soltar.
+     * @param keyCode código {@link KeyEvent} de la tecla
+     * @param name nombre de la acción, usado para construir ambas claves
+     * @param pressAction acción inmediata o {@code null} si el temporizador lee la tecla
+     */
     private void bindMatchKey(int keyCode, String name, Runnable pressAction) {
         InputMap inputMap = matchPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
         ActionMap actionMap = matchPanel.getActionMap();
         String pressedName = name + "-pressed";
         String releasedName = name + "-released";
+        int modifier = modifierMaskForKey(keyCode);
+        // Shift/Ctrl/Alt/Meta cambian los modificadores del mismo KeyEvent que los pulsa.
         inputMap.put(KeyStroke.getKeyStroke(keyCode, 0, false), pressedName);
         inputMap.put(KeyStroke.getKeyStroke(keyCode, 0, true), releasedName);
+        if (modifier != 0) {
+            inputMap.put(KeyStroke.getKeyStroke(keyCode, modifier, false), pressedName);
+            inputMap.put(KeyStroke.getKeyStroke(keyCode, modifier, true), releasedName);
+        }
         actionMap.put(pressedName, new AbstractAction() {
+            /** Registra la primera pulsación y ejecuta su acción inmediata.
+             * @param event evento de acción enviado por Swing
+             */
             @Override
             public void actionPerformed(java.awt.event.ActionEvent event) {
+                // add devuelve false si el sistema repite una tecla que sigue sostenida.
                 if (!matchTimer.isRunning() || !pressedKeys.add(keyCode)) return;
                 if (pressAction != null) pressAction.run();
             }
         });
         actionMap.put(releasedName, new AbstractAction() {
+            /** Quita la tecla del conjunto para permitir una nueva pulsación.
+             * @param event evento de acción enviado por Swing
+             */
             @Override
             public void actionPerformed(java.awt.event.ActionEvent event) {
                 pressedKeys.remove(keyCode);
@@ -238,12 +264,54 @@ public class DOPOSoccerGUI extends JFrame
         });
     }
 
-    /** Ejecuta una acción discreta solo para el participante humano de la partida. */
+    /** Devuelve el modificador que Swing asocia al evento de una tecla modificadora.
+     * @param keyCode código de tecla configurado
+     * @return máscara del modificador propio o cero para una tecla normal
+     */
+    private static int modifierMaskForKey(int keyCode) {
+        return switch (keyCode) {
+            case KeyEvent.VK_SHIFT -> InputEvent.SHIFT_DOWN_MASK;
+            case KeyEvent.VK_CONTROL -> InputEvent.CTRL_DOWN_MASK;
+            case KeyEvent.VK_ALT -> InputEvent.ALT_DOWN_MASK;
+            case KeyEvent.VK_META -> InputEvent.META_DOWN_MASK;
+            case KeyEvent.VK_ALT_GRAPH -> InputEvent.ALT_GRAPH_DOWN_MASK;
+            default -> 0;
+        };
+    }
+
+    /** Ejecuta un salto o una patada de un participante humano durante la partida.
+     * @param playerOne {@code true} para el jugador 1
+     * @param action llamada a la fachada del dominio
+     */
     private void requestPlayerAction(boolean playerOne, Runnable action) {
         if (matchTimer.isRunning() && isHumanController(playerOne)) action.run();
     }
 
-    /** Comprueba si la identidad corresponde a una persona y no al bot de la sesión. */
+    /**
+     * Recibe la patada desde el teclado o un botón. Game resuelve el contacto
+     * por identidad y el panel anima el intento en el lado físico del humano.
+     * @param playerOne {@code true} para la identidad del jugador 1
+     */
+    private void requestPlayerKick(boolean playerOne) {
+        requestPlayerAction(playerOne, () -> {
+            game.kickPlayer(playerOne);
+            // Contra el bot, el humano juega a la izquierda con cualquiera de las dos identidades.
+            boolean rightSide = playerOne && !startedConfiguration.againstBot();
+            matchPanel.animateKick(rightSide);
+        });
+    }
+
+    /** Solicita el poder del jugador mediante la fachada del dominio.
+     * @param playerOne {@code true} para jugador 1; {@code false} para jugador 2
+     */
+    private void requestPlayerPower(boolean playerOne) {
+        requestPlayerAction(playerOne, () -> game.powerPlayer(playerOne));
+    }
+
+    /** Comprueba si la identidad recibe las acciones de los controles de la partida.
+     * @param playerOne {@code true} para el jugador 1
+     * @return si hay partida configurada y la identidad corresponde a un humano
+     */
     private boolean isHumanController(boolean playerOne) {
         return startedConfiguration != null && (!startedConfiguration.againstBot()
                 || startedConfiguration.playerOne() == playerOne);
@@ -251,16 +319,59 @@ public class DOPOSoccerGUI extends JFrame
 
     /** Aplica un paso horizontal a cada participante humano cuya tecla siga presionada. */
     private void updateHumanMovement() {
-        updatePlayerMovement(true, KeyEvent.VK_A, KeyEvent.VK_D);
-        updatePlayerMovement(false, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT);
+        updatePlayerMovement(true);
+        updatePlayerMovement(false);
     }
 
-    /** Interpreta las dos teclas de dirección para una identidad de jugador. */
-    private void updatePlayerMovement(boolean playerOne, int leftKey, int rightKey) {
-        if (!isHumanController(playerOne)) return;
-        boolean left = pressedKeys.contains(leftKey);
-        boolean right = pressedKeys.contains(rightKey);
+    /** Solicita un paso a Game cuando hay exactamente una dirección presionada.
+     * @param playerOne {@code true} para el jugador 1
+     */
+    private void updatePlayerMovement(boolean playerOne) {
+        int[] keys = playerOne ? playerOneMatchKeys : playerTwoMatchKeys;
+        if (!isHumanController(playerOne) || keys == null) return;
+        boolean right = pressedKeys.contains(keys[0]);
+        boolean left = pressedKeys.contains(keys[1]);
         if (left != right) game.movePlayer(playerOne, right);
+    }
+
+    /** Registra en la cancha los controles que la presentación tiene asignados. */
+    private void bindAssignedMatchKeys() {
+        unbindMatchKeys(playerOneMatchKeys, "player-one");
+        unbindMatchKeys(playerTwoMatchKeys, "player-two");
+        playerOneMatchKeys = configurationPanel.getPlayerOneKeyCodes();
+        playerTwoMatchKeys = configurationPanel.getPlayerTwoKeyCodes();
+        bindPlayerKeys(true, playerOneMatchKeys, "player-one");
+        bindPlayerKeys(false, playerTwoMatchKeys, "player-two");
+    }
+
+    /** Conecta las cinco acciones de una identidad con sus códigos asignados. */
+    private void bindPlayerKeys(boolean playerOne, int[] keys, String name) {
+        bindMatchKey(keys[0], name + "-right", null);
+        bindMatchKey(keys[1], name + "-left", null);
+        bindMatchKey(keys[2], name + "-jump",
+                () -> requestPlayerAction(playerOne, () -> game.jumpPlayer(playerOne)));
+        bindMatchKey(keys[3], name + "-kick", () -> requestPlayerKick(playerOne));
+        bindMatchKey(keys[4], name + "-power", () -> requestPlayerPower(playerOne));
+    }
+
+    /** Retira los registros anteriores antes de aplicar una asignación nueva. */
+    private void unbindMatchKeys(int[] keys, String name) {
+        if (keys == null) return;
+        String[] actions = {"right", "left", "jump", "kick", "power"};
+        InputMap inputMap = matchPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = matchPanel.getActionMap();
+        for (int i = 0; i < actions.length; i++) {
+            String actionName = name + "-" + actions[i];
+            inputMap.remove(KeyStroke.getKeyStroke(keys[i], 0, false));
+            inputMap.remove(KeyStroke.getKeyStroke(keys[i], 0, true));
+            int modifier = modifierMaskForKey(keys[i]);
+            if (modifier != 0) {
+                inputMap.remove(KeyStroke.getKeyStroke(keys[i], modifier, false));
+                inputMap.remove(KeyStroke.getKeyStroke(keys[i], modifier, true));
+            }
+            actionMap.remove(actionName + "-pressed");
+            actionMap.remove(actionName + "-released");
+        }
     }
 
     /** Olvida las teclas sostenidas al salir de la cancha o perder el foco de la ventana. */
@@ -280,6 +391,10 @@ public class DOPOSoccerGUI extends JFrame
     {
         // Solo la cancha de una partida activa vuelve a iniciar el temporizador.
         matchTimer.stop();
+        if (NavigationController.MATCH.equals(screen) && startedConfiguration != null) {
+            clearPressedKeys();
+            bindAssignedMatchKeys();
+        }
         if (!NavigationController.MATCH.equals(screen)) clearPressedKeys();
         if (NavigationController.MATCH.equals(screen)) {
             MatchSnapshot match = PresentationState.getMatch().orElse(null);
@@ -441,7 +556,11 @@ public class DOPOSoccerGUI extends JFrame
         return new File(gameFile.getAbsolutePath() + ".ui");
     }
 
-    /** Avanza un paso, publica su estado y refresca la vista que muestra el partido. */
+    /**
+     * Atiende el temporizador de Swing. Aplica el movimiento acumulado en
+     * {@code pressedKeys}, avanza Game, publica una captura y pide a MatchPanel
+     * que la dibuje. Si la captura indica el final, abre Resultados.
+     */
     private void updateGame() {
         updateHumanMovement();
         game.updateGame();
@@ -500,7 +619,8 @@ public class DOPOSoccerGUI extends JFrame
         Bounds bounds = new Bounds(game.getPlayerX(playerOne), game.getPlayerY(playerOne),
                 game.getPlayerWidth(playerOne), game.getPlayerHeight(playerOne));
         return new Participant(bounds, game.getPlayerLife(playerOne), game.getPlayerMaxLife(playerOne),
-                game.getPlayerPowerRemainingSeconds(playerOne), game.getPlayerPoints(playerOne),
+                game.getPlayerPowerRemainingSeconds(playerOne), game.isPlayerPowerActive(playerOne),
+                game.getPlayerPoints(playerOne),
                 game.getPlayerSpeed(playerOne), game.getPlayerJump(playerOne),
                 game.getPlayerKick(playerOne), game.getPlayerNextUpgradeCost(playerOne));
     }
@@ -601,4 +721,10 @@ public class DOPOSoccerGUI extends JFrame
             gui.setVisible(true);
         });
     }
+
+    //javac HolaMundo.java
+    //java HolaMundo
+    //mvn clean test
+    //mvn clean package
+
 }

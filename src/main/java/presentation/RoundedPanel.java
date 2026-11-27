@@ -12,6 +12,10 @@ import javax.swing.JPanel;
  * rectángulo redondeado en vez de un rectángulo normal.
  * El constructor recibe el color y la curvatura. {@code paintComponent}
  * vuelve a dibujar el fondo con el color y el tamaño actuales del componente.
+ *
+ * <p><strong>Para variar el contenedor:</strong> ajusta el constructor o
+ * {@code paintComponent()}; las pantallas como {@link PausePanel} y
+ * {@link ResultsPanel} deciden dónde se usa y qué componentes contiene.</p>
  */
 class RoundedPanel extends JPanel 
 {

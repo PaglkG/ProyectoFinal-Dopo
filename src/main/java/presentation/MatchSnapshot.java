@@ -10,6 +10,14 @@ import java.util.Optional;
  * consultan con {@link DOPOSoccerGUI.PresentationState#getMatch()}.
  * {@link #getParticipant(boolean)} selecciona un lado de la cancha;
  * {@link #getHumanPlayer(boolean)} selecciona una identidad humana.
+ * La cancha consulta por lado físico y la tienda consulta por identidad.
+ * Todos los valores pertenecen al mismo paso de simulación.
+ *
+ * <p><strong>Para exponer otro dato:</strong> agrega un campo inmutable y su
+ * getter, amplía el constructor y arma ese valor en
+ * {@code DOPOSoccerGUI.publishMatch()} con getters de {@code Game}. Si pertenece
+ * a balón, participante o geometría, extiende la clase interna correspondiente.
+ * Los paneles leen esta captura; nunca consultan el dominio por su cuenta.</p>
  */
 public final class MatchSnapshot {
     private final MatchConfiguration configuration;
@@ -202,19 +210,33 @@ public final class MatchSnapshot {
         private final int life;
         private final int maxLife;
         private final double powerRemainingSeconds;
+        private final boolean powerActive;
         private final int points;
         private final int speedLevel;
         private final int jumpLevel;
         private final int kickLevel;
         private final int nextUpgradeCost;
 
-        /** Guarda la geometría, estado de juego, estadísticas y costo de mejora del participante. */
+        /** Guarda la geometría, estado de juego, estadísticas y costo de mejora del participante.
+         * @param bounds hitbox física
+         * @param life vida actual
+         * @param maxLife vida máxima
+         * @param powerRemainingSeconds segundos de recarga pendientes
+         * @param powerActive indica si el poder espera tocar el balón
+         * @param points puntos disponibles
+         * @param speedLevel nivel de velocidad
+         * @param jumpLevel nivel de salto
+         * @param kickLevel nivel de patada
+         * @param nextUpgradeCost costo de la siguiente mejora
+         */
         Participant(Bounds bounds, int life, int maxLife, double powerRemainingSeconds,
+                boolean powerActive,
                 int points, int speedLevel, int jumpLevel, int kickLevel, int nextUpgradeCost) {
             this.bounds = bounds;
             this.life = life;
             this.maxLife = maxLife;
             this.powerRemainingSeconds = powerRemainingSeconds;
+            this.powerActive = powerActive;
             this.points = points;
             this.speedLevel = speedLevel;
             this.jumpLevel = jumpLevel;
@@ -241,6 +263,11 @@ public final class MatchSnapshot {
          * @return segundos restantes
          */
         public double getPowerRemainingSeconds() { return powerRemainingSeconds; }
+
+        /** Indica si el poder se armó y todavía espera el contacto con el balón.
+         * @return {@code true} mientras el poder esté activo
+         */
+        public boolean isPowerActive() { return powerActive; }
 
         /** Devuelve los puntos disponibles para mejoras.
          * @return saldo de puntos

@@ -128,5 +128,15 @@ class PowerTest {
     private static class PowerWithPrivateConstructor extends Power {
         private PowerWithPrivateConstructor() {
         }
+
+        @Override
+        public void applyImpact(SessionParticipant player, Ball ball, boolean attackerOnLeft) {
+            // No hay efectos adicionales al aplicar el poder
+        }
+
+        @Override
+        public boolean startTrajectory(Ball ball, boolean attackerOnLeft) {
+            return false;
+        }
     }
 }

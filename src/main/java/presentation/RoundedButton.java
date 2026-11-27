@@ -15,6 +15,11 @@ import javax.swing.JButton;
  * mouse y se oscurece al presionarlo.
  * Recibe el texto y los colores en el constructor. {@code paintComponent}
  * consulta el estado de pulsación de Swing y aplica el color de cada repintado.
+ *
+ * <p><strong>Para variar el estilo:</strong> actualiza los valores de color,
+ * fuente o arco recibidos por el constructor; los paneles que lo usan
+ * (por ejemplo {@link MainMenuPanel} y {@link PausePanel}) conservan la
+ * colocación y las acciones de cada botón.</p>
  */
 class RoundedButton extends JButton 
 {

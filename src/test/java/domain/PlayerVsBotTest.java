@@ -100,7 +100,7 @@ class PlayerVsBotTest {
                 box.getY() + box.getHeight() / 2);
         session.updateGame();
         double firstKick = ball.getVelocityX();
-        assertEquals(-150, firstKick, 1e-9);
+        assertEquals(-260, firstKick, 1e-9);
 
         session.updateGame();
 
@@ -123,7 +123,7 @@ class PlayerVsBotTest {
 
         session.updateGame();
 
-        assertEquals(-150, ball.getVelocityX(), 1e-9);
+        assertEquals(-260, ball.getVelocityX(), 1e-9);
     }
 
     @Test

@@ -30,13 +30,18 @@ import javax.swing.SwingConstants;
  *       botones a partir de las asignaciones iniciales. Los eventos de teclado
  *       llegan a {@code captureKey()} desde {@code prepareControllerKeyButton()}.</li>
  *   <li><strong>Modificación:</strong> {@code assignKey()} comprueba si otra
- *       acción usa esa tecla y registra el cambio en el texto del botón.
- *       {@code prepareControllerSave()} regresa al menú. La persistencia de
- *       las asignaciones queda pendiente.</li>
+ *       acción usa esa tecla y actualiza su texto y código. Guardar regresa al
+ *       menú; la instancia conserva las asignaciones en memoria para el partido.</li>
  *   <li><strong>Actualización:</strong> {@code startKeyCapture()} muestra la
  *       espera, {@code assignKey()} muestra la tecla elegida y
  *       {@code cancelKeyCapture()} restaura el texto anterior.</li>
  * </ul>
+ *
+ * <p><strong>Para agregar un control:</strong> incluye la asignación en el
+ * modelo inicial y en la cuadrícula de {@code prepareViewKeyGrid()}; conecta
+ * su botón desde {@code prepareControllerKeyButton()}. La captura y validación
+ * se centralizan en {@code startKeyCapture()}, {@code captureKey()} y
+ * {@code assignKey()}.</p>
  */
 public class ConfigurationPanel extends BasePanel 
 {
@@ -67,6 +72,7 @@ public class ConfigurationPanel extends BasePanel
     private static final String WAITING_TEXT = "Presiona una tecla...";
     private static final String WAITING_PROPERTY = "waitingForKey";
     private static final String PREVIOUS_TEXT_PROPERTY = "previousKeyText";
+    private static final String KEY_CODE_PROPERTY = "assignedKeyCode";
 
     /** Controlador que coordina los cambios de pantalla. */
     private NavigationController navigationController;
@@ -203,8 +209,32 @@ public class ConfigurationPanel extends BasePanel
             buttons[i] = new RoundedButton(KeyEvent.getKeyText(keyCodes[i]),
                     Color.WHITE, Theme.DARK_GREEN, Theme.SAND_BORDER, 13);
             buttons[i].setPreferredSize(new Dimension(100, KEY_BUTTON_HEIGHT));
+            buttons[i].putClientProperty(KEY_CODE_PROPERTY, keyCodes[i]);
         }
         return buttons;
+    }
+
+    /** Devuelve una copia de las teclas asignadas al jugador 1, en orden de acción.
+     * @return códigos de derecha, izquierda, salto, patada y poder
+     */
+    public int[] getPlayerOneKeyCodes() {
+        return assignedKeyCodes(player1KeyButtons);
+    }
+
+    /** Devuelve una copia de las teclas asignadas al jugador 2, en orden de acción.
+     * @return códigos de derecha, izquierda, salto, patada y poder
+     */
+    public int[] getPlayerTwoKeyCodes() {
+        return assignedKeyCodes(player2KeyButtons);
+    }
+
+    /** Lee los códigos asociados a los botones de un jugador. */
+    private int[] assignedKeyCodes(JButton[] buttons) {
+        int[] keyCodes = new int[buttons.length];
+        for (int i = 0; i < buttons.length; i++) {
+            keyCodes[i] = (Integer) buttons[i].getClientProperty(KEY_CODE_PROPERTY);
+        }
+        return keyCodes;
     }
 
     /**
@@ -236,6 +266,7 @@ public class ConfigurationPanel extends BasePanel
 
         JPanel row = new JPanel(new FlowLayout(FlowLayout.RIGHT, KEY_GRID_HGAP, 0));
         row.setOpaque(false);
+        // Menú inferior: agrega a row los botones nuevos de Configuración.
         row.add(saveButton);
         row.add(backButton);
         limitHeight(row);
@@ -296,7 +327,10 @@ public class ConfigurationPanel extends BasePanel
 
     /**
      * Permite cambiar la tecla de un botón: al hacer clic espera una tecla,
-     * la tecla Escape o salir del botón cancelan el cambio.
+     * la tecla Escape o salir del botón cancelan el cambio. El {@code KeyAdapter}
+     * escucha en ese botón mientras tiene el foco y delega a {@code captureKey()}.
+     * El {@code FocusAdapter} cancela la espera al perder el foco. El cambio
+     * modifica la asignación mostrada en este panel.
      *
      * @param button botón de tecla
      */
@@ -330,12 +364,12 @@ public class ConfigurationPanel extends BasePanel
     }
 
     /**
-     * Conecta el clic en Guardar con el menú principal. Las asignaciones
-     * editadas viven en los botones de este panel.
+     * Conecta Guardar con el menú principal. Las asignaciones permanecen en
+     * los botones de esta instancia y la ventana las consulta al preparar el
+     * partido; este botón no escribe un archivo de configuración.
      */
     private void prepareControllerSave() 
     {
-        // Pendiente: decidir dónde se guardan las teclas.
         saveButton.addActionListener(e -> 
             navigationController.showScreen(NavigationController.MAIN_MENU));
     }
@@ -372,7 +406,7 @@ public class ConfigurationPanel extends BasePanel
 
     /**
      * Consume el evento mientras espera una tecla. Escape cancela la captura.
-     * Las demás teclas se convierten a su nombre visible y pasan a
+     * Las demás teclas pasan a
      * {@code assignKey()} para comprobar duplicados y actualizar el botón.
      *
      * @param button botón de tecla
@@ -391,17 +425,18 @@ public class ConfigurationPanel extends BasePanel
             cancelKeyCapture(button);
             return;
         }
-        assignKey(button, KeyEvent.getKeyText(event.getKeyCode()));
+        assignKey(button, event.getKeyCode());
     }
 
     /**
      * Asigna la tecla al botón, salvo que ya la use otra acción.
      *
      * @param button botón de tecla
-     * @param keyText nombre de la tecla
+     * @param keyCode código de tecla recibido de {@code KeyEvent}
      */
-    private void assignKey(JButton button, String keyText) 
+    private void assignKey(JButton button, int keyCode)
     {
+        String keyText = KeyEvent.getKeyText(keyCode);
         // Antes de cambiar la etiqueta, comprueba si la tecla está asignada en alguna columna.
         String owner = findKeyOwner(button, keyText);
         if (owner != null) 
@@ -413,6 +448,7 @@ public class ConfigurationPanel extends BasePanel
             return;
         }
         button.setText(keyText);
+        button.putClientProperty(KEY_CODE_PROPERTY, keyCode);
         button.putClientProperty(WAITING_PROPERTY, Boolean.FALSE);
     }
 

@@ -36,6 +36,12 @@ import presentation.MatchSnapshot.Participant;
  *       {@code displayedLevel()} consulta los cuatro niveles y muestra el costo
  *       de la siguiente compra desde la captura.</li>
  * </ul>
+ *
+ * <p><strong>Para agregar una mejora:</strong> crea su fila visual en
+ * {@code prepareViewUpgrades()}, conecta su callback en
+ * {@code prepareControllerUpgrades()} y usa la clave de estadística que
+ * acepta {@code Game.improveStatistics()}. La ventana publica otra captura y
+ * llama a {@code refreshFromState()} después de cada compra.</p>
  */
 public class StoreImprovementPanel extends BasePanel 
 {
@@ -179,6 +185,8 @@ public class StoreImprovementPanel extends BasePanel
      */
     private void prepareViewBackButton(JPanel content) 
     {
+        // Menú de tienda: el botón de regreso va en content; las compras se agregan
+        // en createStatRow() y se conectan por jugador y estadística.
         backButton = new RoundedButton("Volver a personalización",
                 Theme.GREEN, Color.WHITE, Theme.GREEN, 16);
         Dimension size = new Dimension(BACK_BUTTON_WIDTH, BACK_BUTTON_HEIGHT);

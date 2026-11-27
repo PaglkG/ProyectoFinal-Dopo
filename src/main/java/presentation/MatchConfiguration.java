@@ -8,6 +8,12 @@ import java.util.Objects;
  * La ventana usa sus parámetros al iniciar la sesión y la incluye en
  * {@link MatchSnapshot}. Preparación, cancha y resultados usan sus datos de
  * países, personajes y modalidad al refrescarse.
+ *
+ * <p><strong>Para extender la configuración:</strong> agrega el dato aquí,
+ * cópialo en el constructor y en {@code equals()}, {@code hashCode()} y
+ * {@code toString()}; luego pásalo desde {@link PersonalizationPanel} y úsalo
+ * al publicar la partida en {@link DOPOSoccerGUI}. Mantén esta clase como datos
+ * inmutables, sin acceso directo al dominio.</p>
  */
 public final class MatchConfiguration implements java.io.Serializable {
     private static final long serialVersionUID = 1L;
@@ -117,6 +123,10 @@ public final class MatchConfiguration implements java.io.Serializable {
         return right != againstBot ? playerOneHeadImage : playerTwoHeadImage;
     }
 
+    /** Compara las reglas, los poderes y las selecciones visuales de dos configuraciones.
+     * @param other objeto que se compara
+     * @return si ambos objetos describen la misma configuración
+     */
     @Override
     public boolean equals(Object other) {
         if (this == other) return true;
@@ -132,6 +142,9 @@ public final class MatchConfiguration implements java.io.Serializable {
                 && Objects.equals(playerTwoHeadImage, that.playerTwoHeadImage);
     }
 
+    /** Calcula un código coherente con los campos que compara {@code equals()}.
+     * @return código de dispersión de la configuración
+     */
     @Override
     public int hashCode() {
         return Objects.hash(parametersRules, parametersPowers, typeGame, typeMatch, playerOne,
@@ -139,6 +152,9 @@ public final class MatchConfiguration implements java.io.Serializable {
                 playerOneHeadImage, playerTwoHeadImage);
     }
 
+    /** Describe los valores de configuración para diagnóstico.
+     * @return descripción de las opciones seleccionadas
+     */
     @Override
     public String toString() {
         return "MatchConfiguration[parametersRules=" + parametersRules

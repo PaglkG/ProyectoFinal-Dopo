@@ -114,10 +114,10 @@ public abstract class GameSession implements Serializable {
     static final double STEP_SECONDS = 1.0 / 60.0;
     private static final double BOUNCE_RETENTION = 0.70;
     private static final double MIN_BOUNCE_SPEED = 0.5;
-    private static final double GRAVITY = 40.0;
+    private static final double GRAVITY = 80.0;
     private static final double KICK_REACH = 8.0;
-    private static final double KICK_HORIZONTAL_IMPULSE = 150.0;
-    private static final double KICK_VERTICAL_IMPULSE = -50.0;
+    private static final double KICK_HORIZONTAL_IMPULSE = 260.0;
+    private static final double KICK_VERTICAL_IMPULSE = -70.0;
 
     /** Tiempo transcurrido de la sesión, en segundos. */
     private double timeLeft;
@@ -347,6 +347,7 @@ public abstract class GameSession implements Serializable {
      */
     private void goal() {
         for (Ball ball : field.balls()) {
+            if (ball.isIllusionDecoy()) continue;
             String goalSide = field.goalSideFor(ball);
             if ("left".equals(goalSide)) {
                 goal("right");
@@ -360,12 +361,13 @@ public abstract class GameSession implements Serializable {
     }
 
 
-    /**
-     * Punto de extensión para solicitar un poder; actualmente no modifica al
-     * participante.
-     * @param player participante que usará el poder
+    /** Arma el poder cargado solicitado por un participante de una sesión activa.
+     * @param player participante que solicita el poder
      */
     public void powerPlayer(SessionParticipant player) {
+        if (finished || player == null || player.blocksMovement()
+                || (!participantsRight.contains(player) && !participantsLeft.contains(player))) return;
+        player.power();
     }
 
     /**
@@ -397,6 +399,7 @@ public abstract class GameSession implements Serializable {
             return true;
         }
         for (Ball ball : field.balls()) {
+            if (ball.isIllusionDecoy()) continue;
             if (isBallInKickReach(box, ball)) {
                 ball.applyImpulse(direction * KICK_HORIZONTAL_IMPULSE, KICK_VERTICAL_IMPULSE);
                 return true;
@@ -586,7 +589,8 @@ public abstract class GameSession implements Serializable {
         if (leftBefore != goalsLeft || rightBefore != goalsRight) return;
 
         field.resolveBallCollisions(BOUNCE_RETENTION);
-        field.resolveBallParticipantCollisions(allParticipants, BOUNCE_RETENTION, MIN_BOUNCE_SPEED);
+        field.resolveBallParticipantCollisions(participantsLeft, participantsRight,
+                BOUNCE_RETENTION, MIN_BOUNCE_SPEED);
         for (Ball ball : field.balls()) {
             field.bounceBallAtWallsAndGoalFrames(ball, BOUNCE_RETENTION);
             field.bounceBallAtGround(ball, BOUNCE_RETENTION, MIN_BOUNCE_SPEED);

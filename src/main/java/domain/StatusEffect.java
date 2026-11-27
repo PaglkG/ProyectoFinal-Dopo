@@ -14,6 +14,8 @@ public class StatusEffect implements Serializable {
 
     /** Identificador del efecto de aturdimiento. */
     public static final String STUNNED = "stunned";
+    /** Identificador del efecto eléctrico que reduce velocidad e impide saltar. */
+    public static final String ELECTROCUTED = "electrocuted";
     /** Duración del efecto de aturdimiento, en segundos. */
     public static final double STUN_DURATION_SECONDS = 3.0;
     private static final double STEP_SECONDS = 1.0 / 60.0;
@@ -74,18 +76,19 @@ public class StatusEffect implements Serializable {
 
     /**
      * Devuelve el multiplicador de velocidad aplicado por el efecto.
-     * @return cero durante aturdimiento y uno en otro caso
+     * @return cero durante aturdimiento, la mitad durante electrocución y uno en otro caso
      */
     public double getSpeedFactor() {
-        return blocksMovement() ? 0.0 : 1.0;
+        if (blocksMovement()) return 0.0;
+        return ELECTROCUTED.equals(type) && !isExpired() ? 0.5 : 1.0;
     }
 
     /**
      * Devuelve el multiplicador de salto aplicado por el efecto.
-     * @return cero durante aturdimiento y uno en otro caso
+     * @return cero durante aturdimiento o electrocución y uno en otro caso
      */
     public double getJumpFactor() {
-        return blocksMovement() ? 0.0 : 1.0;
+        return blocksJump() ? 0.0 : 1.0;
     }
 
     /**
@@ -94,5 +97,12 @@ public class StatusEffect implements Serializable {
      */
     public boolean blocksMovement() {
         return STUNNED.equals(type) && !isExpired();
+    }
+
+    /** Indica si el efecto vigente impide saltar.
+     * @return {@code true} durante aturdimiento o electrocución
+     */
+    public boolean blocksJump() {
+        return (STUNNED.equals(type) || ELECTROCUTED.equals(type)) && !isExpired();
     }
 }

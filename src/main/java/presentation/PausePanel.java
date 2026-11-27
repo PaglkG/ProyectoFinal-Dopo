@@ -29,6 +29,11 @@ import javax.swing.SwingConstants;
  *   <li><strong>Actualización:</strong> {@code prepareView()} construye el menú;
  *       el fondo se repinta cuando Swing muestra o redimensiona el panel.</li>
  * </ul>
+ *
+ * <p><strong>Para agregar un botón:</strong> crea el componente y añádelo a la
+ * tarjeta vertical en {@code prepareViewPauseCard()}; conecta su acción en
+ * {@code prepareController()}. Usa el controlador de navegación para cambiar
+ * de pantalla y callbacks para las operaciones coordinadas por la ventana.</p>
  */
 public class PausePanel extends BasePanel {
     private static final String COURT_IMAGE = "/images/ui/court@4x-8.png";
@@ -83,6 +88,9 @@ public class PausePanel extends BasePanel {
 
     /** Crea la tarjeta con las acciones visibles del menú de pausa. */
     private JPanel prepareViewPauseCard() {
+        // Menú de pausa: cada card.add coloca un botón en esta columna, en orden.
+        // Los botones de navegación usan prepareController(); reiniciar y guardar
+        // usan las acciones que la ventana entregó al construir el panel.
         RoundedPanel card = new RoundedPanel(Theme.BACKGROUND, 34);
         card.setLayout(new javax.swing.BoxLayout(card, javax.swing.BoxLayout.Y_AXIS));
         card.setBorder(BorderFactory.createEmptyBorder(20, 28, 24, 28));
@@ -182,6 +190,7 @@ public class PausePanel extends BasePanel {
     private static final class CourtBackground extends JPanel {
         private final Image courtImage = loadCourtImage();
 
+        /** Prepara el fondo de cancha y su color de respaldo. */
         private CourtBackground() {
             setOpaque(true);
             setBackground(new Color(0x29A8DB));

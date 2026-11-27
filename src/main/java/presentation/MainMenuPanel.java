@@ -39,6 +39,12 @@ import javax.swing.SwingConstants;
  *   <li><strong>Actualización:</strong> {@code loadLogo()} asigna la imagen o
  *       el título alternativo. La ventana muestra el menú al navegar a él.</li>
  * </ul>
+ *
+ * <p><strong>Para agregar una opción:</strong> coloca el botón en
+ * {@code prepareViewMainButtons()} o {@code prepareViewBottomButtons()} y
+ * registra su acción en {@code prepareController()}. La navegación usa las
+ * rutas de {@link NavigationController}; la ventana las registra en
+ * {@code DOPOSoccerGUI.prepareViewScreens()}.</p>
  */
 public class MainMenuPanel extends BasePanel 
 {
@@ -197,6 +203,8 @@ public class MainMenuPanel extends BasePanel
         content.add(Box.createVerticalStrut(LABEL_GAP));
     }
  
+    // Menú de botones: content contiene los accesos grandes y bottomRow los inferiores.
+    // Declara el botón como campo y conecta su clic en prepareController().
     /**
      * Crea los botones grandes (Jugar y Abrir Partida) y los agrega al contenedor.
      *
@@ -315,7 +323,11 @@ public class MainMenuPanel extends BasePanel
     {
         private final int arc;
 
-        RoundedPanel(Color color, int arc) 
+        /** Crea el fondo del menú.
+         * @param color relleno del panel
+         * @param arc tamaño de las esquinas redondeadas
+         */
+        RoundedPanel(Color color, int arc)
         {
             this.arc = arc;
             setBackground(color);
@@ -345,7 +357,14 @@ public class MainMenuPanel extends BasePanel
         private static final int ARC = 22;
         private final Color borderColor;
 
-        RoundedButton(String text, Color background, Color foreground, Color borderColor, int fontSize) 
+        /** Crea un botón del menú con su rótulo, colores y tamaño de fuente.
+         * @param text rótulo visible
+         * @param background color de relleno
+         * @param foreground color del texto
+         * @param borderColor color del borde
+         * @param fontSize tamaño del texto
+         */
+        RoundedButton(String text, Color background, Color foreground, Color borderColor, int fontSize)
         {
             super(text);
             this.borderColor = borderColor;

@@ -44,6 +44,19 @@ public final class CollisionFacade {
         participantResolver.resolveAll(field.balls(), participants, restitution, minimumLandingSpeed);
     }
 
+    /** Resuelve colisiones conservando el lado de cada participante para los poderes.
+     * @param participantsLeft participantes del lado izquierdo
+     * @param participantsRight participantes del lado derecho
+     * @param restitution fracción de velocidad normal conservada en los rebotes
+     * @param minimumLandingSpeed velocidad vertical mínima al aterrizar sobre un balón
+     */
+    public void resolveBallParticipantCollisions(Iterable<SessionParticipant> participantsLeft,
+            Iterable<SessionParticipant> participantsRight, double restitution,
+            double minimumLandingSpeed) {
+        participantResolver.resolveAll(field.balls(), field, participantsLeft, participantsRight,
+                restitution, minimumLandingSpeed);
+    }
+
     /** Traslada los balones apoyados y cede a la física libre al perder el apoyo. */
     void rollSupportedBalls(Iterable<SessionParticipant> participants, double stepSeconds, double gravity) {
         participantResolver.rollSupportedBalls(field.balls(), participants, stepSeconds, gravity, geometry);
