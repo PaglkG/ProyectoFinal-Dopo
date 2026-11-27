@@ -202,14 +202,16 @@ class GameTest {
     @Test
     void startSessionReusesTheSameSessionAndItsStatistics() throws GameException {
         GameSession first = game.startSession(
-                List.of("150", "450", "1"), List.of("domain.BlueAura", "domain.Lightning"),
+                List.of("150", "450", "2"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
         first.goal("right");
+        assertFalse(first.isFinished());
         Stats playerOne = first.getParticipantsRight().get(0).getStats();
-        for (int win = 0; win < 4; win++) playerOne.awardWin();
+        for (int win = 0; win < 5; win++) playerOne.awardWin();
+        first.getParticipantsLeft().get(0).getStats().awardLoss();
         playerOne.improveStatistics("speed");
         GameSession second = game.startSession(
-                List.of("150", "450", "1"), List.of("domain.BlueAura", "domain.Lightning"),
+                List.of("150", "450", "2"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
 
         assertSame(playerOne, second.getParticipantsRight().get(0).getStats());
@@ -219,7 +221,7 @@ class GameTest {
         assertEquals(Stats.POINTS_PER_LOSS, second.getParticipantsLeft().get(0).getStats().getPoints());
 
         assertSame(second, game.startSession(
-                List.of("150", "450", "1"), List.of("domain.BlueAura", "domain.Lightning"),
+                List.of("150", "450", "2"), List.of("domain.BlueAura", "domain.Lightning"),
                 PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true));
         assertEquals(0, playerOne.getPoints());
     }
