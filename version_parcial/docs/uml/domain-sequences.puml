@@ -1,0 +1,323 @@
+@startuml
+title Game constructor (flujo implementado)
+actor Usuario
+participant "game: Game" as G
+Usuario -> G ++: new Game()
+  G -> G: session = null
+G --> Usuario --: instancia Game
+@enduml
+
+@startuml
+title movePlayer (flujo implementado)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "player: SessionParticipant" as P
+participant "field: SoccerField" as F
+participant "collisions: CollisionFacade" as C
+participant "geometry: CourtGeometry" as CG
+participant "resolver: BallCollisionResolver" as BR
+participant "participant resolver: BallParticipantCollisionResolver" as PR
+participant "axis resolver: CollisionAxisResolver" as AR
+participant "circle-rectangle resolver: CircleRectangleCollisionResolver" as CR
+participant "ball: Ball" as B
+Usuario -> G: movePlayer(player, direction)
+G -> S: movePlayer(player, direction)
+S -> P: move(direction)
+P -> P: guardar posición X/Y anterior
+S -> F: resolveWalkingContact(player, previousX, participants)
+F -> C: resolveWalkingContact(player, previousX, participants)
+loop balones que intersectan al participante
+  alt empuje permitido (balón quieto o en movimiento)
+    C -> BR: recorrer contacto de caminata
+    BR -> CG: isValidBallPosition(...)
+    CG --> BR: posición permitida
+    BR -> B: reposicionar en pasos pequeños
+    note over S,B: El empuje conserva la velocidad actual
+  else el empuje choca con límite, balón o participante
+    BR -> B: conservar la última posición válida
+    BR -> P: restaurar posición horizontal anterior
+  end
+end
+note over P,B
+  Si el movimiento reduce el solapamiento horizontal con un balón ya en contacto,
+  el jugador se aleja y el balón conserva su posición.
+end note
+alt direction == true
+  note right of P: true = derecha
+else direction == false
+  note right of P: false = izquierda
+end
+note over G,P
+  La sesión ignora solicitudes para participantes no registrados
+  o después de finalizar el partido. El desplazamiento total
+  equivale a 150 × speed / 60. Empuja balones quietos y en movimiento
+  sin cambiar su velocidad y sin atravesar límites u otros objetos.
+end note
+@enduml
+
+@startuml
+title jumpPlayer (PDF: intención; código sin implementar)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "player: SessionParticipant" as P
+Usuario -> G: jumpPlayer(player)
+G -> S: jumpPlayer(player)
+S -> P: jump()
+note over G,P
+  Game.jumpPlayer, GameSession.jumpPlayer y SessionParticipant.jump
+  están vacíos.
+end note
+@enduml
+
+@startuml
+title powerPlayer (flujo implementado)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "player: SessionParticipant" as P
+participant "power: Power" as W
+Usuario -> G: powerPlayer(player)
+G -> S: powerPlayer(player)
+alt sesión terminada, participante inválido o bloqueado
+  S --> G: ignorar solicitud
+else carga completa y sin otro poder armado
+  S -> P: power()
+  P -> W: isUsable()
+  W --> P: true
+  P -> W: usePower()
+  P -> P: powerActive = true
+  P --> G: poder armado; espera contacto con balón
+else carga incompleta o poder ya armado
+  P --> G: no cambia el estado
+end
+note over G,W
+  El siguiente contacto con el balón ejecuta la trayectoria
+  desde BallParticipantCollisionResolver y apaga el aura.
+end note
+@enduml
+
+@startuml
+title improveStatistics (implementación actual)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "participante seleccionado" as P
+participant "stats: Stats" as T
+Usuario -> G: improveStatistics(player, stat)
+G -> S: improveStatistics(player, stat)
+alt player == true
+  S -> P: improveStatistics(stat) [lado derecho / jugador 1]
+else player == false
+  S -> P: improveStatistics(stat) [lado izquierdo / jugador 2]
+end
+P -> T: improveStatistics(stat)
+alt habilidad válida, nivel menor que 10 y saldo >= precio vigente
+  T -> T: guardar vida máxima anterior
+  T -> T: incrementar habilidad en 1
+  T -> T: descontar precio vigente (500, 1000, 2000...)
+  T -> T: duplicar precio para la siguiente compra
+  opt estadística == survival
+    P -> P: aumentar vida máxima y actual en 10
+  end
+else habilidad en nivel 10
+  T -> T: no modificar estado ni saldo
+else saldo insuficiente o habilidad desconocida
+  T --> G: GameException
+end
+@enduml
+
+@startuml
+title kickPlayer contra rival (implementación actual)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "attacker: SessionParticipant" as A
+participant "target: SessionParticipant" as T
+participant "attacker stats: Stats" as ST
+participant "target status: StatusEffect" as E
+Usuario -> G: kickPlayer(participantId)
+G -> S: kickPlayer(attacker)
+S -> A: blocksMovement()
+alt sesión terminada, atacante inválido o aturdido
+  S --> G: false
+else atacante activo
+  S -> S: buscar rival más cercano a <= 8 unidades
+  alt rival al alcance
+    S -> A: getStats()
+    A -> ST: getKickDamage() [10 × (1 + 0.10 × (kick - 1))]
+    ST -> ST: calcular daño normal (10 a 19)
+    ST --> A: daño
+    S -> T: takeDamage(damage)
+    alt vida llega a 0
+      T -> T: clamp life a 0
+      T -> E: new StatusEffect(STUNNED, 3 s)
+      note over T,E
+        No puede moverse ni patear.
+        Al expirar el efecto recupera su vida máxima actual,
+        determinada por survival (100 a 190).
+      end note
+    else conserva vida positiva
+      T -> T: restar daño
+    end
+    S --> G: true
+  else ningún rival al alcance
+    S -> S: probar alcance del balón
+    S --> G: resultado del impulso al balón
+  end
+end
+@enduml
+
+@startuml
+title resetSession (reinicio de ronda confirmado)
+actor Usuario
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "field: SoccerField" as F
+participant "ball: Ball" as B
+participant "participantes" as P
+Usuario -> G: resetSession(session)
+G -> S: restartRound()
+S -> F: resetBall(centroX, centroY)
+loop cada balón
+  F -> B: ubicar centro y detener
+end
+S -> F: positionParticipants(left, right)
+F -> P: resizeHitbox(width, height) para ambos
+F -> P: reposition(x, y) para cada lado
+F -> P: rememberCurrentPosition() para ambos
+note over G,P
+  Conserva marcador, modalidad, tiempo y estado de finalización.
+  Reutiliza la instancia singleton, sin crear otra sesión.
+end note
+@enduml
+
+@startuml
+title updateGame y colisiones (implementación actual)
+actor Reloj
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "participantes / hitboxes" as P
+participant "field: SoccerField" as F
+participant "collisions: CollisionFacade" as C
+participant "court geometry: CourtGeometry" as CG
+participant "ball resolver: BallCollisionResolver" as BR
+participant "participant resolver: BallParticipantCollisionResolver" as PR
+participant "axis resolver: CollisionAxisResolver" as AR
+participant "circle-rectangle resolver: CircleRectangleCollisionResolver" as CR
+participant "ball: Ball" as B
+Reloj -> G: updateGame()
+G -> S: updateGame()
+alt sesión ya terminada
+  S --> G: no avanza
+else sesión activa
+  loop cada participante
+    S -> P: updateStatusEffects()
+    P -> P: StatusEffect.update() [1/60 s]
+    opt aturdimiento expirado
+      P -> P: restaurar vida máxima actual (según survival)
+    end
+    opt electrocución expirada
+      P -> P: retirar efecto y restaurar velocidad/salto
+    end
+  end
+  S -> S: tiempo += 1/60 s
+  S -> F: advanceBalls(1/60, 40)
+  loop cada balón
+    F -> B: advance(1/60, 40)
+    B -> B: guardar centro anterior antes de integrar
+  end
+  S -> S: collision()
+  S -> S: validar participantes fuera/límites y superposición
+  opt participante fuera o toca límite superior/lateral
+    S --> G: GameException("objeto fuera de la partida")
+  end
+  opt participantes superpuestos
+    S --> G: GameException("dos objetos super puestos")
+  end
+  S -> S: goal()
+  loop cada balón
+    alt balón es copia falsa de Illusion
+      S -> S: ignorar para marcar gol
+    else balón real
+      S -> F: goalSideFor(ball)
+    alt centro dentro de un arco
+      S -> S: sumar punto al lado opuesto
+      S -> F: resetBall(centro)
+      S -> S: reposicionar participantes simétricamente
+      S -> S: checkTypeOfMatch()
+    end
+    end
+  end
+  alt se anotó un gol
+    S --> G: terminar procesamiento de colisiones
+  else no hubo gol
+    S -> F: resolveBallCollisions(70%)
+    F -> C: resolveBallCollisions(70%)
+    C -> BR: resolveAll(balls, 70%)
+    loop pares de balones en contacto
+      BR -> B: corregir penetración entre hitboxes circulares
+      opt se aproximan sobre la normal
+        BR -> B: intercambiar velocidades normales (masas iguales, e=0.70)
+      end
+    end
+    S -> F: resolveBallParticipantCollisions(participants, 70%, 0.5)
+    F -> C: resolveBallParticipantCollisions(...)
+    C -> PR: resolveAll(balls, field, participantsLeft, participantsRight, 70%, 0.5)
+    loop cada balón y participante en contacto
+      PR -> CR: resolver contacto círculo-rectángulo exacto
+      CR -> AR: clasificar eje con overlap AABB actual/anterior
+      AR --> CR: eje horizontal o vertical
+      CR -> B: corregir el círculo hasta tocar el rectángulo por ese eje
+      opt el balón se aproxima al participante
+        CR -> B: reflejar solo la componente normal (superficie fija, e=0.70)
+      end
+      opt participante desciende sobre el balón y su velocidad es menor a 0.5
+        PR -> B: establecer velocidad vertical descendente mínima (0.5)
+      end
+      opt el participante ejecuta Illusion
+        PR -> F: createIllusionDecoys(ball)
+        F -> F: agregar siete copias en posiciones y trayectorias aleatorias
+        note over F: Las copias duran 2,5 s; solo rebotan con cancha y arcos.
+        note over F: No colisionan con participantes ni cuentan para goles.
+      end
+    end
+    loop cada balón
+      S -> F: bounceBallAtWallsAndGoalFrames(ball, 70%)
+      F -> C: bounceBallAtWallsAndGoalFrames(...)
+      C -> CG: bounceBallAtWallsAndGoalFrames(...)
+      CG -> CR: resolver contacto con paredes/arcos rectangulares
+      CR -> AR: elegir eje con overlap actual/anterior
+      AR --> CR: eje y lado del impacto
+      CR -> B: separar círculo y reflejar componente normal
+      note over CG,CR: La boca del arco se omite para que el balón pueda entrar y marcar.
+      S -> F: keepBallInsideCourt(ball, 70%)
+      F -> C: keepBallInsideCourt(...)
+      C -> CG: keepBallInsideCourt(...)
+      opt una colisión desplazó el balón más allá de un límite
+        CG -> B: corregir al borde y reflejar velocidad si iba hacia fuera
+      end
+      note over S,CG: La geometría mantiene el balón dentro de la cancha.
+    end
+    S -> P: guardar posición actual como previa para el siguiente paso
+    S -> S: checkTypeOfMatch()
+    opt transición a partida terminada
+      S -> S: awardMatchPoints()
+      alt marcador empatado
+        loop cada participante humano
+          S -> P: Stats.awardDraw() [sumar 25 puntos]
+        end
+      else marcador desigual
+        loop cada participante humano del lado ganador
+          S -> P: Stats.awardWin() [sumar 100 puntos]
+        end
+        loop cada participante humano del lado perdedor
+          S -> P: Stats.awardLoss() [sumar 25 puntos]
+        end
+      end
+      note over S,P: El bot no recibe puntos.
+    end
+  end
+end
+@enduml

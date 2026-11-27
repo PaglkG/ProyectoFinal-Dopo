@@ -1,0 +1,58 @@
+@startuml
+title Decisión y ejecución del bot en un paso de juego
+
+actor Reloj
+participant "game: Game" as Game
+participant "sesión: PlayerVsBot" as Session
+participant "bot: BotPlayer" as Bot
+participant "estrategia: BotDecisionStrategy" as Strategy
+
+Reloj -> Game: updateGame()
+Game -> Session: updateGame() heredado de GameSession
+alt sesión activa
+  Session -> Session: actualizar carga y efectos
+  Session -> Session: updateAutonomousParticipants()
+  Session -> Session: jumpSupportY(bot)
+  Session -> Bot: decideAction(cancha, golesDer - golesIzq, apoyo)
+  Bot -> Bot: blocksMovement()
+  alt el bot puede actuar
+    opt primera decisión
+      Bot -> Bot: createDecisionStrategy()
+    end
+    Bot -> Bot: construir BotDecisionContext
+    alt hay balón alto alcanzable con el salto
+      Bot -> Bot: proponer salto
+    else el perfil decide
+      Bot -> Strategy: chooseAction(contexto)
+      note right of Strategy
+        Clumsy conserva su elección aleatoria durante 18 decisiones.
+        Offensive se acerca al balón y patea al alcance.
+        Defensive se coloca entre el balón y su arco y patea al alcance.
+        Expert usa defensa con ventaja y ataque en los demás casos.
+      end note
+      Strategy --> Bot: nombre de acción o texto vacío
+    end
+  end
+  Bot --> Session: conjunto vacío o con una acción
+  alt mover a la izquierda o a la derecha
+    Session -> Session: movePlayer(bot, dirección, true)
+    alt el rival bloquea el recorrido
+      Session -> Session: jumpPlayer(bot)
+    else el recorrido está libre
+      Session -> Bot: move(dirección)
+    end
+  else saltar a un balón alto
+    Session -> Session: jumpPlayer(bot)
+  else patear
+    opt la solicitud de patada acaba de empezar
+      Session -> Session: kickPlayer(bot)
+    end
+    Session -> Session: recordar la solicitud mientras siga activa
+  else esperar
+    Session -> Session: continuar sin acción del bot
+  end
+  Session -> Session: avanzar saltos, reloj y balones
+  Session -> Session: actualizar apoyos y resolver contactos
+  Session -> Session: revisar el final
+end
+@enduml

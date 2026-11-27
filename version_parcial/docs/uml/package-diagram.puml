@@ -1,0 +1,103 @@
+@startuml
+allowmixing
+title Paquetes actuales (vista simplificada)
+package "presentation" {
+  package "controllers" {
+    class GameController
+  }
+  package "testing" {
+    class MechanicsTestApp
+    class MechanicsTestPanel
+    class MechanicsTestController
+    class PresentationMovement
+    class GameCanvas
+    class TestScenario
+    class LayerOption
+  }
+  package "screens / components / navigation" as UI
+}
+package "domain" {
+  class Game
+  class GameSession
+  class SessionParticipant
+  class Ball
+  class TypeOfMatch
+  package "hitbox" {
+    interface Hitbox
+    class CircularHitbox
+    class RectangularHitbox
+    class HitboxIntersections
+  }
+  class StatusEffect
+  abstract class Power
+  class BlueAura
+  class Lightning
+  class Tornado
+  class Illusion
+  class PowerFactory
+  class GameException
+  enum Action
+  class ByGoals
+  class ByTime
+  class SoccerField
+  package "domain" {
+    class CollisionFacade
+    class CourtGeometry
+    class BallCollisionResolver
+    class BallParticipantCollisionResolver
+  }
+}
+GameController ..> Game
+GameController ..> GameSession
+GameController ..> SessionParticipant
+Game ..> GameSession
+GameSession ..> TypeOfMatch
+GameSession ..> SoccerField
+SoccerField ..> CollisionFacade
+CollisionFacade ..> CourtGeometry
+CollisionFacade ..> BallCollisionResolver
+CollisionFacade ..> BallParticipantCollisionResolver
+Ball ..> CircularHitbox
+SessionParticipant ..> RectangularHitbox
+SoccerField ..> RectangularHitbox
+HitboxIntersections ..> Hitbox
+SessionParticipant ..> StatusEffect
+SessionParticipant ..> Power
+PowerFactory ..> Power
+UI ..> GameController : futuras llamadas desde UI
+MechanicsTestPanel ..> MechanicsTestController
+MechanicsTestApp ..> MechanicsTestPanel
+MechanicsTestPanel ..> GameCanvas
+MechanicsTestPanel ..> TestScenario : menú extensible
+MechanicsTestPanel ..> LayerOption : capas activables
+MechanicsTestController ..> Game
+MechanicsTestController ..> PresentationMovement : entrada visual
+note bottom of UI
+  Las pantallas de la aplicación principal aún son esqueletos.
+  El banco de pruebas es una aplicación independiente.
+end note
+note right of GameController
+  Puente de la presentación oficial:
+  recibe acciones de la interfaz y las
+  delega al dominio. La partida oficial
+  todavía no está integrada por completo.
+end note
+note bottom of GameSession
+  Coordina una partida: guarda cancha,
+  participantes, marcador y modalidad.
+  Coordina movimiento, goles, validaciones
+  de participantes y final de partida.
+  SoccerField delega la física en CollisionFacade dentro de domain.
+end note
+note bottom of Hitbox
+  Las formas geométricas implementan Hitbox.
+  Ball, SessionParticipant y SoccerField
+  contienen formas asociadas sin implementar
+  la interfaz.
+end note
+note right of MechanicsTestController
+  Adapta movimientos, patadas y escenarios
+  a la fachada Game. La vista obtiene las
+  geometrías mediante getters escalares.
+end note
+@enduml

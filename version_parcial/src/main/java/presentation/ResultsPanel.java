@@ -1,0 +1,464 @@
+package presentation;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.Image;
+import java.net.URL;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+
+import presentation.DOPOSoccerGUI.PresentationState;
+
+/**
+ * Presenta el resumen de la partida desde el último estado publicado.
+ *
+ * <ul>
+ *   <li><strong>Recepción:</strong> al mostrar la pantalla, la ventana llama
+ *       a {@code refreshFromState()}, que lee {@code PresentationState.getMatch()}.</li>
+ *   <li><strong>Modificación:</strong> los botones registrados en
+ *       {@code prepareController()} solicitan la navegación a la tienda o al menú.</li>
+ *   <li><strong>Actualización:</strong> {@code showResult()} copia el marcador
+ *       y el tiempo a las etiquetas y calcula el texto de victoria o empate.
+ *       {@code setMatchConfiguration()} actualiza nombres, imágenes, modalidad
+ *       y tamaño de cancha según la misma captura.</li>
+ * </ul>
+ *
+ * <p><strong>Para mostrar un valor final nuevo:</strong> agréguelo a
+ * {@link MatchSnapshot} y asígnelo a una etiqueta desde {@code showResult()}.
+ * Agrega los botones de navegación en {@code prepareViewResult()} y registra
+ * sus callbacks en {@code prepareController()}.</p>
+ */
+public class ResultsPanel extends BasePanel {
+    private static final String COURT_IMAGE = "/images/ui/court@4x-8.png";
+    private static final int CHARACTER_IMAGE_SIZE = 62;
+    private static final int COUNTRY_FLAG_SIZE = 28;
+
+    /** Controlador que coordina los cambios de pantalla. */
+    private final NavigationController navigationController;
+    /** Nombre visible del personaje del lado izquierdo. */
+    private JLabel leftAnimalLabel;
+    /** Nombre visible del personaje del lado derecho. */
+    private JLabel rightAnimalLabel;
+    /** Imagen de la cabeza del personaje izquierdo. */
+    private JLabel leftHeadLabel;
+    /** Imagen de la cabeza del personaje derecho. */
+    private JLabel rightHeadLabel;
+    /** Componente que presenta la bandera del lado izquierdo. */
+    private JLabel leftCountryFlagLabel;
+    /** Componente que presenta la bandera del lado derecho. */
+    private JLabel rightCountryFlagLabel;
+    /** Marcador visible del lado izquierdo. */
+    private JLabel leftScoreLabel;
+    /** Marcador visible del lado derecho. */
+    private JLabel rightScoreLabel;
+    /** Rótulo del desenlace de la partida. */
+    private JLabel outcomeLabel;
+    /** Marcador combinado en el resumen de resultados. */
+    private JLabel finalScoreLabel;
+    /** Puntos acumulados por los participantes humanos al terminar el partido. */
+    private JLabel pointsValueLabel;
+    /** Duración de la partida que figura en el resumen. */
+    private JLabel durationValueLabel;
+    /** Modalidad que figura en el resumen de la partida. */
+    private JLabel modeValueLabel;
+    /** Tamaño de cancha que figura en el resumen. */
+    private JLabel courtValueLabel;
+    /** Acción que abre la tienda de mejoras. */
+    private JButton storeButton;
+    /** Acción que regresa al menú principal. */
+    private JButton mainMenuButton;
+    /** Texto de victoria correspondiente al lado izquierdo. */
+    private String leftWinnerText = "¡VICTORIA DEL EQUIPO IZQUIERDO!";
+    /** Texto de victoria correspondiente al lado derecho. */
+    private String rightWinnerText = "¡VICTORIA DEL EQUIPO DERECHO!";
+
+    /** Crea la pantalla de resultados y conecta sus botones de navegación.
+     * @param navigationController controlador que cambia de pantalla
+     */
+    public ResultsPanel(NavigationController navigationController) {
+        this.navigationController = navigationController;
+        prepareView();
+        prepareController();
+    }
+
+    /** Construye el fondo, el marcador y la tarjeta de resumen. */
+    @Override
+    public void prepareView() {
+        setLayout(new BorderLayout());
+        setBackground(Theme.BACKGROUND);
+
+        JPanel background = new CourtBackground();
+        background.setLayout(new BorderLayout(0, 8));
+        background.setBorder(BorderFactory.createEmptyBorder(12, 22, 18, 22));
+        background.add(prepareViewHeader(), BorderLayout.NORTH);
+        background.add(prepareViewResult(), BorderLayout.CENTER);
+        add(background, BorderLayout.CENTER);
+    }
+
+    /** Crea la franja de título y marcador final. */
+    private JPanel prepareViewHeader() {
+        JPanel header = new JPanel(new BorderLayout(14, 0));
+        header.setOpaque(false);
+
+        JLabel title = new JLabel("06  ·  RESULTADOS");
+        title.setFont(new Font("SansSerif", Font.BOLD, 14));
+        title.setForeground(Color.WHITE);
+        header.add(title, BorderLayout.NORTH);
+
+        RoundedPanel scoreboard = new RoundedPanel(Theme.BACKGROUND, 18);
+        scoreboard.setLayout(new GridLayout(1, 5, 6, 0));
+        scoreboard.setBorder(BorderFactory.createEmptyBorder(7, 14, 7, 14));
+        JPanel leftCharacter = prepareViewCharacter(true);
+        JPanel rightCharacter = prepareViewCharacter(false);
+        leftScoreLabel = createScoreLabel();
+        rightScoreLabel = createScoreLabel();
+        scoreboard.add(leftCharacter);
+        scoreboard.add(leftScoreLabel);
+        scoreboard.add(createScoreSeparator());
+        scoreboard.add(rightScoreLabel);
+        scoreboard.add(rightCharacter);
+        header.add(scoreboard, BorderLayout.CENTER);
+        return header;
+    }
+
+    /** Arma el nombre, la bandera y la cabeza en el orden correspondiente a cada lado. */
+    private JPanel prepareViewCharacter(boolean left) {
+        JPanel character = new JPanel();
+        character.setOpaque(false);
+        character.setLayout(new BoxLayout(character, BoxLayout.X_AXIS));
+
+        JLabel animalLabel = createAnimalLabel();
+        JLabel headLabel = createImageLabel(CHARACTER_IMAGE_SIZE);
+        JLabel flagLabel = createImageLabel(COUNTRY_FLAG_SIZE);
+        if (left) {
+            leftAnimalLabel = animalLabel;
+            leftHeadLabel = headLabel;
+            leftCountryFlagLabel = flagLabel;
+        } else {
+            rightAnimalLabel = animalLabel;
+            rightHeadLabel = headLabel;
+            rightCountryFlagLabel = flagLabel;
+        }
+
+        JPanel text = new JPanel();
+        text.setOpaque(false);
+        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+        text.add(animalLabel);
+        text.add(flagLabel);
+
+        if (left) {
+            character.add(text);
+            character.add(Box.createHorizontalStrut(7));
+            character.add(headLabel);
+        } else {
+            character.add(headLabel);
+            character.add(Box.createHorizontalStrut(7));
+            character.add(text);
+        }
+        return character;
+    }
+
+    /** Construye la tarjeta central con ganador, marcador y datos disponibles. */
+    private JPanel prepareViewResult() {
+        // Menú de resultados: agrega los botones debajo del marcador en card.
+        // Conecta en prepareController() el clic que selecciona la pantalla de destino.
+        JPanel holder = new JPanel(new java.awt.GridBagLayout());
+        holder.setOpaque(false);
+
+        RoundedPanel card = new RoundedPanel(Theme.BACKGROUND, 32);
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
+        card.setPreferredSize(new Dimension(500, 410));
+
+        JLabel trophy = new JLabel("🏆", SwingConstants.CENTER);
+        trophy.setFont(new Font("SansSerif", Font.PLAIN, 36));
+        trophy.setAlignmentX(CENTER_ALIGNMENT);
+        card.add(trophy);
+        card.add(Box.createVerticalStrut(4));
+
+        outcomeLabel = new JLabel("PARTIDO FINALIZADO", SwingConstants.CENTER);
+        outcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        outcomeLabel.setForeground(Theme.DARK_GREEN);
+        outcomeLabel.setAlignmentX(CENTER_ALIGNMENT);
+        card.add(outcomeLabel);
+
+        finalScoreLabel = new JLabel("Marcador final: 0 - 0", SwingConstants.CENTER);
+        finalScoreLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        finalScoreLabel.setForeground(Theme.LABEL_COLOR);
+        finalScoreLabel.setAlignmentX(CENTER_ALIGNMENT);
+        card.add(Box.createVerticalStrut(5));
+        card.add(finalScoreLabel);
+        pointsValueLabel = new JLabel("Puntos actuales: —", SwingConstants.CENTER);
+        pointsValueLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        pointsValueLabel.setForeground(Theme.DARK_GREEN);
+        pointsValueLabel.setAlignmentX(CENTER_ALIGNMENT);
+        card.add(Box.createVerticalStrut(7));
+        card.add(pointsValueLabel);
+        card.add(Box.createVerticalStrut(12));
+        card.add(prepareViewSummary());
+        card.add(Box.createVerticalGlue());
+
+        storeButton = new RoundedButton("Tienda de mejoras", Theme.SAND,
+                Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
+        storeButton.setAlignmentX(CENTER_ALIGNMENT);
+        storeButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        card.add(storeButton);
+        card.add(Box.createVerticalStrut(8));
+
+        mainMenuButton = new RoundedButton("Volver al menú principal", Theme.GREEN,
+                Color.WHITE, Theme.GREEN, 14);
+        mainMenuButton.setAlignmentX(CENTER_ALIGNMENT);
+        mainMenuButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        card.add(mainMenuButton);
+
+        holder.add(card);
+        return holder;
+    }
+
+    /** Muestra duración, modalidad y tamaño de cancha, datos disponibles en la sesión. */
+    private JPanel prepareViewSummary() {
+        JPanel summary = new JPanel(new GridLayout(1, 3, 8, 0));
+        summary.setOpaque(false);
+        summary.setMaximumSize(new Dimension(Integer.MAX_VALUE, 82));
+        durationValueLabel = createSummaryCell(summary, "TIEMPO JUGADO");
+        modeValueLabel = createSummaryCell(summary, "MODALIDAD");
+        courtValueLabel = createSummaryCell(summary, "CANCHA");
+        return summary;
+    }
+
+    /** Añade una celda de resumen y devuelve su etiqueta de valor. */
+    private JLabel createSummaryCell(JPanel summary, String title) {
+        RoundedPanel cell = new RoundedPanel(Theme.INNER_BACKGROUND, 14);
+        cell.setLayout(new BorderLayout(0, 5));
+        cell.setBorder(BorderFactory.createEmptyBorder(9, 5, 9, 5));
+        JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 9));
+        titleLabel.setForeground(Theme.LABEL_COLOR);
+        JLabel valueLabel = new JLabel("—", SwingConstants.CENTER);
+        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        valueLabel.setForeground(Theme.DARK_GREEN);
+        cell.add(titleLabel, BorderLayout.NORTH);
+        cell.add(valueLabel, BorderLayout.CENTER);
+        summary.add(cell);
+        return valueLabel;
+    }
+
+    private JLabel createAnimalLabel() {
+        JLabel label = new JLabel("", SwingConstants.CENTER);
+        label.setFont(new Font("SansSerif", Font.BOLD, 11));
+        label.setForeground(Theme.DARK_GREEN);
+        return label;
+    }
+
+    private JLabel createImageLabel(int size) {
+        JLabel label = new JLabel();
+        label.setPreferredSize(new Dimension(size, size));
+        label.setMinimumSize(new Dimension(size, size));
+        label.setMaximumSize(new Dimension(size, size));
+        label.setHorizontalAlignment(SwingConstants.CENTER);
+        label.setVerticalAlignment(SwingConstants.CENTER);
+        return label;
+    }
+
+    private JLabel createScoreLabel() {
+        JLabel label = new JLabel("0", SwingConstants.CENTER);
+        label.setFont(new Font("SansSerif", Font.BOLD, 24));
+        label.setForeground(Theme.DARK_GREEN);
+        return label;
+    }
+
+    private JLabel createScoreSeparator() {
+        JLabel separator = new JLabel(":", SwingConstants.CENTER);
+        separator.setFont(new Font("SansSerif", Font.BOLD, 22));
+        separator.setForeground(Theme.LABEL_COLOR);
+        return separator;
+    }
+
+    /** Actualiza nombres, marcador y configuración para la partida preparada.
+     * @param configuration selección de la modalidad, la cancha y los personajes
+     */
+    public void setMatchConfiguration(MatchConfiguration configuration) {
+        CharacterInfo leftCharacter = characterInfo(configuration.countryCodeForSide(false));
+        CharacterInfo rightCharacter = characterInfo(configuration.countryCodeForSide(true));
+        leftWinnerText = "¡VICTORIA PARA " + leftCharacter.winnerName() + "!";
+        rightWinnerText = "¡VICTORIA PARA " + rightCharacter.winnerName() + "!";
+        setCharacter(leftAnimalLabel, leftHeadLabel, leftCountryFlagLabel,
+                configuration.countryCodeForSide(false), configuration.headImageForSide(false));
+        setCharacter(rightAnimalLabel, rightHeadLabel, rightCountryFlagLabel,
+                configuration.countryCodeForSide(true), configuration.headImageForSide(true));
+
+        String rule = PresentationOptions.simpleName(configuration.typeMatch());
+        modeValueLabel.setText(PresentationOptions.get("option." + rule + ".summary",
+                PresentationOptions.label(rule)));
+        if (configuration.parametersRules().size() >= 2) {
+            courtValueLabel.setText(configuration.parametersRules().get(1) + " × "
+                    + configuration.parametersRules().get(0));
+        }
+    }
+
+    /** Lee la captura al entrar desde un partido terminado o desde Pausa.
+     * Si hay una captura, {@code showResult()} actualiza el resumen. */
+    void refreshFromState() {
+        // El resultado final y la vista desde Pausa usan la captura más reciente.
+        PresentationState.getMatch().ifPresent(this::showResult);
+    }
+
+    /** Traduce los goles de la captura a marcador y a texto de victoria o empate.
+     * También actualiza la configuración y formatea el tiempo en minutos y segundos. */
+    private void showResult(MatchSnapshot match) {
+        // Aplica la configuración y el marcador de la misma captura.
+        setMatchConfiguration(match.getConfiguration());
+        int leftGoals = match.getLeftGoals();
+        int rightGoals = match.getRightGoals();
+        leftScoreLabel.setText(Integer.toString(leftGoals));
+        rightScoreLabel.setText(Integer.toString(rightGoals));
+        finalScoreLabel.setText("Marcador final: " + leftGoals + " - " + rightGoals);
+        String leftPoints = Integer.toString(match.getParticipant(false).getPoints());
+        String rightPoints = match.getConfiguration().againstBot()
+                ? "bot" : Integer.toString(match.getParticipant(true).getPoints());
+        pointsValueLabel.setText("Puntos acumulados — Izquierda: " + leftPoints
+                + " · Derecha: " + rightPoints);
+
+        // Compara los goles por lado para elegir el texto de empate o victoria.
+        if (leftGoals == rightGoals) {
+            outcomeLabel.setText("¡EMPATE!");
+        } else {
+            outcomeLabel.setText(leftGoals > rightGoals
+                    ? leftWinnerText
+                    : rightWinnerText);
+        }
+
+        int elapsedSeconds = (int) match.getElapsedSeconds();
+        durationValueLabel.setText(String.format("%02d:%02d",
+                elapsedSeconds / 60, elapsedSeconds % 60));
+    }
+
+    /** Configura los botones de tienda y retorno al menú principal. */
+    @Override
+    public void prepareController() {
+        prepareControllerStore();
+        prepareControllerMainMenu();
+    }
+
+    /** Vincula el clic en Tienda con la apertura de la pantalla de mejoras. */
+    private void prepareControllerStore() {
+        // La ventana solicita el refresco del saldo al abrir la tienda.
+        storeButton.addActionListener(event ->
+                navigationController.showScreen(NavigationController.STORE_IMPROVEMENT));
+    }
+
+    /** Vincula el clic en Menú principal con la navegación a la pantalla inicial. */
+    private void prepareControllerMainMenu() {
+        // El clic solicita volver al menú a través del navegador.
+        mainMenuButton.addActionListener(event ->
+                navigationController.showScreen(NavigationController.MAIN_MENU));
+    }
+
+    /** Actualiza el nombre, la cabeza y la bandera del personaje seleccionado para un lado. */
+    private void setCharacter(JLabel animalLabel, JLabel headLabel, JLabel flagLabel,
+            String countryCode, String imageFile) {
+        CharacterInfo character = characterInfo(countryCode);
+        animalLabel.setText(character.animal());
+        animalLabel.setToolTipText(character.country());
+        URL imageUrl = getClass().getResource("/images/outfits/heads/" + imageFile);
+        if (imageUrl != null) {
+            Image image = new ImageIcon(imageUrl).getImage().getScaledInstance(
+                    CHARACTER_IMAGE_SIZE, CHARACTER_IMAGE_SIZE, Image.SCALE_SMOOTH);
+            headLabel.setIcon(new ImageIcon(image));
+        } else {
+            headLabel.setIcon(null);
+        }
+
+        String flagFile = countryFlagFileName(countryCode);
+        URL flagUrl = flagFile.isEmpty() ? null
+                : getClass().getResource("/images/characters/countries/" + flagFile);
+        if (flagUrl != null) {
+            Image flag = new ImageIcon(flagUrl).getImage().getScaledInstance(
+                    COUNTRY_FLAG_SIZE, COUNTRY_FLAG_SIZE, Image.SCALE_SMOOTH);
+            flagLabel.setIcon(new ImageIcon(flag));
+        } else {
+            flagLabel.setIcon(null);
+        }
+        flagLabel.setToolTipText(character.country());
+    }
+
+    private String countryFlagFileName(String countryCode) {
+        return PresentationOptions.character(normalizeCountryCode(countryCode), "flag", "");
+    }
+
+    /** Obtiene los nombres que se muestran para el código de país configurado. */
+    private CharacterInfo characterInfo(String countryCode) {
+        String code = normalizeCountryCode(countryCode);
+        return new CharacterInfo(PresentationOptions.character(code, "animal", "Personaje"),
+                PresentationOptions.character(code, "country", "País seleccionado"),
+                PresentationOptions.character(code, "winner", "EL PERSONAJE"));
+    }
+
+    private String normalizeCountryCode(String countryCode) {
+        return countryCode == null ? "" : countryCode.toUpperCase(java.util.Locale.ROOT);
+    }
+
+    /** Datos de texto usados para identificar al personaje en los resultados. */
+    private static final class CharacterInfo {
+        private final String animal;
+        private final String country;
+        private final String winnerName;
+
+        /** Crea los datos descriptivos del personaje.
+         * @param animal animal asociado
+         * @param country país asociado
+         * @param winnerName nombre que se muestra como ganador
+         */
+        private CharacterInfo(String animal, String country, String winnerName) {
+            this.animal = animal;
+            this.country = country;
+            this.winnerName = winnerName;
+        }
+
+        private String animal() { return animal; }
+        private String country() { return country; }
+        private String winnerName() { return winnerName; }
+    }
+
+    /** Recibe la imagen de cancha en el constructor y aplica un oscurecimiento
+     * en cada repintado para resaltar la tarjeta de resultados. */
+    private static final class CourtBackground extends JPanel {
+        private final Image image = loadCourtImage();
+
+        /** Prepara la superficie que dibuja la cancha detrás de los resultados. */
+        private CourtBackground() {
+            setOpaque(true);
+            setBackground(new Color(0x247FA0));
+        }
+
+        /** Dibuja el fondo de la pantalla de resultados.
+         * @param graphics contexto de dibujo suministrado por Swing
+         */
+        @Override
+        public void paintComponent(java.awt.Graphics graphics) {
+            super.paintComponent(graphics);
+            if (image != null) {
+                graphics.drawImage(image, 0, 0, getWidth(), getHeight(), this);
+            }
+            java.awt.Graphics2D g = (java.awt.Graphics2D) graphics.create();
+            g.setColor(new Color(15, 35, 35, 105));
+            g.fillRect(0, 0, getWidth(), getHeight());
+            g.dispose();
+        }
+
+        private static Image loadCourtImage() {
+            URL url = ResultsPanel.class.getResource(COURT_IMAGE);
+            return url == null ? null : new ImageIcon(url).getImage();
+        }
+    }
+}

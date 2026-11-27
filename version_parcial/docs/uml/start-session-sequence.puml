@@ -1,0 +1,39 @@
+@startuml
+title Crear sesión (flujo implementado)
+actor Cliente
+participant "game: Game" as G
+participant "session: GameSession" as S
+participant "type: TypeOfMatch" as T
+
+Cliente -> G: startSession(parametersRules, parametersPowers, typeGame, typeMatche, player)
+activate G
+G -> S: getInstance(typeGame, player, typeMatche, parametersRules, parametersPowers)
+alt no existe sesión o la anterior terminó
+  S -> S: construir subclase concreta por reflexión
+  opt existía una partida anterior
+    S -> S: transferir Stats de jugadores con el mismo ID
+  end
+else la partida sigue activa
+  S -> S: reutilizar instancia y configuración actuales
+end
+note right of S
+  PlayerVsPlayer recibe dos clases Power:
+  jugador derecho, luego jugador izquierdo.
+  PlayerVsBot recibe el poder del humano, el del bot
+  y el perfil Clumsy/Offensive/Defensive/Expert.
+  Ubica al humano a la izquierda y al bot a la derecha.
+  Las clases de poder son BlueAura, Lightning, Tornado e Illusion.
+end note
+S -> S: inicializar listas de participantes
+S -> S: createMatchRule(typeMatche, parametersRules)
+S -> T ++: constructor(List<String>) reflectivo
+T --> S --: instancia concreta
+S -> S: crear SoccerField y fijar timeLeft = 0
+opt sesión nueva con ambos lados
+  S -> S: colocar participantes y ajustar hitboxes a la coronilla
+end
+S --> G: instancia activa de sesión
+G -> G: session = instancia
+G --> Cliente: session
+deactivate G
+@enduml

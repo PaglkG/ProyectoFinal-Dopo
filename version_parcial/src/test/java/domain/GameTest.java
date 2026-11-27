@@ -1,0 +1,421 @@
+package domain;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import domain.GameException;
+import domain.ByGoals;
+import domain.ByTime;
+class GameTest {
+
+    private Game game;
+    @TempDir
+    private Path tempDir;
+
+    @BeforeEach
+    void setUp() throws ReflectiveOperationException {
+        GameSessionTestSupport.resetSingleton();
+        game = new Game();
+    }
+
+    @Test
+    void gettersExposeParticipantPointsAndLife() {
+        game.startSession(List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+
+        assertEquals(0, game.getPlayerPoints(true));
+        assertEquals(100, game.getPlayerLife(true));
+        assertEquals(100, game.getPlayerMaxLife(true));
+        assertEquals(0, game.getPlayerPoints(false));
+        assertEquals(100, game.getPlayerLife(false));
+    }
+
+    @Test
+    void sessionUpdateChargesBothParticipantPowers() {
+        game.startSession(List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+
+        game.updateGame();
+
+        assertEquals(10.0 - 1.0 / 60, game.getPlayerPowerRemainingSeconds(true), 1e-9);
+        assertEquals(10.0 - 1.0 / 60, game.getPlayerPowerRemainingSeconds(false), 1e-9);
+    }
+
+    @Test
+    void goalChargesOnlyTheConcedingParticipantPower() {
+        GameSession session = game.startSession(List.of("150", "450", "5"),
+                List.of("domain.BlueAura", "domain.Lightning"), PlayerVsPlayer.class.getName(),
+                ByGoals.class.getName(), true);
+
+        session.goal("left");
+
+        assertEquals(7.5, game.getPlayerPowerRemainingSeconds(true));
+        assertEquals(10.0, game.getPlayerPowerRemainingSeconds(false));
+    }
+
+    @Test
+    void startSessionReportsAnUnknownSessionClassAndDoesNotStoreASession() throws ReflectiveOperationException {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> game.startSession(List.of(), List.of("domain.BlueAura", "domain.Lightning"),
+                        "missing.session.Class", ByGoals.class.getName(), false));
+
+        assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
+        assertNull(managedSession(game));
+    }
+
+    @Test
+    void startSessionReportsTheCustomConstructorExceptionWhenTheSignatureIsMissing()
+            throws ReflectiveOperationException {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> game.startSession(List.of(), List.of("domain.BlueAura", "domain.Lightning"),
+                        SessionClassWithoutExpectedConstructor.class.getName(), ByGoals.class.getName(), false));
+
+        assertEquals(GameException.NO_CONSTRUCTOR_FOUND, exception.getMessage());
+        assertNull(managedSession(game));
+    }
+
+    @Test
+    void startSessionReportsTheCustomExceptionWhenTheClassIsNotAGameSession()
+            throws ReflectiveOperationException {
+        GameException exception = assertThrows(
+                GameException.class,
+                () -> game.startSession(List.of(), List.of("domain.BlueAura", "domain.Lightning"),
+                        SessionClassWithThreeArgumentConstructor.class.getName(), "rules", false));
+
+        assertEquals(GameException.NO_FOUND_SESSION, exception.getMessage());
+        assertNull(managedSession(game));
+    }
+
+    @Test
+    void startSessionCreatesASessionThroughItsPrivateConstructor() throws ReflectiveOperationException {
+        GameSession session = game.startSession(List.of("150", "450", "5"),
+                List.of("domain.BlueAura", "domain.Lightning"),
+                SessionClassWithPrivateConstructor.class.getName(), ByGoals.class.getName(), false);
+
+        assertInstanceOf(SessionClassWithPrivateConstructor.class, session);
+        assertSame(session, managedSession(game));
+        assertSame(session, GameSession.getInstance());
+        assertEquals(450.0, session.getField().courtWidth());
+        assertEquals(150.0, session.getField().courtHeight());
+    }
+
+    @Test
+    void startSessionWrapsAnInvalidPowerClassLikeOtherReflectiveConstructorFailures() throws ReflectiveOperationException {
+        GameException exception = assertThrows(GameException.class,
+                () -> game.startSession(List.of("150", "450", "5"), List.of("domain.Clumsy", "domain.Lightning"),
+                        PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true));
+
+        assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
+        InvocationTargetException invocation = (InvocationTargetException) exception.getCause();
+        GameException cause = (GameException) invocation.getCause();
+        assertEquals(GameException.NO_FOUND_SESSION, cause.getMessage());
+        assertNull(managedSession(game));
+    }
+
+    @Test
+    void startSessionRejectsAnIncompletePowerSelection() throws ReflectiveOperationException {
+        GameException exception = assertThrows(GameException.class,
+                () -> game.startSession(List.of("150", "450", "5"), List.of("domain.BlueAura"),
+                        PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true));
+
+        assertEquals(GameException.NO_INSTANTIATE_CLASS, exception.getMessage());
+        assertNull(managedSession(game));
+    }
+
+    /** Clase auxiliar con la firma correcta, pero que no representa una sesión. */
+    public static class SessionClassWithThreeArgumentConstructor {
+
+        public SessionClassWithThreeArgumentConstructor(boolean player, String matchType, List<String> parameters) {
+        }
+    }
+
+    /** Sesión válida sin el constructor requerido por la fábrica reflectiva. */
+    public static class SessionClassWithoutExpectedConstructor extends GameSession {
+
+        public SessionClassWithoutExpectedConstructor() throws GameException {
+            super(false, ByGoals.class.getName(), List.of("150", "450", "5"));
+        }
+
+    }
+
+    /** Sesión auxiliar con constructor privado accesible únicamente mediante la fábrica. */
+    public static class SessionClassWithPrivateConstructor extends GameSession {
+
+        private SessionClassWithPrivateConstructor(boolean player, String matchType, List<String> parameters,
+                List<String> powers) throws GameException {
+            super(player, matchType, parameters);
+        }
+
+    }
+
+    @Test
+    void startSessionCreatesAndStoresAPlayerVsBotSession() throws GameException, ReflectiveOperationException {
+        game.startSession(List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning", "Clumsy"),
+                PlayerVsBot.class.getName(), ByGoals.class.getName(), true);
+
+        assertNotNull(managedSession(game));
+        assertInstanceOf(PlayerVsBot.class, managedSession(game));
+    }
+
+    @Test
+    void startSessionCreatesAndStoresAPlayerVsPlayerSession() throws GameException, ReflectiveOperationException {
+        game.startSession(List.of("150", "450", "10"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByTime.class.getName(), false);
+
+        assertNotNull(managedSession(game));
+        assertInstanceOf(PlayerVsPlayer.class, managedSession(game));
+    }
+
+    @Test
+    void allSessionSubclassesShareTheFirstCreatedInstance() throws GameException, ReflectiveOperationException {
+        GameSession first = game.startSession(List.of("150", "450", "10"),
+                List.of("domain.BlueAura", "domain.Lightning"), PlayerVsPlayer.class.getName(),
+                ByGoals.class.getName(), false);
+
+        GameSession second = game.startSession(List.of("150", "450", "5"),
+                List.of("domain.BlueAura", "domain.Lightning", "Clumsy"), PlayerVsBot.class.getName(),
+                ByGoals.class.getName(), true);
+
+        assertSame(first, second);
+        assertInstanceOf(PlayerVsPlayer.class, second);
+        assertNotNull(managedSession(game));
+        assertEquals(PlayerVsPlayer.class.getSimpleName(), game.getSessionType());
+    }
+
+    @Test
+    void startSessionReusesTheSameSessionAndItsStatistics() throws GameException {
+        GameSession first = game.startSession(
+                List.of("150", "450", "2"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        first.goal("right");
+        assertFalse(first.isFinished());
+        Stats playerOne = first.getParticipantsRight().get(0).getStats();
+        for (int win = 0; win < 5; win++) playerOne.awardWin();
+        first.getParticipantsLeft().get(0).getStats().awardLoss();
+        playerOne.improveStatistics("speed");
+        GameSession second = game.startSession(
+                List.of("150", "450", "2"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+
+        assertSame(playerOne, second.getParticipantsRight().get(0).getStats());
+        assertSame(first, second);
+        assertEquals(2, second.getParticipantsRight().get(0).getStats().getStatistic("speed"));
+        assertEquals(0, second.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_LOSS, second.getParticipantsLeft().get(0).getStats().getPoints());
+
+        assertSame(second, game.startSession(
+                List.of("150", "450", "2"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true));
+        assertEquals(0, playerOne.getPoints());
+    }
+
+    @Test
+    void resetSessionRestartsTheWholeMatchAndPreservesPointsAndImprovements() throws Exception {
+        game.startSession(List.of("150", "450", "5"),
+                List.of("domain.BlueAura", "domain.Lightning"), PlayerVsPlayer.class.getName(),
+                ByGoals.class.getName(), true);
+        GameSession session = managedSession(game);
+        session.goal("right");
+        Stats stats = session.getParticipantsRight().get(0).getStats();
+        for (int win = 0; win < 6; win++) stats.awardWin();
+        stats.improveStatistics("speed");
+        session.getField().getBalls()[0].reposition(80, 50);
+        session.getField().getBalls()[0].applyImpulse(6, -2);
+        session.getParticipantsRight().get(0).resetPosition(100, 20);
+        session.getParticipantsRight().get(0).takeDamage(30);
+
+        game.resetSession();
+
+        assertEquals(0, game.getGoalsLeft());
+        assertEquals(0, game.getGoalsRight());
+        assertEquals(0, game.getElapsedSeconds());
+        assertFalse(game.isFinished());
+        assertEquals(225, game.getBallX(0));
+        assertEquals(75, game.getBallY(0));
+        assertEquals(0, game.getBallVelocityX(0));
+        assertEquals(0, game.getBallVelocityY(0));
+        assertEquals(326.25, game.getPlayerX(true));
+        assertEquals(100, game.getPlayerLife(true));
+        assertEquals(100, game.getPlayerPoints(true));
+        assertEquals(2, game.getPlayerSpeed(true));
+    }
+
+    @Test
+    void startingANewMatchAfterAWinPreservesStatisticsByPlayerId() throws Exception {
+        GameSession first = game.startSession(List.of("150", "450", "1"),
+                List.of("domain.BlueAura", "domain.Lightning"), PlayerVsPlayer.class.getName(),
+                ByGoals.class.getName(), true);
+        Stats winnerStats = first.getParticipantsRight().get(0).getStats();
+        for (int win = 0; win < 5; win++) winnerStats.awardWin();
+        winnerStats.improveStatistics("speed");
+        first.goal("right");
+
+        GameSession next = game.startSession(List.of("150", "450", "7"),
+                List.of("domain.Lightning", "domain.BlueAura"), PlayerVsPlayer.class.getName(),
+                ByGoals.class.getName(), false);
+
+        assertTrue(first != next);
+        assertEquals(0, game.getGoalsLeft());
+        assertEquals(0, game.getGoalsRight());
+        assertEquals(Stats.POINTS_PER_WIN, game.getPlayerPoints(true));
+        assertEquals(2, game.getPlayerSpeed(true));
+        assertEquals(winnerStats, next.getParticipantsRight().get(0).getStats());
+    }
+
+    @Test
+    void movePlayerUsesTheSingletonAndParticipantIdentifier() throws Exception {
+        GameSession session = game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        SessionParticipant participant = session.getParticipantsRight().get(0);
+        participant.resetPosition(100, 20);
+
+        game.movePlayer(true, true);
+
+        assertEquals(102.5, participant.getHitbox().getX(), 1e-9);
+        assertEquals(20, participant.getHitbox().getY(), 1e-9);
+    }
+
+    @Test
+    void improveStatisticsDelegatesToTheSelectedParticipant() throws Exception {
+        GameSession session = game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        Stats rightStats = session.getParticipantsRight().get(0).getStats();
+        for (int win = 0; win < 5; win++) rightStats.awardWin();
+
+        game.improveStatistics(true, "kick");
+
+        assertEquals(2, rightStats.getStatistic("kick"));
+        assertEquals(0, rightStats.getPoints());
+        assertEquals(1, session.getParticipantsLeft().get(0).getStats().getStatistic("kick"));
+    }
+
+    @Test
+    void gameExposesCourtGoalAndBallGeometryThroughScalarGetters() throws Exception {
+        game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+
+        assertEquals(450, game.getCourtWidth());
+        assertEquals(150, game.getCourtHeight());
+        assertEquals(45, game.getGoalWidth(0));
+        assertEquals(45, game.getGoalWidth(1));
+        assertEquals(1, game.getBallCount());
+    }
+
+    @Test
+    void facadeMovementUsesParticipantIdentifierForSingleton() throws Exception {
+        game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        double initialX = game.getPlayerX(true);
+
+        game.movePlayer(true, true);
+
+        assertEquals(initialX + 2.5, game.getPlayerX(true), 1e-9);
+    }
+
+    @Test
+    void facadeKickReturnsWhetherTheBallWasReachedAndUpdatesItsSnapshot() throws Exception {
+        game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        managedSession(game).getField().getBalls()[0].reposition(
+                game.getPlayerX(true) + game.getPlayerWidth(true) / 2,
+                game.getPlayerY(true) + game.getPlayerHeight(true) / 2);
+
+        assertTrue(game.kickPlayer(true));
+
+        assertEquals(-260, game.getBallVelocityX(0));
+        assertEquals(-70, game.getBallVelocityY(0));
+    }
+
+    @Test
+    void facadeUpdateAdvancesTheSingleton() throws Exception {
+        game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+
+        game.updateGame();
+
+        assertEquals(1.0 / 60, game.getElapsedSeconds(), 1e-9);
+    }
+
+    @Test
+    void saveWritesTheManagedSessionAndOpenRestoresItsObservableState() throws Exception {
+        game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        managedSession(game).goal("right");
+        managedSession(game).getField().getBalls()[0].reposition(180, 60);
+        managedSession(game).getField().getBalls()[0].applyImpulse(7, -3);
+
+        Path saveFile = tempDir.resolve("partida.dat");
+        game.save(saveFile.toFile());
+
+        Game restored = new Game();
+        restored.open(saveFile.toFile());
+
+        assertEquals(1, restored.getGoalsRight());
+        assertEquals(180, restored.getBallX(0), 1e-9);
+        assertEquals(60, restored.getBallY(0), 1e-9);
+        assertEquals(7, restored.getBallVelocityX(0), 1e-9);
+        assertEquals(-3, restored.getBallVelocityY(0), 1e-9);
+    }
+
+    @Test
+    void openingAnOlderSaveShortensTheHitboxAndKeepsTheFeetPosition() {
+        GameSession session = game.startSession(
+                List.of("150", "450", "5"), List.of("domain.BlueAura", "domain.Lightning"),
+                PlayerVsPlayer.class.getName(), ByGoals.class.getName(), true);
+        SessionParticipant player = session.getParticipantsRight().get(0);
+        player.resizeHitbox(450.0 / 20, 150.0 / 3);
+        player.resetPosition(315, 80);
+        Path file = tempDir.resolve("partida.dat");
+        game.save(file.toFile());
+
+        Game restored = new Game();
+        restored.open(file.toFile());
+
+        assertEquals(315, restored.getPlayerX(true), 1e-9);
+        assertEquals(33.18, restored.getPlayerHeight(true), 1e-9);
+        assertEquals(130, restored.getPlayerY(true) + restored.getPlayerHeight(true), 1e-9);
+    }
+
+    @Test
+    void openRejectsAFileThatDoesNotContainASession() throws Exception {
+        Path invalidFile = tempDir.resolve("texto.ser");
+        java.nio.file.Files.writeString(invalidFile, "contenido inválido");
+
+        GameException exception = assertThrows(
+                GameException.class, () -> game.open(invalidFile.toFile()));
+
+        assertEquals(GameException.OPEN_FAILED, exception.getMessage());
+        java.nio.file.Files.deleteIfExists(invalidFile);
+    }
+
+    private static GameSession managedSession(Game game) throws ReflectiveOperationException {
+        Field session = Game.class.getDeclaredField("session");
+        session.setAccessible(true);
+        return (GameSession) session.get(game);
+    }
+
+}

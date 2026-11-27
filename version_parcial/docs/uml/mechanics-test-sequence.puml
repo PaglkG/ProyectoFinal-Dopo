@@ -1,0 +1,122 @@
+@startuml
+title Banco visual extensible: menú, capas y simulación a través de Game
+actor Usuario
+participant "MechanicsTestApp" as A
+participant "panel: MechanicsTestPanel" as P
+participant "controller: MechanicsTestController" as C
+participant "movement: PresentationMovement" as M
+participant "canvas: GameCanvas" as V
+participant "game: Game" as G
+participant "session: GameSession (interno)" as S
+
+Usuario -> A: abrir banco
+A -> A: selectMode(args)
+A -> G: getBotTypes()
+G --> A: nombres de los perfiles
+note over A,G: El catálogo se consulta con una instancia de Game antes de crear el controlador.
+alt argumentos de inicio
+  A -> A: validar --manual o nombre de perfil
+else sin argumentos
+  A -> Usuario: mostrar selector de modo
+  Usuario --> A: dos jugadores o perfil de bot
+end
+break cancelación o argumento inválido
+  A -> A: cerrar el inicio
+end
+A -> P: new MechanicsTestPanel(botProfile)
+P -> C: new MechanicsTestController(botProfile)
+alt dos jugadores
+  C -> G: startSession(parámetros, poderes, PlayerVsPlayer, ByGoals, true)
+else contra bot
+  C -> G: startSession(parámetros, [poderHumano, poderBot, perfil], PlayerVsBot, ByGoals, true)
+end
+G --> C: sesión administrada
+P -> C: hasBot()
+opt sesión contra bot
+  P -> P: habilitar controles humanos del lado izquierdo
+end
+Usuario -> P: preparar el escenario de la sesión
+P -> P: resetRound()
+P -> C: reset()
+C -> G: resetSession
+P -> V: repintar
+V -> G: consultar geometría y estado con getters escalares
+G --> V: cancha, arcos, participantes, balón y velocidades
+V -> V: dibujar recursos, hitboxes y vector
+
+Usuario -> P: pulsar F (izquierda) o Enter (derecha en modo manual)
+P -> C: kick(lado)
+C -> G: kickPlayer(playerIdentity(lado))
+G -> S: kickPlayer(participant)
+S --> G: resultado de la patada
+G --> C: resultado
+P -> P: animar la pata
+
+Usuario -> P: mantener A/D (izquierda) o flechas (derecha en modo manual)
+P -> C: setMovementControl(rightPlayer, rightDirection, pressed)
+
+Usuario -> P: pulsar W (izquierda) o ↑ (derecha en modo manual)
+opt banco activo y nueva pulsación
+  P -> C: jump(rightSide)
+  C -> G: jumpPlayer(playerIdentity(rightSide))
+  G -> S: jumpPlayer(participante)
+  S -> S: jumpSupportY(participante)
+  opt participante habilitado y apoyado en el suelo o en otro jugador
+    S -> S: iniciar el impulso desde ese apoyo
+  end
+end
+
+loop cada intervalo de actualización visual
+  P -> C: update()
+  C -> M: update(Game, identidadIzquierda)
+  loop por cada humano que mantiene una dirección
+    M -> G: movePlayer(identidad, dirección)
+    G -> S: movePlayer(participante, dirección)
+    S -> S: comprobar el recorrido horizontal frente a límites y participantes
+    opt el paso evita penetrar obstáculos o se desliza paralelo a un borde
+      S -> S: desplazar participante y resolver empuje
+    end
+  end
+  C -> G: updateGame()
+  G -> S: updateGame()
+  opt sesión PlayerVsBot
+    ref over S: Decisión y ejecución del bot en un paso de juego
+  end
+  S -> S: avanzar la hitbox de cada salto dentro de sus límites
+  note right of S
+    Si alguien camina debajo de otro jugador,
+    el de arriba cae al perder el apoyo.
+  end note
+  S -> S: avanzar balones y rodar los que conservan apoyo
+  S -> S: recuperar contactos atravesados entre pasos antes de comprobar gol
+  opt gol detectado
+    S -> S: actualizar marcador y reiniciar ronda
+  end
+  note over P,C: Si falla la actualización, el banco se detiene y pide reiniciar la ronda.
+  P -> V: repintar
+  V -> G: consultar getters escalares
+  G --> V: estado actual
+  V -> V: alinear la parte superior del sprite con la hitbox
+  V -> V: dibujar capas activas y HUD
+end
+
+Usuario -> P: activar o desactivar una capa
+P -> P: actualizar selección visible
+P -> V: repintar capas seleccionadas
+
+opt pausa o se pierde el foco de la ventana
+  A -> P: liberar los controles sostenidos
+  P -> C: releaseMovement()
+  C -> M: reset()
+end
+
+note over P,G
+  El modo se elige antes de iniciar la sesión única.
+  Volver a abrir el banco permite seleccionar otro perfil.
+  El banco consulta y modifica mediante Game solo con las operaciones
+  de partida disponibles; no fuerza posiciones ni velocidades.
+  Las capas geométricas representan medidas escalares y el menú
+  se amplía registrando nuevas acciones o capas en MechanicsTestPanel.
+  La altura del salto forma parte de la posición física en Game.
+end note
+@enduml

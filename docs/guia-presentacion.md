@@ -116,9 +116,15 @@ Conserva un nombre de clase por línea. Puedes dejar líneas vacías o comentari
 | Captura | `refreshMatchView()`, `showMatch()` | Se lee la última captura publicada. Si cambia la configuración, se cargan los personajes y se actualizan los nombres de los lados. |
 | Indicadores | `setScore()`, `setElapsedSeconds()`, `setSuddenDeath()`, `showParticipantStatus()` | Se actualizan goles, tiempo transcurrido, color del reloj, vida actual y máxima, y recarga del poder. `StatusArtwork` pinta el relleno de recarga dentro de POWER en la ilustración de cada lado. |
 | Repintado | `CourtView.setMatch()`, `paintComponent()` | Swing recibe la misma captura que el tablero. Dibuja el fondo, los arcos, los personajes y al final cada balón. |
-| Tamaño y posición | `courtScale()`, `playY()` | La escala hace caber la cancha en el panel. La coordenada vertical se proyecta en la franja jugable de la ilustración. |
+| Tamaño y posición | `CourtView.paintComponent()`, `courtProjection()` | La imagen completa mantiene su proporción; la proyección alinea los arcos físicos con los postes dibujados y reserva cielo para el techo. Una corrección vertical pequeña centra mejor el campo en el lienzo. |
 | Personajes | `loadCharacterSprite()`, `loadTrimmedSprite()`, `drawPlayer()` | Se consultan los recursos por código de país, se recorta el margen transparente y se reutiliza el resultado. La hitbox proporciona el centro horizontal y la línea de los pies. |
-| Balón y arcos | `drawBall()`, `drawGoals()` | Se toman sus posiciones de la captura. El dibujo del balón tiene un diámetro visual mínimo y conserva su centro. |
+| Balón y arcos | `drawBall()` | Las posiciones y el radio físico vienen de la captura. `BALL_VISUAL_SCALE` aumenta solo el arte del balón y conserva su centro; como el dibujo ocurre dentro de la proyección compartida, el aumento funciona con los tres tamaños de cancha sin cambiar colisiones. Los arcos ya están incluidos en la ilustración y la proyección alinea sus bocas. |
+
+### Ajustar la cancha y sus sprites
+
+`CourtView.paintComponent()` calcula un único tamaño de imagen a partir del espacio disponible bajo el HUD y la proporción del recurso `court@4x-8.png`. Dibuja la ilustración completa y coloca las entidades del juego con `courtProjection()`, que convierte coordenadas de dominio a coordenadas relativas a esa ilustración. La proyección usa las dimensiones y la posición de los dos arcos de la captura; por eso acompaña las tres opciones de cancha (`800 x 450`, `1024 x 576` y `1280 x 720`). No ajustes por separado la posición de los jugadores o del balón: se desalinearían entre sí y con el campo.
+
+Para corregir el encuadre general, modifica `COURT_VERTICAL_NUDGE_RATIO` en `MatchPanel`: mueve la imagen y todas las entidades juntas, en una fracción de la altura renderizada. `FIELD_MARGIN` controla el margen horizontal. Para cambiar el tamaño aparente del balón, modifica `BALL_VISUAL_SCALE`; este factor es exclusivamente visual y deja intactos el radio físico y las reglas de colisión (`SoccerField` crea el balón con radio 10). Verifica en los tres tamaños de cancha, además de los partidos manual y contra bot, que el balón conserve su centro en la hitbox y que jugadores y postes sigan alineados.
 
 Para seguir un dato concreto, busca `match.getParticipant(right)` en el dibujo y compara con `showParticipantStatus()`. El mismo participante de la captura aporta la hitbox al dibujo y la vida y recarga a las barras. En estas llamadas, `right = true` significa lado derecho.
 

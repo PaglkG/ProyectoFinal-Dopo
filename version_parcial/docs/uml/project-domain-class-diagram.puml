@@ -1,0 +1,385 @@
+@startuml
+title POOBSoccer - diagrama actual de clases del dominio
+left to right direction
+skinparam backgroundColor #F8FAFC
+skinparam packageStyle rectangle
+skinparam classBackgroundColor #FFF8CC
+skinparam classBorderColor #7C6F45
+skinparam classArrowColor #526477
+skinparam classFontColor #243247
+skinparam packageBorderColor #8393A8
+skinparam packageFontColor #243247
+skinparam shadowing false
+hide empty members
+
+package "Sesión y reglas" {
+  class Game {
+    - session: GameSession
+    + startSession(...): GameSession
+    + resetSession(): void
+    + movePlayer(player: boolean, direction: boolean): void
+    + jumpPlayer(player: boolean): void
+    + kickPlayer(player: boolean): boolean
+    + powerPlayer(player: boolean): void
+    + getBotTypes(): List<String>
+    + getSessionTypes(): List<String>
+    + getMatchTypes(): List<String>
+    + getPowerTypes(): List<String>
+    + getPlayerPoints(player: boolean): int
+    + getPlayerLife(player: boolean): int
+    + getPlayerMaxLife(player: boolean): int
+    + getPlayerPowerRemainingSeconds(player: boolean): double
+    + isPlayerPowerActive(player: boolean): boolean
+    + save(file: File): void
+    + open(file: File): void
+  }
+  class GameCatalog <<package-private>> {
+    {static} ~ load(resource: String, type: Class<?>, parameters: Class<?>...): List<Class<?>>
+    {static} ~ discover(type: Class<?>, publicConstructor: boolean, parameters: Class<?>...): List<String>
+    {static} ~ isConcreteSubclass(candidate: Class<?>, type: Class<?>): boolean
+  }
+  abstract class GameSession {
+    {static} - instance: GameSession
+    {static} - GRAVITY: double = 80.0
+    {static} - KICK_HORIZONTAL_IMPULSE: double = 260.0
+    {static} - KICK_VERTICAL_IMPULSE: double = -70.0
+    - timeLeft: double
+    - field: SoccerField
+    - TypeOfMatch: TypeOfMatch
+    - goalsLeft: int
+    - goalsRight: int
+    - finished: boolean
+    # participantsLeft: List<SessionParticipant>
+    # participantsRight: List<SessionParticipant>
+    + GameSession(player: boolean, typeMatche: String, parametersRules: List<String>)
+    {static} + getInstance(...): GameSession
+    {static} + restoreInstance(session: GameSession): void
+    + updateGame(): void
+    + movePlayer(user: SessionParticipant, direction: boolean): void
+    ~ movePlayer(user: SessionParticipant, direction: boolean, jumpOverOpponent: boolean): void
+    + jumpPlayer(user: SessionParticipant): void
+    ~ jumpSupportY(user: SessionParticipant): double
+    - advanceJumps(participants: List<SessionParticipant>): void
+    - limitVerticalStep(box: RectangularHitbox, obstacle: RectangularHitbox, nextY: double): double
+    - blocksHorizontalStep(current: RectangularHitbox, path: RectangularHitbox, nextX: double, obstacle: RectangularHitbox): boolean
+    + mirrorPlayingSides(): void
+    + updateAutonomousParticipants(): void
+    + restartRound(): void
+    + resetRoundInputState(): void
+    + kickPlayer(player: SessionParticipant): boolean
+    + powerPlayer(player: SessionParticipant): void
+    {static} ~ isBallInKickReach(box: RectangularHitbox, ball: Ball): boolean
+  }
+  class PlayerVsPlayer
+  class PlayerVsBot {
+    - kickHeld: boolean
+    + updateAutonomousParticipants(): void
+    + resetRoundInputState(): void
+    - readObject(input: ObjectInputStream): void
+  }
+  abstract class TypeOfMatch {
+    + check(parameters: List<String>): boolean
+  }
+  class ByGoals
+  class ByTime
+  class GameException
+}
+
+package "Participantes y poderes" {
+  abstract class SessionParticipant {
+    {static} - NORMAL_STATE: ParticipantState
+    {static} - STUNNED_STATE: StunnedState
+    - previousX: double
+    - previousY: double
+    - jumping: boolean
+    - jumpVelocity: double
+    - life: int
+    - UserHitbox: RectangularHitbox
+    - stats: Stats
+    - status: List<StatusEffect>
+    - specialPower: Power
+    - powerActive: boolean
+    + move(direction: boolean): void
+    ~ horizontalStep(): double
+    + takeDamage(damage: int): void
+    + jump(): void
+    ~ canStartJump(supportY: double, ceilingY: double): boolean
+    ~ jumpFromSupport(supportY: double, ceilingY: double): void
+    + forceJump(): void
+    {static} ~ maximumJumpRise(stepSeconds: double): double
+    ~ nextJumpY(stepSeconds: double): double
+    ~ applyJumpStep(nextY: double, allowedY: double, groundTop: double): void
+    + power(): void
+    + isPowerActive(): boolean
+    ~ getActivePower(): Power
+    ~ finishPowerActivation(): void
+    - currentState(): ParticipantState
+  }
+  interface ParticipantState <<privada>>
+  class NormalState <<privada>>
+  class StunnedState <<privada>>
+  class Player {
+    - user: int
+    + getUserId(): int
+  }
+  class Stats {
+    - points: int
+    - nextUpgradeCost: int
+    - action: Map<String, Integer>
+    + improveStatistics(stat: String): void
+  }
+  class StatusEffect {
+    {static} + ELECTROCUTED: String
+    - type: String
+    - duration: double
+    - remaining: double
+    + update(): void
+    + getSpeedFactor(): double
+    + blocksJump(): boolean
+  }
+  abstract class Power {
+    - chargePower: int
+    + update(): void
+    + addGoalBonus(): void
+    + getRemainingSeconds(): double
+    + isUsable(): boolean
+    + usePower(): void
+  }
+  class BlueAura
+  class Lightning
+  class Tornado
+  class Illusion
+  class PowerFactory {
+    {static} + create(className: String): Power
+  }
+}
+
+package "Decisión del bot" {
+  class BotPlayer {
+    - decisionStrategy: BotDecisionStrategy
+    + decideAction(field: SoccerField): Set<String>
+    ~ decideAction(field: SoccerField, goalDifference: int, supportY: double): Set<String>
+    + createDecisionStrategy(): BotDecisionStrategy
+  }
+  class Clumsy {
+    + createDecisionStrategy(): BotDecisionStrategy
+  }
+  class Offensive {
+    + createDecisionStrategy(): BotDecisionStrategy
+  }
+  class Defensive {
+    + createDecisionStrategy(): BotDecisionStrategy
+  }
+  class Expert {
+    + createDecisionStrategy(): BotDecisionStrategy
+  }
+  interface BotDecisionStrategy {
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class BotDecisionStrategies <<interna>>
+  class RandomMovement {
+    {static} - DECISION_STEPS: int = 18
+    - remainingSteps: int
+    - action: String
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class Attack {
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class DefendGoal {
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class AdaptToScore {
+    - attack: Attack
+    - defense: DefendGoal
+    + chooseAction(context: BotDecisionContext): String
+  }
+  class BotDecisionContext {
+    - elevatedBallInReach: boolean
+    ~ shouldJumpForBall(): boolean
+    ~ hasBall(): boolean
+    ~ ballX(): double
+    ~ ownGoalFrontX(): double
+    ~ ballInReach(): boolean
+    ~ goalDifference(): int
+    ~ moveToward(targetX: double): String
+  }
+}
+
+package "Cancha y respuesta física" {
+  class SoccerField {
+    {static} - ILLUSION_DURATION_SECONDS: double = 2.5
+    {static} - ILLUSION_DECOY_COUNT: int = 7
+    {static} - PARTICIPANT_HEIGHT_RATIO: double
+    {static} - GOAL_HEIGHT_RATIO: double = 0.30
+    - courtWidth: double
+    - courtHeight: double
+    - fieldHitbox: RectangularHitbox
+    - balls: Ball[]
+    - collisions: CollisionFacade
+    + advanceBalls(...): void
+    ~ createIllusionDecoys(source: Ball): void
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveBallParticipantCollisions(participantsLeft: Iterable<SessionParticipant>, participantsRight: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    ~ rollSupportedBalls(participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double): void
+    ~ fitRestoredParticipantHitbox(participant: SessionParticipant): void
+    + resetBall(x: double, y: double): void
+  }
+  class Ball {
+    - velocityX: double
+    - velocityY: double
+    - previousX: double
+    - previousY: double
+    - BallHitbox: CircularHitbox
+    - powerShot: Power
+    - powerShotAttackerOnLeft: boolean
+    - powerShotKickMultiplier: double
+    - illusionDecoy: boolean
+    - illusionRemainingSeconds: double
+    + advance(...): void
+    + applyImpulse(...): void
+    ~ markPowerShot(power: Power, attackerOnLeft: boolean, kickMultiplier: double): void
+    ~ getPowerShot(): Power
+    ~ isPowerShotAttackerOnLeft(): boolean
+    ~ getPowerShotKickMultiplier(): double
+    ~ clearPowerShot(): void
+    ~ startIllusionDecoy(durationSeconds: double): void
+    ~ isIllusionDecoy(): boolean
+    ~ isIllusionExpired(): boolean
+  }
+  class CollisionFacade {
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveBallParticipantCollisions(participantsLeft: Iterable<SessionParticipant>, participantsRight: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    ~ rollSupportedBalls(participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double): void
+  }
+  class CourtGeometry
+  class BallCollisionResolver
+  class BallParticipantCollisionResolver {
+    + rewindMissedContacts(balls: Ball[], participants: Iterable<SessionParticipant>): void
+    + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveAll(balls: Ball[], field: SoccerField, participantsLeft: Iterable<SessionParticipant>, participantsRight: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    ~ rollSupportedBalls(balls: Ball[], participants: Iterable<SessionParticipant>, stepSeconds: double, gravity: double, geometry: CourtGeometry): void
+    - resolveForSide(ball: Ball, participants: Iterable<SessionParticipant>, participantOnLeft: boolean, restitution: double, minimumLandingSpeed: double, field: SoccerField): void
+  }
+  class CircleRectangleCollisionResolver <<internal>>
+}
+
+package "Detección geométrica" {
+  interface Collidable
+  interface CollisionShape
+  interface Hitbox
+  class CircularHitbox
+  class RectangularHitbox
+  class CollisionDetector
+  class CollisionContact
+  class HitboxContact
+  class HitboxIntersections
+}
+
+Game "1" --> "0..1" GameSession : sesión administrada
+Game ..> GameCatalog : lee catálogos
+PlayerVsBot ..> GameCatalog : valida el perfil concreto
+GameSession <|-- PlayerVsPlayer
+GameSession <|-- PlayerVsBot
+GameSession "1" *-- "1" SoccerField : contiene
+GameSession "1" o-- "1..*" SessionParticipant : participantes
+GameSession --> TypeOfMatch : regla
+GameSession ..> GameException : informa errores
+TypeOfMatch <|-- ByGoals
+TypeOfMatch <|-- ByTime
+
+SessionParticipant <|-- Player
+SessionParticipant <|-- BotPlayer
+BotPlayer <|-- Clumsy
+BotPlayer <|-- Offensive
+BotPlayer <|-- Defensive
+BotPlayer <|-- Expert
+PlayerVsBot ..> BotPlayer : ejecuta decisiones
+GameSession ..> CollisionDetector : valida el paso
+BotPlayer --> "0..1" BotDecisionStrategy : estrategia
+BotPlayer ..> BotDecisionContext : contexto de la decisión
+BotDecisionStrategy ..> BotDecisionContext
+BotDecisionStrategies +-- RandomMovement
+BotDecisionStrategies +-- Attack
+BotDecisionStrategies +-- DefendGoal
+BotDecisionStrategies +-- AdaptToScore
+BotDecisionStrategy <|.. RandomMovement
+BotDecisionStrategy <|.. Attack
+BotDecisionStrategy <|.. DefendGoal
+BotDecisionStrategy <|.. AdaptToScore
+AdaptToScore *-- "1" Attack
+AdaptToScore *-- "1" DefendGoal
+BotDecisionContext ..> SoccerField : observa cancha y balón
+BotDecisionContext ..> GameSession : consulta alcance de patada
+BotDecisionContext ..> SessionParticipant : consulta alcance de salto
+SessionParticipant *-- RectangularHitbox : hitbox
+SessionParticipant --> Stats
+SessionParticipant --> "0..*" StatusEffect
+SessionParticipant --> "1" ParticipantState : NORMAL_STATE {static}
+SessionParticipant --> "1" StunnedState : STUNNED_STATE {static}
+NormalState ..|> ParticipantState
+StunnedState ..|> ParticipantState
+SessionParticipant --> Power : poder asociado
+Ball --> Power : tiro armado
+PlayerVsPlayer ..> PowerFactory
+PlayerVsBot ..> PowerFactory
+PowerFactory ..> Power
+Power <|-- BlueAura
+Power <|-- Lightning
+Power <|-- Tornado
+Power <|-- Illusion
+
+SoccerField "1" *-- "1..*" Ball : balones
+SoccerField "1" *-- "1" RectangularHitbox : cancha
+SoccerField "1" *-- "2" RectangularHitbox : arcos
+SoccerField *-- CollisionFacade
+Ball *-- CircularHitbox : hitbox
+Ball ..|> Collidable
+SessionParticipant ..|> Collidable
+CollisionFacade *-- CourtGeometry
+CollisionFacade *-- BallCollisionResolver
+CollisionFacade *-- BallParticipantCollisionResolver
+CollisionFacade --> SoccerField
+CourtGeometry --> SoccerField
+BallCollisionResolver ..> Ball
+BallCollisionResolver ..> BallParticipantCollisionResolver : comprueba apoyo
+BallParticipantCollisionResolver ..> Ball
+BallParticipantCollisionResolver ..> SoccerField : agrega copias Illusion
+BallParticipantCollisionResolver ..> SoccerField : agrega copias Illusion
+BallParticipantCollisionResolver ..> Power
+BallParticipantCollisionResolver ..> CourtGeometry : valida posición del balón
+BallParticipantCollisionResolver ..> SessionParticipant
+CircleRectangleCollisionResolver ..> Ball
+CircleRectangleCollisionResolver ..> RectangularHitbox
+
+Hitbox -|> CollisionShape
+CircularHitbox ..|> Hitbox
+RectangularHitbox ..|> Hitbox
+CollisionDetector ..> Collidable
+CollisionContact --> "0..2" Collidable : first y second
+HitboxIntersections ..> CollisionDetector
+HitboxIntersections ..> HitboxContact
+HitboxContact --> "0..1" Hitbox
+
+note bottom of GameSession
+  La sesión es singleton y coordina el ciclo del partido.
+  SoccerField conserva la geometría y delega las respuestas
+  físicas en CollisionFacade.
+end note
+note bottom of SoccerField
+  En canchas nuevas cada arco mide un décimo del ancho
+  y el 30 % de la altura de la cancha. Su base toca el suelo.
+  Las partidas guardadas conservan las dimensiones de sus arcos.
+end note
+note bottom of CollisionDetector
+  Evalúa el contacto según las formas recibidas.
+end note
+note bottom of ParticipantState
+  Las clases de estado pertenecen a SessionParticipant.
+  El efecto de aturdimiento determina el estado activo.
+end note
+note bottom of BotDecisionStrategies
+  Clumsy usa RandomMovement, Offensive usa Attack,
+  Defensive usa DefendGoal y Expert usa AdaptToScore.
+end note
+@enduml

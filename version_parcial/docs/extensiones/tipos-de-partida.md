@@ -1,0 +1,9 @@
+# Agregar un tipo de partida
+
+Un tipo de partida decide cuándo termina la sesión. `Game.isFinished()` y `MatchSnapshot.isFinished()` consultan el resultado ya calculado.
+
+1. Define el límite y los datos que necesita la regla. Crea una subclase concreta de `TypeOfMatch` con constructor público `List<String>`. `GameSession.createMatchRule()` pasa la lista a partir del tercer argumento del formulario, después del alto y el ancho.
+2. Implementa `check(List<String>)` con el contrato acordado. Hoy `ByGoals` devuelve verdadero cuando acaba y `ByTime` devuelve verdadero mientras continúa. `GameSession.checkTypeOfMatch()` solo evalúa esos dos tipos. Para una regla independiente, conecta explícitamente sus argumentos y cómo se convierte su retorno en `finished`. Conserva el reparto de puntos cuando la sesión pasa de activa a terminada.
+3. Agrega el nombre completo al archivo [match-types.txt](../../src/main/resources/domain/match-types.txt). `Game.getMatchTypes()` publica su nombre simple y `PersonalizationPanel.prepareViewMatchOptions()` lo incluye en el selector.
+4. Si la regla usa un único entero positivo, añade en `options.properties` las claves `option.<Clase>.label`, `limit.label`, `limit.default` y, si quieres un rótulo distinto en resultados, `summary` con el mismo prefijo. `prepareViewMatchLimit()` genera el campo y `createMatchConfiguration()` envía su valor. Una regla sin formulario aparece con el inicio deshabilitado. Para más parámetros, adapta la generación, validación y serialización del formulario.
+5. Si necesitas mostrar una fase especial, sigue `Game.getMatchState()`, `DOPOSoccerGUI.publishMatch()` y `MatchPanel.showMatch()`. La muerte súbita se captura hoy desde el estado de `ByTime`. Prueba fin por el límite, continuidad antes del límite, empate según la regla y transición a Resultados.

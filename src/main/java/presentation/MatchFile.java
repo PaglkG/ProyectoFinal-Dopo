@@ -25,7 +25,11 @@ final class MatchFile {
     /** Impide crear instancias de este formato de archivo. */
     private MatchFile() { }
 
-    /** Agrega la configuración y una referencia a su posición para leerla antes de abrir la sesión. */
+    /** Agrega la configuración y una referencia a su posición para leerla antes de abrir la sesión.
+     * @param file archivo al que se agrega el bloque
+     * @param configuration opciones visuales que se guardan
+     * @throws IOException si no es posible escribir el bloque
+     */
     static void appendConfiguration(File file, MatchConfiguration configuration) throws IOException {
         try (RandomAccessFile data = new RandomAccessFile(file, "rw")) {
             long start = data.length();
@@ -45,7 +49,11 @@ final class MatchFile {
         }
     }
 
-    /** Recupera las opciones guardadas antes de que Game reemplace la sesión activa. */
+    /** Recupera las opciones guardadas antes de que Game reemplace la sesión activa.
+     * @param file archivo que contiene el bloque visual
+     * @return configuración visual persistida
+     * @throws IOException si el bloque falta, está truncado o es inválido
+     */
     static MatchConfiguration readConfiguration(File file) throws IOException {
         try (RandomAccessFile data = new RandomAccessFile(file, "r")) {
             long end = data.length() - FOOTER_SIZE;
@@ -77,13 +85,21 @@ final class MatchFile {
         return new IOException("El archivo no contiene la configuración de una partida guardada desde el juego.");
     }
 
-    /** Escribe el tamaño de la lista y luego sus textos en el mismo orden. */
+    /** Escribe el tamaño de la lista y luego sus textos en el mismo orden.
+     * @param data archivo abierto para escritura
+     * @param values textos que se guardan
+     * @throws IOException si falla la escritura
+     */
     private static void writeList(RandomAccessFile data, List<String> values) throws IOException {
         data.writeInt(values.size());
         for (String value : values) data.writeUTF(value);
     }
 
-    /** Recupera los textos después de validar que el tamaño cabe en el archivo. */
+    /** Recupera los textos después de validar que el tamaño cabe en el archivo.
+     * @param data archivo posicionado al comienzo de la lista
+     * @return valores leídos en el mismo orden
+     * @throws IOException si el tamaño es inválido o no se pueden leer los textos
+     */
     private static List<String> readList(RandomAccessFile data) throws IOException {
         int size = data.readInt();
         if (size < 0 || size > (data.length() - data.getFilePointer()) / Short.BYTES) {

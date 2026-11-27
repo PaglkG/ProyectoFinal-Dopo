@@ -1,0 +1,9 @@
+# Agregar un tipo de juego
+
+Un tipo de juego define quién participa y cómo se controla. `PlayerVsPlayer` y `PlayerVsBot` son las referencias. La condición de fin pertenece al [tipo de partida](tipos-de-partida.md).
+
+1. Crea una subclase de `GameSession` con el patrón de constructor que invoca la fábrica, en orden `boolean player, String typeMatche, List<String> parametersRules, List<String> parametersPowers`. Llama al constructor base y construye los participantes de cada lado. Asigna sus poderes, valida la lista que consumes y llama a `positionParticipants()`. El método actual coloca al primer participante de cada lado.
+2. Si el modo tiene acciones automáticas, sobrescribe `updateAutonomousParticipants()`. Usa los métodos de la sesión para mover, saltar o patear. `updateGame()` llama al método antes de avanzar la física. Si guardas estado con duración de ronda, revisa `restartRound()`.
+3. Expón el nuevo nombre en `Game.getSessionTypes()`, previa autorización para editar la fachada. `Game.startSession()` pasa el nombre completo a la fábrica y la sesión única solo se configura la primera vez. En `options.properties`, agrega `option.<Clase>.label` y `option.<Clase>.bot` si el modo encaja en uno de los formatos actuales.
+4. Verifica `PersonalizationPanel.createMatchConfiguration()`. Los dos formatos existentes envían dos poderes, o dos poderes más un perfil. Si el modo tiene otra composición, define sus argumentos y adapta el formulario, la resolución de identidades en `Game.findPlayer()` y las lecturas por lado en `DOPOSoccerGUI.publishMatch()` y `MatchSnapshot`. La captura actual representa un participante por lado.
+5. Revisa compra de mejoras, asignación de puntos, navegación y guardado cuando la composición cambie. Ejecuta cada configuración nueva en una aplicación recién iniciada y prueba la posición inicial, un paso de juego, un gol y el reinicio.

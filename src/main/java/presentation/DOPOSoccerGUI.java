@@ -344,7 +344,11 @@ public class DOPOSoccerGUI extends JFrame
         bindPlayerKeys(false, playerTwoMatchKeys, "player-two");
     }
 
-    /** Conecta las cinco acciones de una identidad con sus códigos asignados. */
+    /** Conecta las cinco acciones de una identidad con sus códigos asignados.
+     * @param playerOne identidad humana asociada a las acciones
+     * @param keys códigos en el orden de las acciones configuradas
+     * @param name prefijo de nombre para las asociaciones Swing
+     */
     private void bindPlayerKeys(boolean playerOne, int[] keys, String name) {
         bindMatchKey(keys[0], name + "-right", null);
         bindMatchKey(keys[1], name + "-left", null);
@@ -354,7 +358,10 @@ public class DOPOSoccerGUI extends JFrame
         bindMatchKey(keys[4], name + "-power", () -> requestPlayerPower(playerOne));
     }
 
-    /** Retira los registros anteriores antes de aplicar una asignación nueva. */
+    /** Retira los registros anteriores antes de aplicar una asignación nueva.
+     * @param keys códigos que se habían registrado, o {@code null}
+     * @param name prefijo usado para las acciones asociadas
+     */
     private void unbindMatchKeys(int[] keys, String name) {
         if (keys == null) return;
         String[] actions = {"right", "left", "jump", "kick", "power"};
@@ -485,7 +492,9 @@ public class DOPOSoccerGUI extends JFrame
         showScreen(NavigationController.PREPARATION);
     }
 
-    /** Guarda el estado del dominio y la configuración visual necesaria para restaurarlo. */
+    /** Guarda el estado del dominio y la configuración visual necesaria para restaurarlo.
+     * @param file destino del archivo de partida
+     */
     private void saveMatch(File file) {
         File visualFile = configurationFile(file);
         if ((file.exists() || visualFile.exists()) && JOptionPane.showConfirmDialog(this,
@@ -505,7 +514,11 @@ public class DOPOSoccerGUI extends JFrame
         }
     }
 
-    /** Prepara ambos archivos antes de reemplazar el guardado anterior. */
+    /** Prepara ambos archivos antes de reemplazar el guardado anterior.
+     * @param gamePath destino de la sesión serializada
+     * @param visualPath destino de la configuración visual
+     * @throws IOException si falla la escritura de los archivos
+     */
     private void writeMatchFiles(Path gamePath, Path visualPath) throws IOException {
         Path tempGame = Files.createTempFile(gamePath.getParent(), ".dopo-", ".tmp");
         try {
@@ -526,7 +539,9 @@ public class DOPOSoccerGUI extends JFrame
         }
     }
 
-    /** Restaura el dominio y su configuración de presentación desde el guardado. */
+    /** Restaura el dominio y su configuración de presentación desde el guardado.
+     * @param file archivo de sesión que se abrirá
+     */
     private void openMatch(File file) {
         try {
             MatchConfiguration configuration = readMatchConfiguration(file);
@@ -540,7 +555,12 @@ public class DOPOSoccerGUI extends JFrame
         }
     }
 
-    /** Lee el auxiliar visual o la configuración integrada de los guardados anteriores. */
+    /** Lee el auxiliar visual o la configuración integrada de los guardados anteriores.
+     * @param file archivo de partida seleccionado
+     * @return configuración persistida para restaurar la interfaz
+     * @throws IOException si no se puede leer o validar la configuración
+     * @throws ClassNotFoundException si el archivo contiene una clase no disponible
+     */
     private MatchConfiguration readMatchConfiguration(File file)
             throws IOException, ClassNotFoundException {
         File visualFile = configurationFile(file);
@@ -551,7 +571,10 @@ public class DOPOSoccerGUI extends JFrame
         }
     }
 
-    /** Archivo auxiliar con configuración de personajes y cancha de la interfaz. */
+    /** Archivo auxiliar con configuración de personajes y cancha de la interfaz.
+     * @param gameFile archivo de sesión guardado
+     * @return archivo auxiliar de presentación
+     */
     private File configurationFile(File gameFile) {
         return new File(gameFile.getAbsolutePath() + ".ui");
     }
@@ -695,12 +718,19 @@ public class DOPOSoccerGUI extends JFrame
          */
         public static List<String> getPowerTypes() { return powerTypes; }
 
-        /** Publica una captura completa de la partida con una sola asignación. */
+        /** Publica una captura completa de la partida con una sola asignación.
+         * @param value captura de estado que consultarán los paneles
+         */
         private static void setMatch(MatchSnapshot value) {
             match = value;
         }
 
-        /** Publica copias inmutables de las opciones que ofrece Game. */
+        /** Publica copias inmutables de las opciones que ofrece Game.
+         * @param sessions modalidades de sesión disponibles
+         * @param rules reglas de partido disponibles
+         * @param bots perfiles de bot disponibles
+         * @param powers poderes disponibles
+         */
         private static void setOptions(List<String> sessions, List<String> rules, List<String> bots,
                 List<String> powers) {
             sessionTypes = List.copyOf(sessions);

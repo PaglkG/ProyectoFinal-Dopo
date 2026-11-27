@@ -1,0 +1,485 @@
+@startuml
+title Modelo de clases del dominio (código actual)
+skinparam packageStyle rectangle
+hide empty members
+
+package "domain" {
+  class Game {
+    - session: GameSession
+    + startSession(parametersRules: List<String> [height, width, modeParameter], parametersPowers: List<String>, typeGame: String, typeMatche: String, player: boolean): GameSession
+    + movePlayer(playerOne: boolean, direction: boolean): void
+    + kickPlayer(playerOne: boolean): boolean
+    + getPlayerX(player: boolean): double
+    + getPlayerY(player: boolean): double
+    + getPlayerWidth(player: boolean): double
+    + getPlayerHeight(player: boolean): double
+    + getBallX(index: int): double
+    + getBallY(index: int): double
+    + getBallRadius(index: int): double
+    + getBallVelocityX(index: int): double
+    + getBallVelocityY(index: int): double
+    + getBallCount(): int
+    + getGoalX(index: int): double
+    + getGoalY(index: int): double
+    + getGoalWidth(index: int): double
+    + getGoalHeight(index: int): double
+    + getCourtX(): double
+    + getCourtY(): double
+    + getCourtWidth(): double
+    + getCourtHeight(): double
+    + updateGame(): void
+    + improveStatistics(player: boolean, stats: String): void
+    + save(file: File): void
+    + open(file: File): void
+  }
+  abstract class GameSession {
+    {static} - instance: GameSession
+    - timeLeft: double
+    - xBase: int
+    - yBase: int
+    - GRAVITY: double = 40 {static, readOnly}
+    - TypeOfMatch: TypeOfMatch
+    - allHitbox: Hitbox[]
+    - field: SoccerField
+    - goalsLeft: int
+    - goalsRight: int
+    - finished: boolean
+    # participantsRight: List<SessionParticipant>
+    # participantsLeft: List<SessionParticipant>
+    {static} + getInstance(typeGame: String, player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>): GameSession
+    + movePlayer(user: SessionParticipant, direction: boolean): void
+    + kickPlayer(player: SessionParticipant): boolean
+    + restartRound(): void
+    + positionParticipants(): void
+    + goal(side: String): void
+    + checkTypeOfMatch(): void
+    + updateGame(): void
+    - collision(): void
+    - closestOpponentInReach(attacker: RectangularHitbox, opponents: List<SessionParticipant>): SessionParticipant
+    + getGoalsLeft(): int
+    + getGoalsRight(): int
+    + isFinished(): boolean
+    + getElapsedSeconds(): double
+    + getField(): SoccerField
+    + getParticipantsLeft(): List<SessionParticipant>
+    + getParticipantsRight(): List<SessionParticipant>
+    + improveStatistics(player: boolean, stats: String): void
+    - awardMatchPoints(): void
+  }
+  class PlayerVsBot {
+    - PlayerVsBot(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
+    - createBot(difficulty: String): BotPlayer
+  }
+  class PlayerVsPlayer {
+    - PlayerVsPlayer(player: boolean, typeMatche: String, parametersRules: List<String>, parametersPowers: List<String>)
+  }
+  abstract class SessionParticipant {
+    - x: double
+    - y: double
+    - previousX: double
+    - previousY: double
+    - life: int = 100
+    - UserHitbox: RectangularHitbox
+    - stats: Stats
+    - status: List<StatusEffect>
+    - specialPower: Power
+    + move(dir: boolean): void
+    ~ moveBy(horizontalDistance: double): void
+    + getStats(): Stats
+    + setStats(stats: Stats): void
+    + getLife(): int
+    + getMaxLife(): int
+    + blocksMovement(): boolean
+    + takeDamage(damage: int): void
+    + applyStatusEffect(effect: StatusEffect): void
+    + updateStatusEffects(): void
+    + jump(): void
+    + forceJump(): void
+    + power(): void
+    + getSpecialPower(): Power
+    + setSpecialPower(specialPower: Power): void
+    + resetPosition(x: double, y: double): void
+    ~ getPreviousX(): double
+    ~ getPreviousY(): double
+    ~ rememberCurrentPosition(): void
+    ~ repositionForCollision(x: double, y: double): void
+    + resizeHitbox(width: double, height: double): void
+    + improveStatistics(stats: String): void
+    + intersects(target: Object): HitboxContact
+  }
+  class Player {
+    - user: int
+    + getUserId(): int
+  }
+  class BotPlayer {
+    + decideAction(field: SoccerField): Set<Action>
+  }
+  class Clumsy
+  class Offensive
+  class Defensive
+  class Expert
+  class SoccerField {
+    - LeftGoalHitbox: RectangularHitbox
+    - RightGoalHitbox: RectangularHitbox
+    - fieldHitbox: RectangularHitbox
+    - balls: Ball[]
+    - collisions: CollisionFacade
+    ~ createIllusionDecoys(source: Ball): void
+    + advanceBalls(deltaSeconds: double, gravity: double): void
+    + addBall(ball: Ball): void
+    + resolveBallCollisions(restitution: double): void
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>): void
+    + keepBallInsideCourt(ball: Ball, retention: double): void
+    + balls(): Ball[]
+    + courtX(): double
+    + courtY(): double
+    + courtWidth(): double
+    + courtHeight(): double
+    + boundaryThickness(): double
+    + groundY(): double
+    + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
+    + resetBall(x: double, y: double): void
+    + getFieldHitbox(): RectangularHitbox
+    + getHitboxField(): RectangularHitbox[]
+    + getHitboxBalls(): CircularHitbox[]
+    + getHitboxes(): Hitbox[]
+    + getBalls(): Ball[]
+    + getGoalHitboxes(): RectangularHitbox[]
+    + contactingPart(other: Object): HitboxContact
+    + intersects(target: Object): HitboxContact
+    + goalSideFor(ball: Ball): String
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    + touchesGround(ball: Ball): boolean
+    + groundCenterY(ball: Ball): double
+    + positionParticipants(left: SessionParticipant, right: SessionParticipant): void
+  }
+  class CollisionFacade {
+    - field: SoccerField
+    - geometry: CourtGeometry
+    - ballResolver: BallCollisionResolver
+    - participantResolver: BallParticipantCollisionResolver
+    + resolveBallCollisions(restitution: double): void
+    + resolveBallParticipantCollisions(participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveWalkingContact(moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>): void
+    + keepBallInsideCourt(ball: Ball, retention: double): void
+    + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
+    + goalSideFor(ball: Ball): String
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    + touchesGround(ball: Ball): boolean
+    + groundCenterY(ball: Ball): double
+  }
+  class CourtGeometry {
+    - field: SoccerField
+    + isValidBallPosition(candidate: Ball, moved: SessionParticipant, participants: Iterable<SessionParticipant>): boolean
+    + isOutside(ball: Ball): boolean
+    + isOutside(participant: SessionParticipant): boolean
+    + touchesForbiddenBoundary(participant: SessionParticipant): boolean
+    + touchesGround(ball: Ball): boolean
+    + goalSideFor(ball: Ball): String
+    + keepBallInsideCourt(ball: Ball, retention: double): void
+    + bounceBallAtWallsAndGoalFrames(ball: Ball, retention: double): void
+    + bounceBallAtGround(ball: Ball, retention: double, minimumSpeed: double): void
+  }
+  class BallCollisionResolver {
+    + resolveAll(balls: Ball[], restitution: double): void
+    + resolveWalkingContact(balls: Ball[], moved: SessionParticipant, previousX: double, participants: Iterable<SessionParticipant>, geometry: CourtGeometry): void
+  }
+  class BallParticipantCollisionResolver {
+    + resolveAll(balls: Ball[], participants: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolveAll(balls: Ball[], field: SoccerField, participantsLeft: Iterable<SessionParticipant>, participantsRight: Iterable<SessionParticipant>, restitution: double, minimumLandingSpeed: double): void
+    + resolve(ball: Ball, participant: SessionParticipant, restitution: double, minimumLandingSpeed: double): void
+    ~ resolve(ball: Ball, participant: SessionParticipant, previousBallX: double, previousBallY: double, previousParticipantX: double, previousParticipantY: double, restitution: double, minimumLandingSpeed: double): void
+  }
+  class CollisionAxisResolver <<utility>> {
+    ~ forCircleRectangle(ball: Ball, rectangle: RectangularHitbox, previousBallX: double, previousBallY: double, previousRectangleX: double, previousRectangleY: double): Axis
+    ~ sideForAxis(axis: Axis, ball: Ball, rectangle: RectangularHitbox, previousBallX: double, previousBallY: double, previousRectangleX: double, previousRectangleY: double): double
+  }
+  class CircleRectangleCollisionResolver <<utility>> {
+    ~ resolve(ball: Ball, rectangle: RectangularHitbox, previousBallX: double, previousBallY: double, previousRectangleX: double, previousRectangleY: double, restitution: double): Resolution
+  }
+  class Ball {
+    - physical: boolean
+    - velocityX: double
+    - velocityY: double
+    - previousX: double
+    - previousY: double
+    - BallHitbox: CircularHitbox
+    - illusionDecoy: boolean
+    - illusionRemainingSeconds: double
+    + resetBall(width: double, height: double): void
+    + getHitbox(): CircularHitbox
+    + getX(): double
+    + getY(): double
+    ~ getPreviousX(): double
+    ~ getPreviousY(): double
+    + getRadius(): double
+    + getVelocityX(): double
+    + getVelocityY(): double
+    + applyImpulse(deltaX: double, deltaY: double): void
+    + ensureHorizontalDirection(direction: int, minimumSpeed: double): void
+    + advance(deltaSeconds: double, gravity: double): void
+    + bounceAt(centerY: double, retention: double, minimumSpeed: double): void
+    + bounceHorizontallyAt(centerX: double, retention: double): void
+    + bounceVerticallyAt(centerY: double, retention: double): void
+    + intersects(target: Object): HitboxContact
+  }
+  class Stats {
+    + Stats()
+    + POINTS_PER_WIN: int = 100 {static, readOnly}
+    + POINTS_PER_LOSS: int = 25 {static, readOnly}
+    + POINTS_PER_DRAW: int = 25 {static, readOnly}
+    + INITIAL_UPGRADE_COST: int = 500 {static, readOnly}
+    + MAX_STAT_LEVEL: int = 10 {static, readOnly}
+    + BASE_LIFE: int = 100 {static, readOnly}
+    + KICK_BASE_DAMAGE: int = 10 {static, readOnly}
+    + KICK_MULTIPLIER_PER_LEVEL: double = 0.10 {static, readOnly}
+    - points: int = 0
+    - nextUpgradeCost: int = 500
+    - action: Map<String, Integer>
+    + getSpeed(): int
+    + getKickMultiplier(): double
+    + getKickDamage(): int
+    + getMaxLife(): int
+    + getPoints(): int
+    + getNextUpgradeCost(): int
+    + getStatistic(statistic: String): int
+    + awardWin(): void
+    + awardLoss(): void
+    + awardDraw(): void
+    + improveStatistics(stats: String): void
+  }
+  class StatusEffect {
+    + STUNNED: String = "stunned" {static, readOnly}
+    + ELECTROCUTED: String = "electrocuted" {static, readOnly}
+    + STUN_DURATION_SECONDS: double = 3.0 {static, readOnly}
+    - type: String
+    - duration: double
+    - remaining: double
+    + StatusEffect(type: String, duration: double)
+    + update(): void
+    + isExpired(): boolean
+    + refresh(): void
+    + getType(): String
+    + getDuration(): double
+    + getRemaining(): double
+    + getSpeedFactor(): double
+    + getJumpFactor(): double
+    + blocksMovement(): boolean
+    + blocksJump(): boolean
+  }
+  enum Action {
+    LEFT
+    RIGHT
+    JUMP
+    POWER
+  }
+  abstract class TypeOfMatch {
+    + check(parameters: List<String>): boolean
+  }
+  class ByGoals {
+    - goals: int
+    - goals: int
+  }
+  class ByTime {
+    - minutes: int
+    - suddenDeath: boolean
+    - minutes: int
+    - suddenDeath: boolean
+  }
+  class GameException {
+    + GameException(message: String)
+    + GameException(message: String, cause: Throwable)
+  }
+  abstract class Power
+  class BlueAura
+  class Lightning
+  class Tornado
+  class Illusion
+  class PowerFactory {
+    + {static} create(className: String): Power
+  }
+  PowerFactory ..> Power
+  Power <|-- BlueAura
+  Power <|-- Lightning
+  Power <|-- Tornado
+  Power <|-- Illusion
+
+  interface Hitbox {
+    + intersects(target: Object): HitboxContact
+    + reposition(x: double, y: double): void
+  }
+  class HitboxContact {
+    + name: String
+    + hitbox: Hitbox
+    + none(): HitboxContact {static}
+    + isContact(): boolean
+  }
+  class HitboxIntersections <<utility>> {
+    + intersects(first: Object, second: Object): HitboxContact {static}
+  }
+  class CircularHitbox {
+    + intersects(target: Object): HitboxContact
+    + reposition(x: double, y: double): void
+  }
+  class RectangularHitbox {
+    + intersects(target: Object): HitboxContact
+    + reposition(x: double, y: double): void
+  }
+}
+package "presentation.controllers" {
+  class GameController {
+    - game: Game
+    - session: GameSession
+    + startGame(): void
+    + movePlayer(participant: SessionParticipant, direction: char): void
+    + jumpPlayer(participant: SessionParticipant): void
+    + activatePower(participant: SessionParticipant): void
+  }
+}
+
+package "presentation.testing" {
+  class MechanicsTestApp {
+    + main(args: String[]): void {static}
+  }
+  class MechanicsTestPanel {
+    - controller: MechanicsTestController
+    + MechanicsTestPanel()
+    + addScenario(label: String, action: Runnable): void
+    + start(): void
+    + stop(): void
+  }
+  class MechanicsTestController {
+    - game: Game
+    - movement: PresentationMovement
+    + MechanicsTestController()
+    + update(): void
+    + reset(): void
+    + move(rightSide: boolean, toRight: boolean): void
+    + kick(rightSide: boolean): boolean
+    + setBallState(x: double, y: double, velocityX: double, velocityY: double): void
+    + prepareKick(): void
+  }
+  class PresentationMovement <<presentation-only>> {
+    - held: EnumSet<Control>
+    - jumpRequested: EnumSet<Control>
+    - verticalSpeeds: Map<String, Double>
+    - carriedBallIndexes: Map<String, Integer>
+    + setControl(control: Control, pressed: boolean): void
+    + reset(): void
+    + update(game: Game): void
+  }
+  enum Control {
+    LEFT_LEFT
+    LEFT_RIGHT
+    LEFT_JUMP
+    RIGHT_LEFT
+    RIGHT_RIGHT
+    RIGHT_JUMP
+  }
+}
+
+
+Game "1" --> "0..1" GameSession : active session reference
+GameSession <|-- PlayerVsBot
+GameSession <|-- PlayerVsPlayer
+GameSession "1" *-- "1" SoccerField : field
+SoccerField *-- CollisionFacade : collision coordinator
+CollisionFacade *-- CourtGeometry
+CollisionFacade *-- BallCollisionResolver
+CollisionFacade *-- BallParticipantCollisionResolver
+CollisionFacade --> SoccerField
+CourtGeometry ..> CircleRectangleCollisionResolver
+BallParticipantCollisionResolver ..> CircleRectangleCollisionResolver
+CircleRectangleCollisionResolver ..> CollisionAxisResolver
+CircleRectangleCollisionResolver ..> Ball
+CircleRectangleCollisionResolver ..> RectangularHitbox
+CollisionAxisResolver ..> Ball
+CollisionAxisResolver ..> RectangularHitbox
+GameSession "1" o-- "0..*" SessionParticipant : participants
+GameSession --> TypeOfMatch
+GameSession ..> GameException : errors
+Stats ..> GameException : invalid upgrade
+GameSession ..> Hitbox : allHitbox[]
+SessionParticipant <|-- Player
+SessionParticipant <|-- BotPlayer
+BotPlayer <|-- Clumsy
+BotPlayer <|-- Offensive
+BotPlayer <|-- Defensive
+BotPlayer <|-- Expert
+SoccerField "1" *-- "1..*" Ball : balls
+SoccerField "1" *-- "1" RectangularHitbox : fieldHitbox
+SoccerField "1" *-- "2" RectangularHitbox : goal hitboxes
+Ball "1" *-- "1" CircularHitbox : BallHitbox
+SessionParticipant "1" *-- "1" RectangularHitbox : UserHitbox
+SessionParticipant --> Stats
+SessionParticipant --> "0..*" StatusEffect
+SessionParticipant --> Power : specialPower
+SessionParticipant ..> Action
+Hitbox <|.. CircularHitbox
+Hitbox <|.. RectangularHitbox
+HitboxContact --> Hitbox : hitbox
+HitboxIntersections ..> HitboxContact
+HitboxIntersections ..> Hitbox
+HitboxIntersections ..> CircularHitbox
+HitboxIntersections ..> RectangularHitbox
+HitboxIntersections ..> Ball
+HitboxIntersections ..> SessionParticipant
+HitboxIntersections ..> SoccerField
+CircularHitbox ..> HitboxIntersections
+RectangularHitbox ..> HitboxIntersections
+Ball ..> CircularHitbox : delegates intersection
+SessionParticipant ..> RectangularHitbox : delegates intersection
+SoccerField ..> HitboxIntersections : detects named contacts
+TypeOfMatch <|-- ByGoals
+TypeOfMatch <|-- ByTime
+GameController --> Game
+GameController --> GameSession
+MechanicsTestApp ..> MechanicsTestPanel
+MechanicsTestPanel --> MechanicsTestController
+MechanicsTestController --> Game
+MechanicsTestController --> PresentationMovement
+PresentationMovement --> Game
+MechanicsTestPanel ..> Game : getters escalares y capas visuales
+
+note bottom of Hitbox
+  Solo las formas geométricas implementan Hitbox.
+  Las entidades contienen y exponen hitboxes asociadas.
+  intersects() devuelve entidad y hitbox contactadas.
+  Sin contacto: nombre vacío y hitbox nula.
+  La geometría incluye contacto de bordes.
+end note
+note bottom of GameSession
+  updateGame() usa paso fijo de 1/60 s.
+  Coordina goles, errores de salida/superposición
+  y el orden del procesamiento físico.
+  SoccerField avanza los balones y delega las
+  colisiones a CollisionFacade. movePlayer()
+  permite empujar el balón en pasos pequeños sin
+  cambiar su velocidad ni atravesarlo.
+  kickPlayer() valida participante y sesión,
+  prioriza un rival en alcance para aplicar daño
+  y, si no lo hay, impulsa el balón alcanzable.
+end note
+note right of SoccerField
+  Contiene y recorre los balones, límites
+  y zonas de gol. Delega la resolución física
+  a CollisionFacade.
+end note
+note right of CollisionFacade
+  Coordina los colaboradores de colisión
+  y consulta la geometría de SoccerField.
+end note
+note bottom of Ball
+  Guarda posición y velocidad, integra
+  el movimiento y ejecuta rebotes e impulsos
+  que le delegan la cancha o la sesión.
+end note
+@enduml
+    + MechanicsTestController()

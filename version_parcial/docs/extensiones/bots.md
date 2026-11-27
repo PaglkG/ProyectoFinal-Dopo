@@ -1,0 +1,9 @@
+# Agregar un perfil de bot
+
+1. Crea una subclase concreta de `BotPlayer`, con constructor público sin argumentos. Usa `Offensive` o `Defensive` como modelo. Sobrescribe `createDecisionStrategy()` para devolver una `BotDecisionStrategy`. La interfaz recibe un `BotDecisionContext` y devuelve texto, por ejemplo `moveLeft`, `moveRight`, `kick` o vacío para esperar.
+2. Lee el contexto en `chooseAction()`. Mantén ahí la decisión. `BotPlayer.decideAction()` comprueba si el bot puede actuar y contempla el salto hacia un balón alto antes de consultar al perfil. Si la estrategia necesita un dato nuevo, añádelo en `BotDecisionContext` y úsalo desde la estrategia.
+3. Registra el perfil en `PlayerVsBot.createBot()` y expón su nombre en el catálogo que devuelve `Game.getBotTypes()`. Hoy ambas listas están en Java. La modificación de la fachada requiere autorización explícita según las reglas del repositorio. Para una acción nueva, implementa también la ejecución en `PlayerVsBot.updateAutonomousParticipants()` y envíala al método de sesión correspondiente.
+4. En `options.properties`, agrega `option.<ClaseBot>.label`. `PersonalizationPanel.prepareViewModeOptions()` toma los perfiles publicados. `createMatchConfiguration()` añade el perfil como tercer elemento para jugador contra bot. El banco también consulta el catálogo para ofrecer el perfil.
+5. El país de la máquina se elige en el segundo selector. El país aporta el poder fijo. El perfil aporta la conducta y se puede combinar con distintos países. El constructor de `PlayerVsBot` efectúa ambas asignaciones.
+
+Comprueba que el perfil aparece y se instancia, que actúa en un escenario controlado y que el aturdimiento bloquea sus acciones. Prueba dos países con el mismo bot para comprobar que cambia el poder asignado y se conserva la estrategia.

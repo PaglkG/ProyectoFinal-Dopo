@@ -1,0 +1,50 @@
+package presentation;
+
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+
+import javax.swing.JPanel;
+
+/**
+ * Panel con esquinas redondeadas. Su color de fondo se dibuja como un
+ * rectángulo redondeado en vez de un rectángulo normal.
+ * El constructor recibe el color y la curvatura. {@code paintComponent}
+ * vuelve a dibujar el fondo con el color y el tamaño actuales del componente.
+ *
+ * <p><strong>Para variar el contenedor:</strong> ajusta el constructor o
+ * {@code paintComponent()}; las pantallas como {@link PausePanel} y
+ * {@link ResultsPanel} deciden dónde se usa y qué componentes contiene.</p>
+ */
+class RoundedPanel extends JPanel 
+{
+    private final int arc;
+
+    /**
+     * Crea el panel redondeado.
+     *
+     * @param color color de fondo
+     * @param arc diámetro de las esquinas redondeadas
+     */
+    RoundedPanel(Color color, int arc) 
+    {
+        this.arc = arc;
+        setBackground(color);
+        setOpaque(false);
+    }
+
+    /** Dibuja el fondo redondeado del panel.
+     * @param g contexto de dibujo suministrado por Swing
+     */
+    @Override
+    public void paintComponent(Graphics g)
+    {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(getBackground());
+        g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+        g2.dispose();
+        super.paintComponent(g);
+    }
+}

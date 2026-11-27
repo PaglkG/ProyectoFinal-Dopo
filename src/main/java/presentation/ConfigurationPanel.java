@@ -228,7 +228,10 @@ public class ConfigurationPanel extends BasePanel
         return assignedKeyCodes(player2KeyButtons);
     }
 
-    /** Lee los códigos asociados a los botones de un jugador. */
+    /** Lee los códigos asociados a los botones de un jugador.
+     * @param buttons controles con las teclas asignadas
+     * @return códigos en el orden de las acciones del formulario
+     */
     private int[] assignedKeyCodes(JButton[] buttons) {
         int[] keyCodes = new int[buttons.length];
         for (int i = 0; i < buttons.length; i++) {

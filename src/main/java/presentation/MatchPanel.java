@@ -100,6 +100,10 @@ public class MatchPanel extends BasePanel {
     private static final double CHARACTER_BODY_WIDTH_RATIO = 0.65;
     private static final double CHARACTER_HEAD_BODY_OVERLAP_RATIO = 0.18;
     private static final double POWER_AURA_HEIGHT_RATIO = 1.4;
+    /** Aumento visual del balón respecto a la escala física de la cancha. */
+    private static final double BALL_VISUAL_SCALE = 1.45;
+    /** Corrección vertical leve para centrar mejor el campo dentro del lienzo. */
+    private static final double COURT_VERTICAL_NUDGE_RATIO = 0.015;
 
     /** Controlador que coordina los cambios de pantalla. */
     private final NavigationController navigationController;
@@ -163,7 +167,9 @@ public class MatchPanel extends BasePanel {
         prepareViewCourt();
     }
 
-    /** Ubica marcador, tiempo e ilustraciones sencillas de ambos lados. */
+    /** Ubica marcador, tiempo e ilustraciones sencillas de ambos lados.
+     * @return panel del HUD compuesto por las dos columnas laterales y el centro
+     */
     private JPanel prepareViewHud() {
         // Las barras quedan a los lados del reloj y del marcador central.
         JPanel hud = new JPanel(new BorderLayout(10, 8));
@@ -175,7 +181,10 @@ public class MatchPanel extends BasePanel {
         return hud;
     }
 
-    /** Crea la ilustración de estado correspondiente al lado indicado. */
+    /** Crea la ilustración de estado correspondiente al lado indicado.
+     * @param left indica si se construye el lado izquierdo
+     * @return panel con nombre, ilustración y control de patada
+     */
     private JPanel prepareViewPlayerArtwork(boolean left) {
         JPanel status = new JPanel(new BorderLayout(8, 2));
         status.setOpaque(false);
@@ -238,7 +247,9 @@ public class MatchPanel extends BasePanel {
         return scoreArea;
     }
 
-    /** Crea una cifra de marcador que se ubicará dentro del panel de cada lado. */
+    /** Crea una cifra de marcador que se ubicará dentro del panel de cada lado.
+     * @return etiqueta numérica centrada
+     */
     private JLabel createScoreLabel() {
         JLabel label = new JLabel("0", SwingConstants.CENTER);
         label.setFont(new Font("SansSerif", Font.BOLD, 24));
@@ -288,7 +299,10 @@ public class MatchPanel extends BasePanel {
         }
     }
 
-    /** Preescala el tablero y cubre la palabra TIME para poner el rótulo de la fase activa. */
+    /** Preescala el tablero y cubre la palabra TIME para poner el rótulo de la fase activa.
+     * @param original imagen de tablero leída del recurso
+     * @return imagen preparada para mostrar la modalidad
+     */
     private static Image prepareScoreboardImage(Image original) {
         BufferedImage board = scaleArtwork(original, 720, 340, 2000, 1500, 5600, 3200);
         Graphics2D graphics = board.createGraphics();
@@ -369,7 +383,12 @@ public class MatchPanel extends BasePanel {
             fill.dispose();
         }
 
-        /** Limita el color a la fracción activa sin salirse del contorno. */
+        /** Limita el color a la fracción activa sin salirse del contorno.
+         * @param graphics contexto de dibujo
+         * @param track geometría completa de la pista
+         * @param fraction parte que se debe rellenar
+         * @param color color aplicado al relleno
+         */
         private static void fillBar(Graphics2D graphics, Path2D track, double fraction, Color color) {
             if (fraction <= 0) return;
             Graphics2D bar = (Graphics2D) graphics.create();
@@ -381,7 +400,9 @@ public class MatchPanel extends BasePanel {
             bar.dispose();
         }
 
-        /** Traza el interior de SURVIVAL con medidas del sprite llevado a 380 × 235. */
+        /** Traza el interior de SURVIVAL con medidas del sprite llevado a 380 × 235.
+         * @return forma de la pista de vida
+         */
         private static Path2D createLifeTrack() {
             var track = new Path2D.Double();
             track.moveTo(13 / 380.0, 88 / 235.0);
@@ -395,7 +416,9 @@ public class MatchPanel extends BasePanel {
             return track;
         }
 
-        /** Traza el área azul oscura que queda dentro del borde del sprite izquierdo. */
+        /** Traza el área azul oscura que queda dentro del borde del sprite izquierdo.
+         * @return forma de la pista de poder
+         */
         private static Path2D createPowerTrack() {
             var track = new Path2D.Double();
             track.moveTo(0.305, 0.714);
@@ -537,7 +560,10 @@ public class MatchPanel extends BasePanel {
         courtView.setMatch(match);
     }
 
-    /** Carga un recurso de imagen del classpath o devuelve null si no existe. */
+    /** Carga un recurso de imagen del classpath o devuelve null si no existe.
+     * @param resourcePath ruta absoluta del recurso
+     * @return imagen cargada, o {@code null} cuando falta
+     */
     private Image loadImage(String resourcePath) {
         if (resourcePath == null) {
             return null;
@@ -546,7 +572,16 @@ public class MatchPanel extends BasePanel {
         return url == null ? null : new ImageIcon(url).getImage();
     }
 
-    /** Preescala una región del arte para evitar procesar el original en cada repintado. */
+    /** Preescala una región del arte para evitar procesar el original en cada repintado.
+     * @param source imagen original
+     * @param width ancho de salida
+     * @param height alto de salida
+     * @param left límite izquierdo del recorte
+     * @param top límite superior del recorte
+     * @param right límite derecho del recorte
+     * @param bottom límite inferior del recorte
+     * @return imagen recortada y escalada
+     */
     private static BufferedImage scaleArtwork(Image source, int width, int height,
             int left, int top, int right, int bottom) {
         BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
@@ -557,7 +592,12 @@ public class MatchPanel extends BasePanel {
         return result;
     }
 
-    /** Carga el logo con un tamaño adecuado para un control de la interfaz. */
+    /** Carga el logo con un tamaño adecuado para un control de la interfaz.
+     * @param resourcePath ruta del recurso
+     * @param width ancho del icono
+     * @param height alto del icono
+     * @return icono escalado, o {@code null} si falta el recurso
+     */
     private ImageIcon loadIcon(String resourcePath, int width, int height) {
         Image image = loadImage(resourcePath);
         if (image == null) {
@@ -577,6 +617,12 @@ public class MatchPanel extends BasePanel {
          * @param head imagen visual recortada de la cabeza
          * @param body imagen visual recortada de las patas o cuerpo
          * @param bodyFacesRightAtSource indica si las patas originales apuntan a la derecha
+         */
+        /** Agrupa las imágenes y la orientación del recurso original.
+         * @param head imagen recortada de la cabeza
+         * @param body imagen recortada del cuerpo
+         * @param powerAura imagen del aura, si está disponible
+         * @param bodyFacesRightAtSource indica si el cuerpo apunta a la derecha en el recurso original
          */
         private CharacterSprite(BufferedImage head, BufferedImage body, BufferedImage powerAura,
                 boolean bodyFacesRightAtSource) {
@@ -621,7 +667,9 @@ public class MatchPanel extends BasePanel {
             setLayout(null);
         }
 
-        /** Guarda la misma captura que utiliza el HUD para el siguiente repintado. */
+        /** Guarda la misma captura que utiliza el HUD para el siguiente repintado.
+         * @param match captura de estado que se dibujará
+         */
         private void setMatch(MatchSnapshot match) {
             // Swing redibuja más tarde con la última captura que guardó este lienzo.
             observeLightningImpact(match);
@@ -629,7 +677,9 @@ public class MatchPanel extends BasePanel {
             repaint();
         }
 
-        /** Detecta un tiro Lightning armado y su daño posterior usando solo la captura de Game. */
+        /** Detecta un tiro Lightning armado y su daño posterior usando solo la captura publicada.
+         * @param next captura más reciente de la partida
+         */
         private void observeLightningImpact(MatchSnapshot next) {
             double elapsedSeconds = next.getElapsedSeconds();
             if (observedConfiguration != next.getConfiguration()
@@ -683,7 +733,11 @@ public class MatchPanel extends BasePanel {
             previousElapsedSeconds = elapsedSeconds;
         }
 
-        /** Comprueba el poder configurado para un lado según el orden recibido por Game. */
+        /** Comprueba el poder configurado para un lado según el orden recibido por Game.
+         * @param rightSide indica si se consulta el lado derecho
+         * @param configuration configuración de la sesión activa
+         * @return {@code true} cuando el poder seleccionado es Lightning
+         */
         private boolean isLightningPower(boolean rightSide, MatchConfiguration configuration) {
             int index = configuration.againstBot() ? (rightSide ? 1 : 0) : (rightSide ? 0 : 1);
             if (configuration.parametersPowers().size() <= index) return false;
@@ -691,19 +745,29 @@ public class MatchPanel extends BasePanel {
             return "Lightning".equals(PresentationOptions.simpleName(powerName));
         }
 
-        /** Indica si el tiempo de electrocución visual aún no ha terminado. */
+        /** Indica si el tiempo de electrocución visual aún no ha terminado.
+         * @param rightSide indica si se consulta el participante derecho
+         * @return {@code true} mientras siga activa la animación
+         */
         private boolean isLightningAffected(boolean rightSide) {
             double started = lightningStartedAt[rightSide ? 1 : 0];
             return started >= 0 && match.getElapsedSeconds() - started < LIGHTNING_STUN_DURATION_SECONDS;
         }
 
-        /** Oscurece un sprite conservando su transparencia y reutiliza el resultado entre repintados. */
+        /** Oscurece un sprite conservando su transparencia y reutiliza el resultado entre repintados.
+         * @param source sprite original
+         * @return imagen oscurecida
+         */
         private BufferedImage blackSprite(BufferedImage source) {
             return blackSprites.computeIfAbsent(source, image -> new RescaleOp(
                     new float[] {0, 0, 0, 1}, new float[] {0, 0, 0, 0}, null).filter(image, null));
         }
 
-        /** Dibuja el rayo descendente durante el inicio visual del impacto. */
+        /** Dibuja el rayo descendente durante el inicio visual del impacto.
+         * @param g contexto de dibujo
+         * @param rightSide lado del participante afectado
+         * @param bounds límites del participante en coordenadas de juego
+         */
         private void drawFallingLightning(Graphics2D g, boolean rightSide, Bounds bounds) {
             double started = lightningStartedAt[rightSide ? 1 : 0];
             if (started < 0) return;
@@ -727,7 +791,9 @@ public class MatchPanel extends BasePanel {
             g.draw(bolt);
         }
 
-        /** Agrega el HUD como componente superpuesto en la parte superior. */
+        /** Agrega el HUD como componente superpuesto en la parte superior.
+         * @param hud panel con marcador y controles de partido
+         */
         private void setHud(JPanel hud) {
             this.hud = hud;
             add(hud);
@@ -763,7 +829,8 @@ public class MatchPanel extends BasePanel {
             if (width <= 0) return;
             double height = width / aspect;
             double x = (getWidth() - width) / 2;
-            double y = HUD_HEIGHT + (availableHeight - height * (1 - skyPadding)) / 2;
+            double y = HUD_HEIGHT + (availableHeight - height * (1 - skyPadding)) / 2
+                    - height * COURT_VERTICAL_NUDGE_RATIO;
 
             Graphics2D g = (Graphics2D) graphics.create();
             try {
@@ -826,20 +893,27 @@ public class MatchPanel extends BasePanel {
                     spriteFloor - leftMouth * slope - floor * scaleY);
         }
 
-        /** Escala una vez el fondo completo sin recortar sus arcos ni alterar su composición. */
+        /** Escala una vez el fondo completo sin recortar sus arcos ni alterar su composición.
+         * @return ilustración preparada o {@code null} si falta el recurso
+         */
         private BufferedImage loadCourtArtwork() {
             Image image = loadImage(COURT_IMAGE);
             return image == null ? null : scaleArtwork(image, 1280, 720,
                     0, 0, image.getWidth(null), image.getHeight(null));
         }
 
-        /** Registra el comienzo de la patada visual en el lado indicado. */
+        /** Registra el comienzo de la patada visual en el lado indicado.
+         * @param right indica si corresponde al participante derecho
+         */
         private void animateKick(boolean right) {
             kickStartedAt[right ? 1 : 0] = System.nanoTime();
             repaint();
         }
 
-        /** Devuelve el giro de la pata, que sube hacia el rival y regresa al apoyo. */
+        /** Devuelve el giro de la pata, que sube hacia el rival y regresa al apoyo.
+         * @param right indica si se anima el participante derecho
+         * @return ángulo de giro en radianes, o cero cuando no hay animación
+         */
         private double kickRotation(boolean right) {
             long started = kickStartedAt[right ? 1 : 0];
             long elapsed = System.nanoTime() - started;
@@ -853,6 +927,8 @@ public class MatchPanel extends BasePanel {
          * para evitar estirar una sola pieza. La pata se estrecha en proporción
          * a la hitbox y se mantiene en la zona inferior del personaje. Mientras
          * dura el impacto Lightning, dibuja la silueta negra y el rayo descendente.
+         * @param g contexto de dibujo
+         * @param right indica si se dibuja el participante derecho
          */
         private void drawPlayer(Graphics2D g, boolean right) {
             Bounds bounds = match.getParticipant(right).getBounds();
@@ -895,7 +971,10 @@ public class MatchPanel extends BasePanel {
             drawFallingLightning(g, right, bounds);
         }
 
-        /** Centra el aura decorativa mientras el poder solicitado espera el balón. */
+        /** Centra el aura decorativa mientras el poder solicitado espera el balón.
+         * @param g contexto de dibujo
+         * @param right lado del participante
+         */
         private void drawChargedPower(Graphics2D g, boolean right) {
             Participant participant = match.getParticipant(right);
             if (!participant.isPowerActive()) return;
@@ -909,7 +988,15 @@ public class MatchPanel extends BasePanel {
                     bounds.getY() + (bounds.getHeight() - size) / 2, size, size, false);
         }
 
-        /** Dibuja un sprite en coordenadas del dominio sin redondear la posición a píxeles. */
+        /** Dibuja un sprite en coordenadas del dominio sin redondear la posición a píxeles.
+         * @param g contexto de dibujo
+         * @param image recurso que se pinta
+         * @param x posición horizontal
+         * @param y posición vertical
+         * @param width ancho de destino
+         * @param height alto de destino
+         * @param flipHorizontal indica si se refleja horizontalmente
+         */
         private void drawSprite(Graphics2D g, BufferedImage image,
                 double x, double y, double width, double height, boolean flipHorizontal) {
             AffineTransform placement = AffineTransform.getTranslateInstance(flipHorizontal ? x + width : x, y);
@@ -917,7 +1004,10 @@ public class MatchPanel extends BasePanel {
             g.drawImage(image, placement, this);
         }
 
-        /** Carga el par de sprites escalados según la especie indicada por la configuración. */
+        /** Carga los sprites asociados a la especie indicada en la configuración.
+         * @param countryCode código de país del perfil visual
+         * @return sprites cargados, o {@code null} si faltan imágenes requeridas
+         */
         private CharacterSprite loadCharacterSprite(String countryCode) {
             // El catálogo aporta las dos imágenes y la orientación original de la pata.
             String head = PresentationOptions.character(countryCode, "preview", "");
@@ -932,7 +1022,10 @@ public class MatchPanel extends BasePanel {
                     loadTrimmedSprite(powerPath), bodyFacesRightAtSource);
         }
 
-        /** Recorta solo el espacio transparente para alinear y escalar el sprite visual. */
+        /** Recorta solo el espacio transparente para alinear y escalar el sprite visual.
+         * @param resourcePath ruta del recurso gráfico
+         * @return sprite recortado o {@code null} si no pudo cargarse
+         */
         private BufferedImage loadTrimmedSprite(String resourcePath) {
             // Guarda tanto los recortes como los recursos que no pudieron cargarse.
             if (trimmedSprites.containsKey(resourcePath)) {
@@ -986,11 +1079,16 @@ public class MatchPanel extends BasePanel {
             }
         }
 
-        /** Dibuja el balón recortado con el centro y el diámetro de su hitbox circular. */
+        /** Dibuja el balón recortado con el centro y el diámetro de su hitbox circular.
+         * @param g contexto de dibujo
+         * @param ball balón capturado que se va a pintar
+         */
         private void drawBall(Graphics2D g, Ball ball) {
-            double diameter = ball.getRadius() * 2;
-            double x = ball.getX() - ball.getRadius();
-            double y = ball.getY() - ball.getRadius();
+            // Escala el arte dentro de la transformación común sin alterar la hitbox física.
+            double visualRadius = ball.getRadius() * BALL_VISUAL_SCALE;
+            double diameter = visualRadius * 2;
+            double x = ball.getX() - visualRadius;
+            double y = ball.getY() - visualRadius;
             if (ballImage != null) {
                 drawSprite(g, ballImage, x, y, diameter, diameter, false);
             } else {

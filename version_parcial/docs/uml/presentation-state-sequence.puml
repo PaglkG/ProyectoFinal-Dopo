@@ -1,0 +1,102 @@
+@startuml
+title Actualización del estado compartido de presentación
+
+participant "Temporizador Swing" as Timer
+participant DOPOSoccerGUI as GUI
+participant Game
+participant PresentationState as State
+participant MatchPanel as Match
+participant "MatchPanel.CourtView" as Court
+participant "Panel de destino" as Panel
+participant MainMenuPanel as Menu
+participant ConfigurationPanel as Configuration
+actor Jugador
+participant "PresentationOptions" as Options
+participant GameCatalog as Catalog
+
+GUI -> Game : getSessionTypes(), getBotTypes(), getMatchTypes() y getPowerTypes()
+Game -> Catalog : descubrir subclases de GameSession y BotPlayer
+Game -> Catalog : leer registros de reglas y poderes
+Game --> GUI : listas de modalidades, bots, reglas y poderes
+GUI -> State : publicar las cuatro listas
+Panel -> State : consultar catálogos
+State --> Panel : opciones de los selectores y poderes para filtrar personajes
+Panel -> Options : leer rótulos, límites y perfiles de options.properties
+Options --> Panel : metadatos de las opciones y sus recursos
+
+GUI -> Configuration : getPlayerOneKeyCodes(), getPlayerTwoKeyCodes()
+Configuration --> GUI : controles asignados en presentación
+
+loop Mientras se muestra la cancha
+    Timer -> GUI : updateGame()
+    GUI -> Game : updateGame()
+    GUI -> Game : Consultar el estado del paso
+    Game --> GUI : Datos del paso
+    GUI -> State : setMatch(captura inmutable) [privado]
+    GUI -> Match : refreshMatchView()
+    Match -> State : getMatch()
+    State --> Match : MatchSnapshot
+    Match -> Match : actualizar vida, carga y estado activo
+    note right of Match
+      La barra muestra la recarga.
+      El aura aparece solo si se solicitó
+      el poder y aún espera el balón.
+    end note
+    Match -> Court : setMatch(captura)
+    Court -> Court : repaint()
+    opt La captura confirma un tiro Lightning y la pérdida de vida del rival
+      Court -> Court : observar poder armado, consumo y daño esperado
+      Court -> Court : animar rayo descendente y silueta negra durante 3 s
+    end
+    note right of Court
+      La proyección alinea ambas bocas con
+      los postes del sprite original.
+      El espacio sobre el dibujo se calcula
+      a partir de las hitboxes y el techo.
+      La animación se deduce de las capturas;
+      la presentación sigue consultando Game
+      solo desde DOPOSoccerGUI.
+    end note
+    opt La partida terminó
+        GUI -> GUI : showScreen(RESULTS)
+    end
+end
+
+opt Poder solicitado durante un partido activo
+    Jugador -> GUI : presionar la tecla Poder asignada
+    GUI -> GUI : comprobar que la identidad es humana
+    GUI -> Game : powerPlayer(identidad)
+    Game --> GUI : solicitud enviada a la sesión
+    note over GUI,Game
+      Las teclas se leen de ConfigurationPanel
+      y la presentación solo llama a Game.
+    end note
+end
+
+opt Patada durante un partido activo
+    alt Botón en la cancha
+        Jugador -> Match : clic en Patear
+        Match -> GUI : requestPlayerKick(identidad)
+    else Tecla
+        Jugador -> GUI : Espacio o 0
+    end
+    GUI -> Game : kickPlayer(identidad)
+    GUI -> Match : animateKick(lado físico)
+    Match -> Court : girar la pata al dibujar
+end
+
+opt Mostrar Preparación, Resultados o Tienda
+    GUI -> Panel : refreshFromState()
+    Panel -> State : getMatch()
+    State --> Panel : MatchSnapshot o vacío
+end
+
+opt Cargar una partida guardada desde el menú
+    Menu -> GUI : openMatch(file)
+    GUI -> GUI : leer configuración visual (.ui o archivo integrado)
+    GUI -> Game : open(file)
+    Game --> GUI : sesión restaurada
+    GUI -> State : setMatch(captura restaurada)
+    GUI -> GUI : showScreen(PAUSE)
+end
+@enduml
