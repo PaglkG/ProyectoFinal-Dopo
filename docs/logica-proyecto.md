@@ -35,6 +35,7 @@
 
 ### Personajes y poderes
 
+- La fachada `Game` obtiene los catálogos de tipos de partido y poderes de registros de clases en los recursos del dominio. Personalización usa esos catálogos y cada personaje conserva su poder fijo.
 - Se ofrecen al menos cuatro personajes con poderes únicos: Corea del Sur usa `domain.BlueAura`, Camerún usa `domain.Lightning`, Nigeria usa `domain.Tornado` y Estados Unidos usa `domain.Illusion`.
 - `BlueAura` viaja recto y horizontal a alta velocidad; al impactar empuja al rival hacia su propio arco. Su efecto dura 1,5 segundos y causa 8 puntos de daño base.
 - `Lightning` viaja recto cubierto de electricidad; al impactar impide saltar y reduce a la mitad la velocidad del rival durante 3 segundos. Causa 12 puntos de daño base.

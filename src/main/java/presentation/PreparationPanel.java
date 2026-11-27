@@ -232,10 +232,13 @@ public class PreparationPanel extends BasePanel {
     }
 
     /** Carga la bandera asociada al código; conserva el código si no hay recurso. */
+    /** Resuelve la bandera del catálogo visual y actualiza la etiqueta del lado.
+     * Si el recurso falta, muestra el código del país.
+     */
     private void setCountryFlag(JLabel label, String code) {
         String normalizedCode = normalizeCountryCode(code);
         String fileName = countryFlagFileName(normalizedCode);
-        URL imageUrl = fileName == null ? null
+        URL imageUrl = fileName.isEmpty() ? null
                 : getClass().getResource(COUNTRY_FLAGS_DIRECTORY + fileName);
 
         if (imageUrl == null) {
@@ -256,21 +259,18 @@ public class PreparationPanel extends BasePanel {
 
     /** Relaciona cada código usado por la personalización con su recurso visual. */
     private String countryFlagFileName(String countryCode) {
-        return switch (countryCode) {
-            case "KR" -> "corea-del-sur@4x-8.png";
-            case "CM" -> "camerun@4x-8.png";
-            case "NG" -> "nigeria@4x-8.png";
-            case "US" -> "estados-unidos@4x-8.png";
-            default -> null;
-        };
+        return PresentationOptions.character(countryCode, "flag", "");
     }
 
-    /** Muestra los países y confirma que la ventana ya publicó una partida. */
+    /** Lee la última captura al abrir esta pantalla. Si existe, muestra los
+     * países por lado físico y actualiza el progreso mediante {@code setReady()}. */
     void refreshFromState() {
+        // Los códigos provienen de la captura publicada al iniciar la sesión.
         DOPOSoccerGUI.PresentationState.getMatch().ifPresent(match -> {
             MatchConfiguration configuration = match.getConfiguration();
             setCountryCodes(configuration.countryCodeForSide(false),
                     configuration.countryCodeForSide(true));
+            // La barra se completa una vez que la captura confirma que ya hay una partida.
             setReady();
         });
     }
@@ -301,12 +301,14 @@ public class PreparationPanel extends BasePanel {
 
     /** Hace que Cancelar regrese a la personalización de la partida. */
     private void prepareControllerCancel() {
+        // Regresa al formulario desde el que se eligió la partida.
         cancelButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.PERSONALIZATION));
     }
 
     /** Abre la cancha preparada y actualiza su instantánea visual. */
     private void prepareControllerContinue() {
+        // La ventana muestra la cancha y arranca el temporizador si la sesión sigue activa.
         continueButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MATCH));
     }
@@ -334,8 +336,11 @@ public class PreparationPanel extends BasePanel {
             setBackground(new Color(0x28619A));
         }
 
+        /** Dibuja el fondo de la pantalla de preparación.
+         * @param graphics contexto de dibujo suministrado por Swing
+         */
         @Override
-        protected void paintComponent(Graphics graphics) {
+        public void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             if (backgroundImage == null) {
                 return;

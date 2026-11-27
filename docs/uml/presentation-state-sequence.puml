@@ -7,6 +7,18 @@ participant Game
 participant PresentationState as State
 participant MatchPanel as Match
 participant "Panel de destino" as Panel
+participant "PresentationOptions" as Options
+participant GameCatalog as Catalog
+
+GUI -> Game : getSessionTypes(), getBotTypes(), getMatchTypes() y getPowerTypes()
+Game -> Catalog : descubrir subclases de GameSession y BotPlayer
+Game -> Catalog : leer registros de reglas y poderes
+Game --> GUI : listas de modalidades, bots, reglas y poderes
+GUI -> State : publicar las cuatro listas
+Panel -> State : consultar catálogos
+State --> Panel : opciones de los selectores y poderes para filtrar personajes
+Panel -> Options : leer rótulos, límites y perfiles de options.properties
+Options --> Panel : metadatos de las opciones y sus recursos
 
 loop Mientras se muestra la cancha
     Timer -> GUI : updateGame()

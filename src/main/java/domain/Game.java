@@ -330,22 +330,29 @@ public class Game {
      * @return nombres disponibles de los tipos de sesión
      */
     public List<String> getSessionTypes() {
-        return List.of(PlayerVsBot.class.getSimpleName(), PlayerVsPlayer.class.getSimpleName());
+        return GameCatalog.discover(GameSession.class, false, boolean.class, String.class, List.class, List.class);
     }
 
     /** Devuelve los nombres simples de los tipos de partido disponibles.
      * @return nombres disponibles de las reglas de partido
      */
     public List<String> getMatchTypes() {
-        return List.of(ByGoals.class.getSimpleName(), ByTime.class.getSimpleName());
+        return GameCatalog.load("match-types.txt", TypeOfMatch.class, List.class)
+                .stream().map(Class::getSimpleName).toList();
+    }
+
+    /** Devuelve los poderes registrados que pueden asignarse al crear una partida.
+     * @return nombres completos de clase, en el orden del catálogo
+     */
+    public List<String> getPowerTypes() {
+        return GameCatalog.load("powers.txt", Power.class).stream().map(Class::getName).toList();
     }
 
     /** Devuelve los nombres simples de los perfiles de bot disponibles.
      * @return nombres disponibles de perfiles de bot
      */
     public List<String> getBotTypes() {
-        return List.of(Clumsy.class.getSimpleName(), Offensive.class.getSimpleName(),
-                Defensive.class.getSimpleName(), Expert.class.getSimpleName());
+        return GameCatalog.discover(BotPlayer.class, true);
     }
 
     /** Devuelve la sesión única administrada o falla si todavía no se ha iniciado. */

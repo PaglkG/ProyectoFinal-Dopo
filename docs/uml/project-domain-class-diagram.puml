@@ -21,12 +21,20 @@ package "Sesión y reglas" {
     + jumpPlayer(player: boolean): void
     + kickPlayer(player: boolean): boolean
     + getBotTypes(): List<String>
+    + getSessionTypes(): List<String>
+    + getMatchTypes(): List<String>
+    + getPowerTypes(): List<String>
     + getPlayerPoints(player: boolean): int
     + getPlayerLife(player: boolean): int
     + getPlayerMaxLife(player: boolean): int
     + getPlayerPowerRemainingSeconds(player: boolean): double
     + save(file: File): void
     + open(file: File): void
+  }
+  class GameCatalog <<package-private>> {
+    {static} ~ load(resource: String, type: Class<?>, parameters: Class<?>...): List<Class<?>>
+    {static} ~ discover(type: Class<?>, publicConstructor: boolean, parameters: Class<?>...): List<String>
+    {static} ~ isConcreteSubclass(candidate: Class<?>, type: Class<?>): boolean
   }
   abstract class GameSession {
     {static} - instance: GameSession
@@ -49,8 +57,8 @@ package "Sesión y reglas" {
     - advanceJumps(participants: List<SessionParticipant>): void
     - limitVerticalStep(box: RectangularHitbox, obstacle: RectangularHitbox, nextY: double): double
     - blocksHorizontalStep(current: RectangularHitbox, path: RectangularHitbox, nextX: double, obstacle: RectangularHitbox): boolean
-    # mirrorPlayingSides(): void
-    # updateAutonomousParticipants(): void
+    + mirrorPlayingSides(): void
+    + updateAutonomousParticipants(): void
     + restartRound(): void
     + kickPlayer(player: SessionParticipant): boolean
     {static} ~ isBallInKickReach(box: RectangularHitbox, ball: Ball): boolean
@@ -58,7 +66,7 @@ package "Sesión y reglas" {
   class PlayerVsPlayer
   class PlayerVsBot {
     - kickHeld: boolean
-    # updateAutonomousParticipants(): void
+    + updateAutonomousParticipants(): void
     + restartRound(): void
     - readObject(input: ObjectInputStream): void
   }
@@ -136,19 +144,19 @@ package "Decisión del bot" {
     - decisionStrategy: BotDecisionStrategy
     + decideAction(field: SoccerField): Set<String>
     ~ decideAction(field: SoccerField, goalDifference: int, supportY: double): Set<String>
-    # createDecisionStrategy(): BotDecisionStrategy
+    + createDecisionStrategy(): BotDecisionStrategy
   }
   class Clumsy {
-    # createDecisionStrategy(): BotDecisionStrategy
+    + createDecisionStrategy(): BotDecisionStrategy
   }
   class Offensive {
-    # createDecisionStrategy(): BotDecisionStrategy
+    + createDecisionStrategy(): BotDecisionStrategy
   }
   class Defensive {
-    # createDecisionStrategy(): BotDecisionStrategy
+    + createDecisionStrategy(): BotDecisionStrategy
   }
   class Expert {
-    # createDecisionStrategy(): BotDecisionStrategy
+    + createDecisionStrategy(): BotDecisionStrategy
   }
   interface BotDecisionStrategy {
     + chooseAction(context: BotDecisionContext): String
@@ -230,6 +238,8 @@ package "Detección geométrica" {
 }
 
 Game "1" --> "0..1" GameSession : sesión administrada
+Game ..> GameCatalog : lee catálogos
+PlayerVsBot ..> GameCatalog : valida el perfil concreto
 GameSession <|-- PlayerVsPlayer
 GameSession <|-- PlayerVsBot
 GameSession "1" *-- "1" SoccerField : contiene

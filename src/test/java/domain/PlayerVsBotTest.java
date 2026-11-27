@@ -263,7 +263,7 @@ class PlayerVsBotTest {
     private static BotPlayer installMovingBot(PlayerVsBot session) {
         BotPlayer bot = new BotPlayer() {
             @Override
-            protected BotDecisionStrategy createDecisionStrategy() {
+            public BotDecisionStrategy createDecisionStrategy() {
                 return context -> "moveRight";
             }
         };

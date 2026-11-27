@@ -12,7 +12,7 @@ public class Offensive extends BotPlayer {
 
     /** {@inheritDoc} */
     @Override
-    protected BotDecisionStrategy createDecisionStrategy() {
+    public BotDecisionStrategy createDecisionStrategy() {
         return new BotDecisionStrategies.Attack();
     }
 }

@@ -19,7 +19,7 @@ else player == false
 end
 S -> WP ++: PowerFactory.create(parametersPowers[0])
 S -> P: setSpecialPower(WP)
-S -> S: resolver perfil parametersPowers[2]
+S -> S: resolver la subclase de BotPlayer por el nombre en parametersPowers[2]
 S -> B ++: crearBotReflectivo(nombreCompletoPerfil)
 S -> WB ++: PowerFactory.create(parametersPowers[1])
 S -> B: setSpecialPower(WB)

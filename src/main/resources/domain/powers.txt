@@ -1,0 +1,4 @@
+domain.BlueAura
+domain.Lightning
+domain.Tornado
+domain.Illusion

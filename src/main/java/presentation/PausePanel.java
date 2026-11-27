@@ -20,9 +20,9 @@ import javax.swing.SwingConstants;
  *
  * <ul>
  *   <li><strong>Recepción:</strong> el constructor recibe el controlador
- *       de navegación y la acción que solicita una vista de resultados.</li>
+ *       de navegación y las acciones para ver resultados y guardar.</li>
  *   <li><strong>Modificación:</strong> {@code prepareController()} conecta
- *       Continuar, Resultados y Menú principal. La ventana cambia de pantalla
+ *       Continuar, Guardar, Resultados y Menú principal. La ventana cambia de pantalla
  *       y gestiona el temporizador del partido mediante {@code showScreen()}.</li>
  *   <li><strong>Actualización:</strong> {@code prepareView()} construye el menú;
  *       el fondo se repinta cuando Swing muestra o redimensiona el panel.</li>
@@ -37,6 +37,10 @@ public class PausePanel extends BasePanel {
     private final NavigationController navigationController;
     /** Acción que muestra el resultado parcial desde la pausa. */
     private final Runnable resultsPreviewAction;
+    /** Acción de la ventana que selecciona el destino y guarda la partida. */
+    private final Runnable saveMatchAction;
+    /** Botón para guardar la partida en pausa. */
+    private JButton saveButton;
     /** Acción que vuelve a la pantalla de partida. */
     private JButton resumeButton;
     /** Acción que solicita la vista previa del resultado. */
@@ -47,10 +51,13 @@ public class PausePanel extends BasePanel {
     /** Crea la pantalla de pausa conectada con la navegación principal.
      * @param navigationController controlador para mostrar otras pantallas
      * @param resultsPreviewAction acción que actualiza y muestra la vista previa de resultados
+     * @param saveMatchAction acción que selecciona el destino y guarda la partida
      */
-    public PausePanel(NavigationController navigationController, Runnable resultsPreviewAction) {
+    public PausePanel(NavigationController navigationController, Runnable resultsPreviewAction,
+            Runnable saveMatchAction) {
         this.navigationController = navigationController;
         this.resultsPreviewAction = resultsPreviewAction;
+        this.saveMatchAction = saveMatchAction;
         prepareView();
         prepareController();
     }
@@ -106,7 +113,7 @@ public class PausePanel extends BasePanel {
         card.add(restartButton);
         card.add(javax.swing.Box.createVerticalStrut(8));
 
-        JButton saveButton = new RoundedButton("Guardar partida",
+        saveButton = new RoundedButton("Guardar partida",
                 Theme.SAND, Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
         saveButton.setAlignmentX(CENTER_ALIGNMENT);
         saveButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
@@ -128,12 +135,16 @@ public class PausePanel extends BasePanel {
         return card;
     }
 
-    /** Conecta reanudar, vista previa y retorno; reiniciar y guardar siguen sin acción. */
+    /** Conecta reanudar, guardar, ver resultados y volver al menú. */
     @Override
     public void prepareController() {
+        // Volver a la cancha permite que la ventana reanude el reloj.
         resumeButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MATCH));
+        // La acción recibida muestra los resultados a partir de la captura vigente.
         resultsButton.addActionListener(event -> resultsPreviewAction.run());
+        saveButton.addActionListener(event -> saveMatchAction.run());
+        // La ventana mantiene el reloj detenido al volver al menú.
         mainMenuButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MAIN_MENU));
     }
@@ -158,8 +169,11 @@ public class PausePanel extends BasePanel {
             setBackground(new Color(0x29A8DB));
         }
 
+        /** Dibuja el fondo de la pantalla de pausa.
+         * @param graphics contexto de dibujo suministrado por Swing
+         */
         @Override
-        protected void paintComponent(java.awt.Graphics graphics) {
+        public void paintComponent(java.awt.Graphics graphics) {
             super.paintComponent(graphics);
             if (courtImage != null) {
                 graphics.drawImage(courtImage, 0, 0, getWidth(), getHeight(), this);

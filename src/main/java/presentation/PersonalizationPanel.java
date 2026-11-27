@@ -10,6 +10,8 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -38,8 +40,8 @@ import presentation.DOPOSoccerGUI.PresentationState;
  * <ul>
  *   <li><strong>Recepción:</strong> los desplegables de modalidad, regla y bot
  *       toman sus opciones de {@code DOPOSoccerGUI.PresentationState}.
- *       Los perfiles están en {@code CHARACTER_PROFILES} y los límites se
- *       introducen en {@code minutesTextField} o {@code goalsTextField}.</li>
+ *       El recurso de opciones define los perfiles con poder fijo y el campo de cada regla.
+ *       El catálogo del dominio determina cuáles de esas opciones están disponibles.</li>
  *   <li><strong>Modificación:</strong> el usuario modifica los controles.
  *       Al iniciar, {@code prepareControllerStart()} valida el límite,
  *       {@code createMatchConfiguration()} reúne las selecciones y
@@ -53,41 +55,11 @@ public class PersonalizationPanel extends BasePanel
 {
     // Opciones de cada lista desplegable
     private static final String[] FIELD_SIZES = {"800 x 450", "1024 x 576", "1280 x 720"};
-    private static final CharacterProfile[] CHARACTER_PROFILES = {
-        new CharacterProfile("Corea del Sur", "KR", "Tigre", "tiger@4x-8.png", "tiger_escalado.png",
-                "domain.BlueAura", "Aura Azul",
-                "Un delantero explosivo con garras afiladas y un rugido capaz de estremecer el estadio. "
-                + "Desata un disparo recto y horizontal envuelto en energía azul a máxima velocidad; "
-                + "si el rival intenta bloquearlo, la onda de choque lo lanzará directo hacia su propia portería."),
-        new CharacterProfile("Camerún", "CM", "Leopardo", "leopard@4x-8.png", "leopard_escalado.png",
-                "domain.Lightning", "Rayo",
-                "Ágil, veloz y letal en el contraataque. Canaliza la energía de la tormenta en sus botas "
-                + "para lanzar un proyectil recto cargado de electricidad. Al hacer contacto, electrocuta "
-                + "al oponente, dejándolo sin salto y reduciendo su velocidad a la mitad."),
-        new CharacterProfile("Nigeria", "NG", "Lobo", "wolf@4x-8.png", "wolf_referencia.png",
-                "domain.Tornado", "Tornado",
-                "Un cazador implacable que controla el ritmo del partido con ferocidad. Invoca un remolino "
-                + "a ras de suelo que rebota de forma impredecible; si alcanza al adversario, lo lanza por "
-                + "los aires dejándolo inconsciente e incapaz de moverse, saltar o patear."),
-        new CharacterProfile("Estados Unidos", "US", "Oso", "bear@4x-8.png", "bear_escalado.png",
-                "domain.Illusion", "Ilusión",
-                "Un peso pesado que domina el área con fuerza bruta y astucia inesperada. Al activar su "
-                + "poder, multiplica el balón en 8 copias idénticas que confunden tanto al rival como a él "
-                + "mismo, desatando el caos en la cancha hasta que las 7 ilusiones desaparecen.")
-    };
-    private static final String[] COUNTRIES = Arrays.stream(CHARACTER_PROFILES)
-            .map(CharacterProfile::country)
-            .toArray(String[]::new);
+    /** Perfiles con poder registrado, en el orden del recurso de opciones. */
+    private java.util.List<CharacterProfile> availableProfiles = java.util.List.of();
 
-    // Nombres de las tarjetas que alternan entre tiempo y goles
-    private static final String TIME_CARD = "TIME";
-    private static final String GOALS_CARD = "GOALS";
-
-    // Valores iniciales
-    private static final String DEFAULT_MINUTES = "5";
-    private static final String DEFAULT_GOALS = "3";
-    private static final int DEFAULT_PLAYER1_COUNTRY = 0;
-    private static final int DEFAULT_PLAYER2_COUNTRY = 2;
+    /** Identificador de la tarjeta para una regla sin formulario configurado. */
+    private static final String UNAVAILABLE_CARD = "";
 
     // Medidas del panel
     private static final int OUTER_MARGIN = 15;
@@ -119,10 +91,8 @@ public class PersonalizationPanel extends BasePanel
     private JComboBox<String> botProfileComboBox;
     /** Selector de la regla de finalización del partido. */
     private JComboBox<String> matchTypeComboBox;
-    /** Entrada del límite de tiempo de la partida. */
-    private JTextField minutesTextField;
-    /** Entrada del límite de goles de la partida. */
-    private JTextField goalsTextField;
+    /** Campos de límite por regla, con su edición conservada al alternar la selección. */
+    private final Map<String, JTextField> matchLimitFields = new LinkedHashMap<>();
     /** Contenedor que presenta el límite de la modalidad elegida. */
     private JPanel matchLimitPanel;
     /** Selector de las dimensiones de cancha. */
@@ -237,9 +207,9 @@ public class PersonalizationPanel extends BasePanel
     private void prepareViewModeOptions(JPanel content) 
     {
         modeComboBox = createGameOptionsComboBox(PresentationState.getSessionTypes());
-        modeComboBox.setSelectedItem("PlayerVsBot");
+        modeComboBox.setSelectedItem(PresentationOptions.get("default.mode", ""));
         botProfileComboBox = createGameOptionsComboBox(PresentationState.getBotTypes());
-        botProfileComboBox.setSelectedItem("Clumsy");
+        botProfileComboBox.setSelectedItem(PresentationOptions.get("default.bot", ""));
 
         JPanel row = new JPanel(new GridLayout(1, 2, GRID_HGAP, 0));
         row.setOpaque(false);
@@ -258,8 +228,9 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareViewMatchOptions(JPanel content) 
     {
+        // Los identificadores vienen del dominio y los rótulos se resuelven en el renderer.
         matchTypeComboBox = createGameOptionsComboBox(PresentationState.getMatchTypes());
-        matchTypeComboBox.setSelectedItem("ByTime");
+        matchTypeComboBox.setSelectedItem(PresentationOptions.get("default.rule", ""));
         fieldSizeComboBox = new JComboBox<>(FIELD_SIZES);
         prepareViewMatchLimit();
 
@@ -273,7 +244,8 @@ public class PersonalizationPanel extends BasePanel
         content.add(Box.createVerticalStrut(SECTION_GAP));
     }
 
-    /** Crea un selector con opciones recibidas desde la fachada Game. */
+    /** Convierte el catálogo publicado en el modelo del selector. El renderer
+     * muestra un rótulo y el valor seleccionado conserva el identificador. */
     private JComboBox<String> createGameOptionsComboBox(java.util.List<String> options) {
         JComboBox<String> comboBox = new JComboBox<>(options.toArray(String[]::new));
         comboBox.setRenderer(new GameOptionRenderer());
@@ -285,33 +257,28 @@ public class PersonalizationPanel extends BasePanel
         @Override
         public java.awt.Component getListCellRendererComponent(JList<?> list, Object value,
                 int index, boolean selected, boolean focus) {
-            String displayValue = switch (String.valueOf(value)) {
-                case "PlayerVsBot" -> "Jugador vs Bot";
-                case "PlayerVsPlayer" -> "Jugador vs Jugador";
-                case "ByTime" -> "Partido por tiempo";
-                case "ByGoals" -> "Partido por goles";
-                case "Clumsy" -> "Torpe";
-                case "Offensive" -> "Ofensiva";
-                case "Defensive" -> "Defensiva";
-                case "Expert" -> "Experta";
-                default -> String.valueOf(value);
-            };
+            String displayValue = value == null ? "" : PresentationOptions.label(value.toString());
             return super.getListCellRendererComponent(list, displayValue, index, selected, focus);
         }
     }
 
-    /**
-     * Crea el espacio que muestra los minutos o los goles según el tipo de partido.
-     */
-    private void prepareViewMatchLimit() 
+    /** Lee los identificadores publicados y crea una tarjeta por regla con
+     * formulario en el recurso visual. Cada campo conserva su propio texto. */
+    private void prepareViewMatchLimit()
     {
-        minutesTextField = new JTextField(DEFAULT_MINUTES);
-        goalsTextField = new JTextField(DEFAULT_GOALS);
-
         matchLimitPanel = new JPanel(new CardLayout());
         matchLimitPanel.setOpaque(false);
-        matchLimitPanel.add(createLabeledField("TIEMPO (MINUTOS)", minutesTextField), TIME_CARD);
-        matchLimitPanel.add(createLabeledField("NÚMERO DE GOLES", goalsTextField), GOALS_CARD);
+        matchLimitFields.clear();
+        // Conserva un campo por regla para que alternar selecciones no borre lo escrito.
+        for (String rule : PresentationState.getMatchTypes()) {
+            String label = PresentationOptions.get("option." + rule + ".limit.label", "");
+            if (label.isEmpty()) continue;
+            String initialValue = PresentationOptions.get("option." + rule + ".limit.default", "");
+            JTextField field = new JTextField(initialValue);
+            matchLimitFields.put(rule, field);
+            matchLimitPanel.add(createLabeledField(label, field), rule);
+        }
+        matchLimitPanel.add(createLabeledField("LÍMITE", new JLabel("Regla sin formulario")), UNAVAILABLE_CARD);
     }
 
     /**
@@ -321,14 +288,26 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareViewPlayers(JPanel content) 
     {
-        player1CountryComboBox = new JComboBox<>(COUNTRIES);
-        player1CountryComboBox.setSelectedIndex(DEFAULT_PLAYER1_COUNTRY);
+        // Un personaje aparece solo si su poder fijo está en el catálogo del dominio.
+        var powers = PresentationState.getPowerTypes();
+        availableProfiles = Arrays.stream(PresentationOptions.get("characters", "").split(","))
+                .map(String::strip)
+                .filter(code -> !code.isEmpty())
+                .distinct()
+                .map(CharacterProfile::new)
+                .filter(profile -> powers.contains(profile.powerClassName()))
+                .toList();
+        String[] countries = availableProfiles.stream().map(CharacterProfile::country).toArray(String[]::new);
+        player1CountryComboBox = new JComboBox<>(countries);
+        player1CountryComboBox.setSelectedItem(new CharacterProfile(
+                PresentationOptions.get("default.player1", "")).country());
         player1PreviewLabel = createPreviewLabel();
         player1DescriptionTextArea = createDescriptionTextArea();
 
         player2TitleLabel = createColumnTitle("");
-        player2CountryComboBox = new JComboBox<>(COUNTRIES);
-        player2CountryComboBox.setSelectedIndex(DEFAULT_PLAYER2_COUNTRY);
+        player2CountryComboBox = new JComboBox<>(countries);
+        player2CountryComboBox.setSelectedItem(new CharacterProfile(
+                PresentationOptions.get("default.player2", "")).country());
         player2PreviewLabel = createPreviewLabel();
         player2DescriptionTextArea = createDescriptionTextArea();
 
@@ -523,6 +502,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareControllerMode() 
     {
+        // Refresca el selector del bot y el rótulo del segundo participante.
         modeComboBox.addActionListener(e -> updateMode());
     }
 
@@ -531,6 +511,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareControllerMatchType() 
     {
+        // El nuevo tipo de partida muestra su campo de límite y actualiza el botón de inicio.
         matchTypeComboBox.addActionListener(e -> updateMatchType());
     }
 
@@ -539,6 +520,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareControllerCountries() 
     {
+        // Cada selector actualiza solo la imagen y la descripción de su columna.
         player1CountryComboBox.addActionListener(e ->
             updateCountry(player1CountryComboBox, player1PreviewLabel, player1DescriptionTextArea));
         player2CountryComboBox.addActionListener(e ->
@@ -550,6 +532,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareControllerStore() 
     {
+        // La compra se tramita en la tienda y se vuelve aquí para configurar la partida.
         storeButton.addActionListener(e ->
             navigationController.showScreen(NavigationController.STORE_IMPROVEMENT));
     }
@@ -562,6 +545,8 @@ public class PersonalizationPanel extends BasePanel
     {
         startButton.addActionListener(e -> 
         {
+            // Valida las opciones antes de reunir los datos que recibe la ventana.
+            if (!canStartMatch()) return;
             if (isMatchLimitValid()) {
                 try {
                     navigationController.startMatch(createMatchConfiguration());
@@ -579,6 +564,7 @@ public class PersonalizationPanel extends BasePanel
      */
     private void prepareControllerBack() 
     {
+        // La navegación devuelve el formulario al menú principal.
         backToMenuButton.addActionListener(e ->
             navigationController.showScreen(NavigationController.MAIN_MENU));
     }
@@ -591,19 +577,46 @@ public class PersonalizationPanel extends BasePanel
      */
     private void updateMode() 
     {
-        boolean againstBot = "PlayerVsBot".equals(modeComboBox.getSelectedItem());
+        boolean againstBot = playsAgainstBot();
         botProfileComboBox.setEnabled(againstBot);
         player2TitleLabel.setText(againstBot ? "PAÍS DE LA MÁQUINA" : "PAÍS JUGADOR 2");
+        updateStartAvailability();
     }
 
-    /**
-     * Muestra el campo de minutos o el de goles según el tipo de partido.
-     */
-    private void updateMatchType() 
+    /** Atiende un cambio del selector. La tarjeta muestra el campo de la
+     * regla elegida y se vuelve a comprobar si puede habilitarse el inicio. */
+    private void updateMatchType()
     {
         CardLayout layout = (CardLayout) matchLimitPanel.getLayout();
-        boolean byTime = "ByTime".equals(matchTypeComboBox.getSelectedItem());
-        layout.show(matchLimitPanel, byTime ? TIME_CARD : GOALS_CARD);
+        String rule = (String) matchTypeComboBox.getSelectedItem();
+        layout.show(matchLimitPanel, matchLimitFields.containsKey(rule) ? rule : UNAVAILABLE_CARD);
+        updateStartAvailability();
+    }
+
+    /** Obtiene el formato de participantes configurado para el modo seleccionado. */
+    private String selectedModeBotFlag() {
+        return PresentationOptions.get("option." + modeComboBox.getSelectedItem() + ".bot", "");
+    }
+
+    /** Indica si el formato de participantes exige el perfil adicional del bot. */
+    private boolean playsAgainstBot() {
+        return "true".equals(selectedModeBotFlag());
+    }
+
+    /** Comprueba que las opciones seleccionadas tienen un formulario utilizable. */
+    private boolean canStartMatch() {
+        String botFlag = selectedModeBotFlag();
+        return ("true".equals(botFlag) || "false".equals(botFlag))
+                && (!playsAgainstBot() || botProfileComboBox.getSelectedItem() != null)
+                && !availableProfiles.isEmpty()
+                && matchLimitFields.containsKey(matchTypeComboBox.getSelectedItem());
+    }
+
+    /** Informa y deshabilita el inicio si todavía faltan opciones de configuración. */
+    private void updateStartAvailability() {
+        boolean available = canStartMatch();
+        startButton.setEnabled(available);
+        startButton.setToolTipText(available ? null : "Faltan opciones de configuración para iniciar.");
     }
 
     /**
@@ -616,11 +629,11 @@ public class PersonalizationPanel extends BasePanel
     private void updateCountry(JComboBox<String> comboBox, JLabel preview, JTextArea description) 
     {
         int index = comboBox.getSelectedIndex();
-        if (index < 0 || index >= CHARACTER_PROFILES.length)
+        if (index < 0 || index >= availableProfiles.size())
         {
             return;
         }
-        CharacterProfile profile = CHARACTER_PROFILES[index];
+        CharacterProfile profile = availableProfiles.get(index);
         description.setText("Tiro de Poder: " + profile.powerName()
                 + "\nDescripción: " + profile.description());
         description.setCaretPosition(0);
@@ -649,24 +662,28 @@ public class PersonalizationPanel extends BasePanel
         preview.setIcon(new ImageIcon(scaled));
     }
 
-    /** Convierte las selecciones actuales al orden de parámetros acordado por Game. */
+    /** Lee los selectores y el límite validado al pulsar Comenzar. Convierte
+     * las dimensiones a alto y ancho, ordena los poderes fijos de los perfiles
+     * y añade el identificador del bot cuando la sesión lo requiere. */
     private MatchConfiguration createMatchConfiguration() {
+        // El clic confirma la selección de personajes que aporta los dos poderes fijos.
         CharacterProfile playerOneProfile = selectedProfile(player1CountryComboBox);
         CharacterProfile playerTwoProfile = selectedProfile(player2CountryComboBox);
-        boolean byTime = "ByTime".equals(matchTypeComboBox.getSelectedItem());
-        int limit = Integer.parseInt((byTime
-                ? minutesTextField : goalsTextField).getText().trim());
+        String rule = (String) matchTypeComboBox.getSelectedItem();
+        int limit = Integer.parseInt(matchLimitFields.get(rule).getText().trim());
         String[] size = ((String) fieldSizeComboBox.getSelectedItem()).split("\\s*x\\s*");
+        // El selector muestra ancho por alto. Game recibe alto, ancho y límite.
         String height = size[1];
         String width = size[0];
-        String typeMatch = "domain." + matchTypeComboBox.getSelectedItem();
+        String typeMatch = "domain." + rule;
         boolean playerOne = true;
-        boolean againstBot = "PlayerVsBot".equals(modeComboBox.getSelectedItem());
+        boolean againstBot = playsAgainstBot();
         String typeGame = "domain." + modeComboBox.getSelectedItem();
         java.util.List<String> powers = new java.util.ArrayList<>();
         powers.add(playerOneProfile.powerClassName());
         powers.add(playerTwoProfile.powerClassName());
         if (againstBot) {
+            // Solo una sesión con bot necesita un tercer valor en la lista de poderes.
             powers.add(selectedBotProfileClass());
         }
         return new MatchConfiguration(java.util.List.of(height, width, Integer.toString(limit)), powers,
@@ -681,63 +698,37 @@ public class PersonalizationPanel extends BasePanel
 
     /** Obtiene los metadatos del personaje elegido en un desplegable. */
     private CharacterProfile selectedProfile(JComboBox<String> countryComboBox) {
-        return CHARACTER_PROFILES[countryComboBox.getSelectedIndex()];
+        return availableProfiles.get(countryComboBox.getSelectedIndex());
     }
 
     /** Datos de selección y presentación de un personaje disponible. */
     private static final class CharacterProfile {
-        private final String country;
         private final String countryCode;
-        private final String animal;
-        private final String imageFile;
-        private final String previewImageFile;
-        private final String powerClassName;
-        private final String powerName;
-        private final String description;
 
-        /** Crea los metadatos visibles y recursos asociados al personaje.
-         * @param country nombre del país
-         * @param countryCode código de país
-         * @param animal nombre del animal representado
-         * @param imageFile recurso principal de imagen
-         * @param previewImageFile recurso de vista previa
-         * @param powerClassName nombre completo de clase del poder
-         * @param powerName nombre visible del poder
-         * @param description descripción del poder
-         */
-        private CharacterProfile(String country, String countryCode, String animal, String imageFile,
-                String previewImageFile, String powerClassName, String powerName, String description) {
-            this.country = country;
+        /** Vincula un código a los metadatos del recurso. */
+        private CharacterProfile(String countryCode) {
             this.countryCode = countryCode;
-            this.animal = animal;
-            this.imageFile = imageFile;
-            this.previewImageFile = previewImageFile;
-            this.powerClassName = powerClassName;
-            this.powerName = powerName;
-            this.description = description;
         }
 
-        private String country() { return country; }
+        private String country() { return PresentationOptions.character(countryCode, "country", countryCode); }
         private String countryCode() { return countryCode; }
-        private String animal() { return animal; }
-        private String imageFile() { return imageFile; }
-        private String previewImageFile() { return previewImageFile; }
-        private String powerClassName() { return powerClassName; }
-        private String powerName() { return powerName; }
-        private String description() { return description; }
+        private String animal() { return PresentationOptions.character(countryCode, "animal", ""); }
+        private String imageFile() { return PresentationOptions.character(countryCode, "head", ""); }
+        private String previewImageFile() { return PresentationOptions.character(countryCode, "preview", ""); }
+        private String powerClassName() { return PresentationOptions.character(countryCode, "power", ""); }
+        private String powerName() { return PresentationOptions.character(countryCode, "powerName", powerClassName()); }
+        private String description() { return PresentationOptions.character(countryCode, "description", ""); }
     }
 
     /**
-     * Verifica que el campo visible (minutos o goles) contenga un entero positivo.
+     * Verifica que el campo visible contenga un entero positivo.
      * Si no es así, avisa al jugador.
      *
      * @return {@code true} si el límite del partido es válido
      */
     private boolean isMatchLimitValid() 
     {
-        boolean byTime = "ByTime".equals(matchTypeComboBox.getSelectedItem());
-        JTextField field = byTime ? minutesTextField : goalsTextField;
-        String name = byTime ? "minutos" : "goles";
+        JTextField field = matchLimitFields.get(matchTypeComboBox.getSelectedItem());
         try 
         {
             if (Integer.parseInt(field.getText().trim()) > 0) 
@@ -750,7 +741,7 @@ public class PersonalizationPanel extends BasePanel
             // Se informa abajo, igual que cuando el número no es positivo.
         }
         JOptionPane.showMessageDialog(this,
-                "Ingresa un número entero positivo de " + name + ".",
+                "Ingresa un número entero positivo en el campo de límite de la partida.",
                 "Dato no válido", JOptionPane.ERROR_MESSAGE);
         field.requestFocusInWindow();
         return false;

@@ -19,7 +19,6 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
@@ -31,9 +30,8 @@ import javax.swing.SwingConstants;
  *   <li><strong>Recepción:</strong> {@code prepareView()} construye las opciones
  *       del menú y {@code loadLogo()} lee la imagen del classpath.</li>
  *   <li><strong>Modificación:</strong> {@code prepareController()} conecta los
- *       botones con {@link NavigationController}. {@code openMatch()} recibe
- *       la selección del archivo mediante un {@code JFileChooser}. La carga
- *       queda pendiente de enlazar con la fachada del juego.</li>
+ *       botones con {@link NavigationController} y delega la apertura a
+ *       la acción recibida de la ventana principal.</li>
  *   <li><strong>Actualización:</strong> {@code loadLogo()} asigna la imagen o
  *       el título alternativo. La ventana muestra el menú al navegar a él.</li>
  * </ul>
@@ -65,6 +63,8 @@ public class MainMenuPanel extends BasePanel
  
     /** Controlador que coordina los cambios de pantalla. */
     private NavigationController navigationController;
+    /** Acción de la ventana que selecciona y abre una partida. */
+    private final Runnable openMatchAction;
     /** Rótulo de título del menú inicial. */
     private JLabel titleLabel;
     /** Acción para ir a la configuración de una nueva partida. */
@@ -80,10 +80,12 @@ public class MainMenuPanel extends BasePanel
      * Crea el panel del menú principal.
      *
      * @param navigationController controlador que cambia de pantalla
+     * @param openMatchAction acción que selecciona y abre una partida
      */
-    public MainMenuPanel(NavigationController navigationController) 
+    public MainMenuPanel(NavigationController navigationController, Runnable openMatchAction)
     {
         this.navigationController = navigationController;
+        this.openMatchAction = openMatchAction;
         prepareView();
         prepareController();
     }
@@ -256,6 +258,7 @@ public class MainMenuPanel extends BasePanel
      */
     private void prepareControllerPlay() 
     {
+        // Jugar abre el formulario donde se reúne la configuración de la partida.
         playButton.addActionListener(e -> 
             navigationController.showScreen(NavigationController.PERSONALIZATION));
     }
@@ -265,7 +268,8 @@ public class MainMenuPanel extends BasePanel
      */
     private void prepareControllerOpenMatch() 
     {
-        openMatchButton.addActionListener(e -> openMatch());
+        // Este clic abre el selector de archivos.
+        openMatchButton.addActionListener(e -> openMatchAction.run());
     }
  
     /**
@@ -273,6 +277,7 @@ public class MainMenuPanel extends BasePanel
      */
     private void prepareControllerConfiguration() 
     {
+        // Abre el panel que captura las asignaciones de teclado.
         configurationButton.addActionListener(e -> 
             navigationController.showScreen(NavigationController.CONFIGURATION));
     }
@@ -282,21 +287,10 @@ public class MainMenuPanel extends BasePanel
      */
     private void prepareControllerExit() 
     {
+        // Delega el cierre al controlador de navegación.
         exitButton.addActionListener(e -> navigationController.exit());
     }
  
-    /**
-     * Muestra el selector de archivos para abrir una partida guardada.
-     */
-    private void openMatch() 
-    {
-        JFileChooser chooser = new JFileChooser();
-        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) 
-        {
-            // Pendiente: abrir chooser.getSelectedFile() cuando el dominio implemente Game.open(File).
-        }
-    }
-
     /**
      * Recibe el color y el radio de esquina en el constructor y los usa
      * en {@code paintComponent} cada vez que Swing repinta el fondo del menú.
@@ -312,8 +306,11 @@ public class MainMenuPanel extends BasePanel
             setOpaque(false);
         }
 
+        /** Dibuja el fondo redondeado del panel.
+         * @param g contexto de dibujo suministrado por Swing
+         */
         @Override
-        protected void paintComponent(Graphics g) 
+        public void paintComponent(Graphics g)
         {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -346,8 +343,11 @@ public class MainMenuPanel extends BasePanel
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         }
 
+        /** Dibuja el fondo y el borde del botón.
+         * @param g contexto de dibujo suministrado por Swing
+         */
         @Override
-        protected void paintComponent(Graphics g) 
+        public void paintComponent(Graphics g)
         {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

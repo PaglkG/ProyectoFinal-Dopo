@@ -44,7 +44,7 @@ public class BotPlayer extends SessionParticipant {
     /** Crea la política que el flujo común usará durante el partido.
      * @return estrategia de decisión, pasiva en el tipo base
      */
-    protected BotDecisionStrategy createDecisionStrategy() {
+    public BotDecisionStrategy createDecisionStrategy() {
         return context -> "";
     }
 }

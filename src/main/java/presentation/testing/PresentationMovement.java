@@ -45,8 +45,10 @@ final class PresentationMovement {
         updatePlayer(game, !leftIsPlayerOne, rightPlayerLeftPressed, rightPlayerRightPressed);
     }
 
+    /** Convierte las direcciones sostenidas en un paso para la identidad indicada.
+     * Sin dirección o con ambas teclas presionadas, se conserva la posición. */
     private void updatePlayer(Game game, boolean playerOne, boolean left, boolean right) {
-        // Convierte las teclas sostenidas en un paso de movimiento para Game.
+        // Las dos direcciones opuestas se cancelan. Solo un sentido genera un paso en Game.
         int direction = (right ? 1 : 0) - (left ? 1 : 0);
         if (direction != 0) game.movePlayer(playerOne, direction > 0);
     }

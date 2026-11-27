@@ -3,11 +3,17 @@ package presentation;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import javax.swing.JFrame;
+import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -70,7 +76,9 @@ public class DOPOSoccerGUI extends JFrame
     {
         super(TITLE);
         game = new Game();
-        PresentationState.setOptions(game.getSessionTypes(), game.getMatchTypes(), game.getBotTypes());
+        // Personalización recibe los catálogos antes de construir sus selectores.
+        PresentationState.setOptions(game.getSessionTypes(), game.getMatchTypes(),
+                game.getBotTypes(), game.getPowerTypes());
         PresentationState.setMatch(null);
         matchTimer = new Timer(MATCH_UPDATE_DELAY_MS, event -> updateGame());
         navigationController = new NavigationController(this);
@@ -102,7 +110,7 @@ public class DOPOSoccerGUI extends JFrame
      */
     private void prepareViewPanels() 
     {
-        mainMenuPanel = new MainMenuPanel(navigationController);
+        mainMenuPanel = new MainMenuPanel(navigationController, this::openMatch);
         configurationPanel = new ConfigurationPanel(navigationController);
         personalizationPanel = new PersonalizationPanel(navigationController);
         storeImprovementPanel = new StoreImprovementPanel(navigationController, this::improveStatistic);
@@ -110,7 +118,7 @@ public class DOPOSoccerGUI extends JFrame
         resultsPanel = new ResultsPanel(navigationController);
         matchPanel = new MatchPanel(navigationController);
         pausePanel = new PausePanel(navigationController,
-                () -> showScreen(NavigationController.RESULTS));
+                () -> showScreen(NavigationController.RESULTS), this::saveMatch);
     }
 
     /**
@@ -167,12 +175,16 @@ public class DOPOSoccerGUI extends JFrame
     }
 
     /**
-     * Muestra la pantalla indicada.
+     * Recibe una solicitud de navegación de un panel y detiene el temporizador.
+     * Al entrar en la cancha refresca la última captura y reanuda el temporizador
+     * si la partida sigue activa. Al entrar en preparación, resultados o tienda,
+     * llama al refresco del panel antes de mostrarlo en el {@code CardLayout}.
      *
      * @param screen nombre de la pantalla que se mostrará
      */
     public void showScreen(String screen) 
     {
+        // Solo la cancha de una partida activa vuelve a iniciar el temporizador.
         matchTimer.stop();
         if (NavigationController.MATCH.equals(screen)) {
             MatchSnapshot match = PresentationState.getMatch().orElse(null);
@@ -184,6 +196,7 @@ public class DOPOSoccerGUI extends JFrame
                 matchTimer.start();
             }
         }
+        // Refresca el panel de destino antes de que CardLayout lo muestre.
         if (NavigationController.RESULTS.equals(screen)) {
             resultsPanel.refreshFromState();
         } else if (NavigationController.STORE_IMPROVEMENT.equals(screen)) {
@@ -246,12 +259,69 @@ public class DOPOSoccerGUI extends JFrame
         game.startSession(configuration.parametersRules(), configuration.parametersPowers(),
                 configuration.typeGame(), configuration.typeMatch(), configuration.playerOne());
         startedConfiguration = configuration;
+        // Preparación necesita la captura inicial aunque el reloj aún no haya avanzado.
         publishMatch();
         showScreen(NavigationController.PREPARATION);
     }
 
-    /** Avanza un paso, publica su estado y refresca la vista que muestra el partido. */
+    /** Solicita un destino y guarda la sesión junto con su configuración de presentación. */
+    private void saveMatch() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File(Game.DEFAULT_SAVE_FILE));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+
+        Path destination = chooser.getSelectedFile().toPath().toAbsolutePath();
+        if (Files.exists(destination) && JOptionPane.showConfirmDialog(this,
+                "¿Quieres reemplazar el archivo seleccionado?", "Guardar partida",
+                JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
+
+        try {
+            writeMatch(destination);
+            JOptionPane.showMessageDialog(this, "La partida se guardó.", "Guardar partida",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException | IllegalArgumentException exception) {
+            JOptionPane.showMessageDialog(this, exception.getMessage(),
+                    "No se pudo guardar la partida", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** Prepara el archivo completo antes de reemplazar el destino seleccionado. */
+    private void writeMatch(Path destination) throws IOException {
+        Path temporary = Files.createTempFile(destination.getParent(), ".dopo-", ".tmp");
+        try {
+            game.save(temporary.toFile());
+            MatchFile.appendConfiguration(temporary.toFile(), startedConfiguration);
+            Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    /** Restaura la partida elegida y publica su primera captura antes de mostrarla. */
+    private void openMatch() {
+        JFileChooser chooser = new JFileChooser();
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+
+        File file = chooser.getSelectedFile();
+        try {
+            MatchConfiguration configuration = MatchFile.readConfiguration(file);
+            game.open(file);
+            startedConfiguration = configuration;
+            publishMatch();
+            showScreen(NavigationController.MATCH);
+        } catch (IOException | IllegalArgumentException exception) {
+            JOptionPane.showMessageDialog(this, exception.getMessage(),
+                    "No se pudo abrir la partida", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Atiende un tick del temporizador Swing. Avanza el juego, publica la
+     * captura nueva y luego refresca la cancha. Si la captura indica el final,
+     * navega a Resultados con ese último marcador y tiempo.
+     */
     private void updateGame() {
+        // Primero avanza el dominio. Después publica y dibuja el resultado de ese paso.
         game.updateGame();
         MatchSnapshot match = publishMatch();
         matchPanel.refreshMatchView();
@@ -260,8 +330,14 @@ public class DOPOSoccerGUI extends JFrame
         }
     }
 
-    /** Captura en un solo objeto los datos que las vistas pueden consultar en Game. */
+    /**
+     * Captura un paso en este orden: configuración, cancha, arcos, balones,
+     * participante izquierdo, participante derecho, goles izquierdos, goles
+     * derechos, segundos transcurridos, muerte súbita y partida terminada.
+     * @return captura que también queda publicada en el estado de presentación
+     */
     private MatchSnapshot publishMatch() {
+        // Cada rectángulo se construye con los getters X, Y, ancho y alto de la fachada.
         Bounds court = new Bounds(game.getCourtX(), game.getCourtY(),
                 game.getCourtWidth(), game.getCourtHeight());
         List<Bounds> goals = new ArrayList<>(2);
@@ -270,18 +346,22 @@ public class DOPOSoccerGUI extends JFrame
                     game.getGoalWidth(index), game.getGoalHeight(index)));
         }
         int ballCount = game.getBallCount();
+        // Conserva el orden de índices de Game al copiar centros, radios y velocidades.
         List<Ball> balls = new ArrayList<>(ballCount);
         for (int index = 0; index < ballCount; index++) {
             balls.add(new Ball(game.getBallX(index), game.getBallY(index), game.getBallRadius(index),
                     game.getBallVelocityX(index), game.getBallVelocityY(index)));
         }
+        // Game consulta por identidad y MatchSnapshot guarda los jugadores por lado de la cancha.
         boolean leftIsPlayerOne = startedConfiguration.againstBot() && startedConfiguration.playerOne();
         List<String> score = game.getMatchState();
+        // Solo la regla temporal agrega la muerte súbita al cuarto elemento.
         boolean suddenDeath = score.size() > 3 && Boolean.parseBoolean(score.get(3));
         MatchSnapshot match = new MatchSnapshot(startedConfiguration, court, goals, balls,
                 readParticipant(leftIsPlayerOne), readParticipant(!leftIsPlayerOne),
                 game.getGoalsLeft(), game.getGoalsRight(), game.getElapsedSeconds(), suddenDeath,
                 game.isFinished());
+        // Publica en una sola asignación la captura que leerán los paneles.
         PresentationState.setMatch(match);
         return match;
     }
@@ -294,6 +374,7 @@ public class DOPOSoccerGUI extends JFrame
      * @return datos del participante para la captura que se va a publicar
      */
     private Participant readParticipant(boolean playerOne) {
+        // La geometría se guarda en Bounds y el resto de los valores alimenta el HUD y la tienda.
         Bounds bounds = new Bounds(game.getPlayerX(playerOne), game.getPlayerY(playerOne),
                 game.getPlayerWidth(playerOne), game.getPlayerHeight(playerOne));
         return new Participant(bounds, game.getPlayerLife(playerOne), game.getPlayerMaxLife(playerOne),
@@ -301,13 +382,23 @@ public class DOPOSoccerGUI extends JFrame
                 game.getPlayerSpeed(playerOne));
     }
 
-    /** Solicita la compra para el humano seleccionado y publica el saldo resultante. */
+    /**
+     * Recibe el clic de compra desde la tienda. Usa la captura para comprobar
+     * que la partida terminó y que existe esa identidad humana. Traduce la
+     * identidad a lado para llamar a la fachada y, si la compra se completa,
+     * publica el nuevo saldo antes de refrescar la tienda.
+     * @param playerOne {@code true} para el jugador humano 1
+     * @param statistic clave de la habilidad elegida en la tienda
+     */
     private void improveStatistic(boolean playerOne, String statistic) {
+        // Confirma que la identidad corresponde a un humano antes de solicitar la compra.
         MatchSnapshot match = PresentationState.getMatch().orElse(null);
         if (match == null || !match.isFinished() || match.getHumanPlayer(playerOne).isEmpty()) return;
+        // La compra de la fachada usa lado físico. Contra bot, el humano está a la izquierda.
         boolean rightSide = !match.getConfiguration().againstBot() && playerOne;
         try {
             game.improveStatistics(rightSide, statistic);
+            // Refresca la tienda después de publicar el saldo actualizado.
             publishMatch();
             storeImprovementPanel.refreshFromState();
         } catch (IllegalArgumentException exception) {
@@ -331,6 +422,7 @@ public class DOPOSoccerGUI extends JFrame
         private static volatile List<String> sessionTypes = List.of();
         private static volatile List<String> matchTypes = List.of();
         private static volatile List<String> botTypes = List.of();
+        private static volatile List<String> powerTypes = List.of();
 
         /** Impide crear instancias del estado compartido. */
         private PresentationState() { }
@@ -355,16 +447,23 @@ public class DOPOSoccerGUI extends JFrame
          */
         public static List<String> getBotTypes() { return botTypes; }
 
+        /** Devuelve los poderes admitidos por el catálogo del dominio.
+         * @return lista inmutable de nombres completos de clase
+         */
+        public static List<String> getPowerTypes() { return powerTypes; }
+
         /** Publica una captura completa de la partida con una sola asignación. */
         private static void setMatch(MatchSnapshot value) {
             match = value;
         }
 
         /** Publica copias inmutables de las opciones que ofrece Game. */
-        private static void setOptions(List<String> sessions, List<String> rules, List<String> bots) {
+        private static void setOptions(List<String> sessions, List<String> rules, List<String> bots,
+                List<String> powers) {
             sessionTypes = List.copyOf(sessions);
             matchTypes = List.copyOf(rules);
             botTypes = List.copyOf(bots);
+            powerTypes = List.copyOf(powers);
         }
     }
 

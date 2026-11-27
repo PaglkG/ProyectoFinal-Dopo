@@ -43,6 +43,7 @@ public class NavigationController
      */
     public void showScreen(String screen) 
     {
+        // La ventana coordina el cambio de pantalla con el refresco y el temporizador.
         doposoccerGUI.showScreen(screen);
     }
 
@@ -50,6 +51,7 @@ public class NavigationController
      * @param configuration configuración seleccionada para la partida
      */
     public void startMatch(MatchConfiguration configuration) {
+        // La ventana recibe la configuración completa que produjo el formulario.
         doposoccerGUI.startMatch(configuration);
     }
 

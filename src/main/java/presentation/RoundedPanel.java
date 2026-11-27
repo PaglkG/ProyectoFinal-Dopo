@@ -30,8 +30,11 @@ class RoundedPanel extends JPanel
         setOpaque(false);
     }
 
+    /** Dibuja el fondo redondeado del panel.
+     * @param g contexto de dibujo suministrado por Swing
+     */
     @Override
-    protected void paintComponent(Graphics g) 
+    public void paintComponent(Graphics g)
     {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

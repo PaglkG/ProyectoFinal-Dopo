@@ -12,7 +12,7 @@ public class Clumsy extends BotPlayer {
 
     /** {@inheritDoc} */
     @Override
-    protected BotDecisionStrategy createDecisionStrategy() {
+    public BotDecisionStrategy createDecisionStrategy() {
         return new BotDecisionStrategies.RandomMovement();
     }
 }

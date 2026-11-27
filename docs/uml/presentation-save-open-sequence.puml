@@ -1,0 +1,33 @@
+@startuml
+title Guardar y abrir una partida desde la presentación
+
+actor Jugador
+participant PausePanel as Pause
+participant MainMenuPanel as Menu
+participant DOPOSoccerGUI as GUI
+participant Game
+participant MatchFile as Format
+participant PresentationState as State
+
+Jugador -> Pause : Guardar partida
+Pause -> GUI : saveMatch()
+GUI -> Jugador : Elegir destino y confirmar reemplazo si existe
+opt Destino confirmado
+    GUI -> GUI : writeMatch(destino)
+    GUI -> Game : save(archivo temporal)
+    GUI -> Format : appendConfiguration(temporal, configuración)
+    GUI -> GUI : Mover archivo completo al destino
+end
+
+Jugador -> Menu : Abrir Partida
+Menu -> GUI : openMatch()
+GUI -> Jugador : Elegir archivo
+opt Archivo confirmado
+    GUI -> Format : readConfiguration(archivo)
+    Format --> GUI : MatchConfiguration
+    GUI -> Game : open(archivo)
+    GUI -> Game : Consultar la sesión restaurada
+    GUI -> State : setMatch(captura de la sesión restaurada)
+    GUI -> GUI : showScreen(MATCH)
+end
+@enduml

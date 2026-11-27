@@ -12,7 +12,7 @@ public class Expert extends BotPlayer {
 
     /** {@inheritDoc} */
     @Override
-    protected BotDecisionStrategy createDecisionStrategy() {
+    public BotDecisionStrategy createDecisionStrategy() {
         return new BotDecisionStrategies.AdaptToScore();
     }
 }

@@ -6,6 +6,7 @@ Las fuentes PlantUML y las capturas se conservan para contrastar el diseño reci
 - package-diagram.puml y package-diagram.png son anteriores al aplanado del dominio y no representan los paquetes actuales.
 - Las secuencias start-session, player-vs-bot, player-vs-player y by-time-check describen flujos implementados, pero se deben contrastar con el código y la lógica documentada antes de tratarlas como contratos.
 - mechanics-test-sequence.puml representa el banco visual a través de Game y el salto físico de la hitbox.
+- presentation-save-open-sequence.puml representa el guardado desde la pausa y la apertura desde el menú principal.
 - presentation-state-sequence.puml muestra cómo la ventana principal publica el estado de cada paso y cómo lo consultan los paneles.
 - bot-turn-sequence.puml muestra cómo la sesión consulta la estrategia del bot y ejecuta su decisión en cada paso.
 - project-domain-class-diagram.puml representa la estructura actual del dominio, con las clases y relaciones existentes en el código.

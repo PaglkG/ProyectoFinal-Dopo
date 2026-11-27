@@ -24,7 +24,20 @@ public final class MatchSnapshot {
     private final boolean suddenDeath;
     private final boolean finished;
 
-    /** Reúne los datos del mismo paso y copia las listas que recibe. */
+    /**
+     * Reúne los datos del mismo paso y copia las listas que recibe.
+     * @param configuration configuración con la que se inició la sesión
+     * @param court rectángulo exterior de la cancha
+     * @param goals rectángulos de los arcos izquierdo y derecho, en ese orden
+     * @param balls balones en el orden de índices de la fachada
+     * @param left participante del lado izquierdo
+     * @param right participante del lado derecho
+     * @param leftGoals goles anotados por el lado izquierdo
+     * @param rightGoals goles anotados por el lado derecho
+     * @param elapsedSeconds segundos transcurridos
+     * @param suddenDeath indica si la regla temporal está en muerte súbita
+     * @param finished indica si la partida terminó
+     */
     MatchSnapshot(MatchConfiguration configuration, Bounds court, List<Bounds> goals,
             List<Ball> balls, Participant left, Participant right, int leftGoals, int rightGoals,
             double elapsedSeconds, boolean suddenDeath, boolean finished) {
@@ -73,6 +86,7 @@ public final class MatchSnapshot {
      */
     public Optional<Participant> getHumanPlayer(boolean playerOne) {
         if (configuration.againstBot()) {
+            // El humano seleccionado está a la izquierda y la otra identidad no se ofrece a la tienda.
             return playerOne == configuration.playerOne() ? Optional.of(left) : Optional.empty();
         }
         return Optional.of(getParticipant(playerOne));

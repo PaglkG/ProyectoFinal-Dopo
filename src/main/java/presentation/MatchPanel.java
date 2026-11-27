@@ -14,7 +14,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
@@ -94,6 +93,7 @@ public class MatchPanel extends BasePanel {
      * @param navigationController controlador para cambiar de pantalla
      */
     public MatchPanel(NavigationController navigationController) {
+        // Construye los componentes antes de registrar el clic del botón Pausa.
         this.navigationController = navigationController;
         prepareView();
         prepareController();
@@ -102,6 +102,7 @@ public class MatchPanel extends BasePanel {
     /** Construye el HUD y la cancha en secciones separadas. */
     @Override
     public void prepareView() {
+        // El lienzo ocupa el centro y contiene el HUD como una capa superpuesta.
         setLayout(new BorderLayout(12, 10));
         setBorder(BorderFactory.createEmptyBorder(0, 18, 0, 18));
         setBackground(Theme.BACKGROUND);
@@ -110,6 +111,7 @@ public class MatchPanel extends BasePanel {
 
     /** Ubica marcador, tiempo y las barras de vida y poder de ambos lados. */
     private JPanel prepareViewHud() {
+        // Las barras quedan a los lados del reloj y del marcador central.
         JPanel hud = new JPanel(new BorderLayout(10, 8));
         hud.setOpaque(false);
         hud.add(prepareViewPlayerStatus(true), BorderLayout.WEST);
@@ -133,8 +135,10 @@ public class MatchPanel extends BasePanel {
         status.add(animal, BorderLayout.NORTH);
 
         Image statusImage = loadImage(left ? LEFT_STATUS_IMAGE : RIGHT_STATUS_IMAGE);
-        status.add(new StatusArtwork(statusImage), BorderLayout.CENTER);
-        PlayerStatus bars = new PlayerStatus();
+        StatusArtwork artwork = new StatusArtwork(statusImage, left);
+        status.add(artwork, BorderLayout.CENTER);
+        PlayerStatus bars = new PlayerStatus(artwork);
+        // Este método recibe «izquierda». El índice de las barras recibe «derecha».
         playerStatus[sideIndex(!left)] = bars;
         status.add(bars, BorderLayout.SOUTH);
 
@@ -146,6 +150,7 @@ public class MatchPanel extends BasePanel {
         JPanel scoreArea = new JPanel(new BorderLayout(0, 3));
         scoreArea.setOpaque(false);
         ScoreboardArtwork score = new ScoreboardArtwork();
+        // Estas etiquetas se crean una vez y reciben los valores de cada captura.
         leftScoreLabel = createScoreLabel();
         rightScoreLabel = createScoreLabel();
         elapsedLabel = new JLabel("00:00", SwingConstants.CENTER);
@@ -188,6 +193,7 @@ public class MatchPanel extends BasePanel {
 
         @Override
         public void doLayout() {
+            // Posiciona las etiquetas de forma proporcional a la imagen del tablero.
             int width = getWidth();
             int height = getHeight();
             leftScoreLabel.setBounds((int) (width * 0.12), (int) (height * 0.38),
@@ -198,8 +204,11 @@ public class MatchPanel extends BasePanel {
                     (int) (width * 0.18), (int) (height * 0.36));
         }
 
+        /** Dibuja el fondo del marcador.
+         * @param graphics contexto de dibujo suministrado por Swing
+         */
         @Override
-        protected void paintComponent(Graphics graphics) {
+        public void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             if (image != null) {
                 graphics.drawImage(image, 0, 0, getWidth(), getHeight(),
@@ -208,41 +217,75 @@ public class MatchPanel extends BasePanel {
         }
     }
 
-    /** Recibe la ilustración en el constructor y la escala a su área en cada repintado. */
+    /** Escala la ilustración y recorta el relleno de carga al contorno de POWER. */
     private static final class StatusArtwork extends JPanel {
         private final Image image;
+        private final boolean left;
+        private double powerFraction;
 
-        private StatusArtwork(Image image) {
+        /** Recibe la ilustración y el lado que determina el sentido de llenado. */
+        private StatusArtwork(Image image, boolean left) {
             this.image = image;
+            this.left = left;
             setOpaque(false);
         }
 
+        /** Guarda la carga como fracción y solicita repintar la ilustración. */
+        private void setPowerCharge(int remainingTenths) {
+            powerFraction = Math.clamp(
+                    (POWER_RECHARGE_TENTHS - remainingTenths) / (double) POWER_RECHARGE_TENTHS, 0, 1);
+            setToolTipText(remainingTenths > 0
+                    ? String.format("Poder %.1f s", remainingTenths / 10.0) : "Poder cargado");
+            repaint();
+        }
+
+        /** Dibuja el indicador de recarga del poder.
+         * @param graphics contexto de dibujo suministrado por Swing
+         */
         @Override
-        protected void paintComponent(Graphics graphics) {
+        public void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             if (image != null) {
                 graphics.drawImage(image, 0, 0, getWidth(), getHeight(), this);
             }
+            if (powerFraction <= 0) return;
+
+            Graphics2D fill = (Graphics2D) graphics.create();
+            // Usa las proporciones de la ilustración de referencia para que el relleno escale con ella.
+            fill.scale(getWidth() / 308.0, getHeight() / 190.0);
+            if (!left) {
+                // El jugador derecho tiene el círculo en el extremo opuesto.
+                fill.translate(308, 0);
+                fill.scale(-1, 1);
+            }
+            var track = new java.awt.geom.Path2D.Double();
+            track.moveTo(94, 137);
+            track.curveTo(145, 147, 214, 146, 280, 146);
+            track.quadTo(295, 152, 296, 169);
+            track.lineTo(85, 169);
+            track.quadTo(94, 155, 94, 137);
+            track.closePath();
+            fill.clip(track);
+            fill.setColor(new Color(73, 213, 255));
+            fill.fill(new java.awt.geom.Rectangle2D.Double(85, 137, 211 * powerFraction, 32));
+            fill.dispose();
         }
     }
 
-    /** Contiene las barras que el panel exterior modifica en
-     * {@code setPlayerLife()} y {@code setPlayerPowerRemainingSeconds()}. */
+    /** Agrupa la barra de vida y la ilustración de poder del mismo jugador. */
     private static final class PlayerStatus extends JPanel {
         private final JProgressBar life = new JProgressBar();
-        private final JProgressBar power = new JProgressBar(0, POWER_RECHARGE_TENTHS);
+        private final StatusArtwork artwork;
 
-        /** Prepara las barras debajo de la ilustración del participante. */
-        private PlayerStatus() {
+        /** Prepara la barra de vida y conserva la ilustración que muestra el poder. */
+        private PlayerStatus(StatusArtwork artwork) {
             super(new GridLayout(0, 1, 0, 2));
+            this.artwork = artwork;
             setOpaque(false);
             setVisible(false);
             life.setStringPainted(true);
-            power.setStringPainted(true);
             life.setVisible(false);
-            power.setVisible(false);
             add(life);
-            add(power);
         }
     }
 
@@ -261,18 +304,19 @@ public class MatchPanel extends BasePanel {
 
     /** Abre la pantalla de pausa desde el botón ubicado bajo el marcador. */
     private void prepareControllerPause() {
+        // La navegación a Pausa detiene el reloj en la ventana principal.
         pauseButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.PAUSE));
     }
 
-    /** Asigna las imágenes seleccionadas a los lados de la cancha.
-     * @param leftImage ruta de la imagen para el lado izquierdo
-     * @param rightImage ruta de la imagen para el lado derecho
+    /** Asigna los recursos de cada personaje según el código de país.
+     * @param leftCode código del personaje izquierdo
+     * @param rightCode código del personaje derecho
      */
-    private void setCharacterImages(String leftImage, String rightImage) {
+    private void setCharacterImages(String leftCode, String rightCode) {
         characterSprites.clear();
-        characterSprites.put("left", courtView.loadCharacterSprite(leftImage));
-        characterSprites.put("right", courtView.loadCharacterSprite(rightImage));
+        characterSprites.put("left", courtView.loadCharacterSprite(leftCode));
+        characterSprites.put("right", courtView.loadCharacterSprite(rightCode));
         if (courtView != null) {
             courtView.repaint();
         }
@@ -299,6 +343,7 @@ public class MatchPanel extends BasePanel {
      * @param elapsedSeconds segundos transcurridos desde el inicio del partido
      */
     private void setElapsedSeconds(double elapsedSeconds) {
+        // Se descarta la fracción de segundo. El reloj muestra tiempo transcurrido.
         int seconds = (int) elapsedSeconds;
         elapsedLabel.setText(String.format("%02d:%02d", seconds / 60, seconds % 60));
     }
@@ -307,6 +352,7 @@ public class MatchPanel extends BasePanel {
      * @param suddenDeath indica si la muerte súbita está activa
      */
     private void setSuddenDeath(boolean suddenDeath) {
+        // El dominio decide la fase. Aquí solo cambia el aspecto del reloj.
         elapsedLabel.setForeground(suddenDeath ? Color.ORANGE : Color.WHITE);
         elapsedLabel.setToolTipText(suddenDeath ? "Muerte súbita" : null);
     }
@@ -332,34 +378,35 @@ public class MatchPanel extends BasePanel {
      */
     private void setPlayerPowerRemainingSeconds(boolean right, double remainingSeconds) {
         PlayerStatus status = playerStatus[sideIndex(right)];
-        JProgressBar power = status.power;
+        // La carga se pinta dentro de POWER en la ilustración del lado correspondiente.
         int remainingTenths = (int) Math.ceil(remainingSeconds * 10);
-        power.setValue(POWER_RECHARGE_TENTHS - remainingTenths);
-        power.setString(remainingTenths > 0
-                ? String.format("Poder %.1f s", remainingTenths / 10.0) : "Poder cargado");
-        power.setVisible(true);
-        status.setVisible(true);
+        status.artwork.setPowerCharge(remainingTenths);
     }
 
+    /** Traduce el lado físico al índice de las barras del HUD. */
     private static int sideIndex(boolean right) {
         return right ? 1 : 0;
     }
 
     /** Refresca el marcador, el tiempo y la cancha con el último paso publicado. */
     public void refreshMatchView() {
+        // Si aún no se publicó una partida, Swing conserva los componentes iniciales.
         PresentationState.getMatch().ifPresent(this::showMatch);
     }
 
-    /** Refresca los componentes con los datos del mismo paso. */
+    /** Usa una sola captura para las etiquetas y el repintado. Cambia las
+     * imágenes y los nombres de los lados solo al recibir otra configuración. */
     private void showMatch(MatchSnapshot match) {
         MatchConfiguration configuration = match.getConfiguration();
+        // Carga los recursos de personajes al cambiar la configuración de la partida.
         if (configuration != displayedConfiguration) {
             setCharacterImages(
-                    "/images/outfits/heads/" + configuration.headImageForSide(false),
-                    "/images/outfits/heads/" + configuration.headImageForSide(true));
+                    configuration.countryCodeForSide(false),
+                    configuration.countryCodeForSide(true));
             setAgainstBot(configuration.againstBot());
             displayedConfiguration = configuration;
         }
+        // Los rótulos y el lienzo reciben los valores del mismo paso de simulación.
         setScore(match.getLeftGoals(), match.getRightGoals());
         setElapsedSeconds(match.getElapsedSeconds());
         setSuddenDeath(match.isSuddenDeath());
@@ -370,6 +417,7 @@ public class MatchPanel extends BasePanel {
 
     /** Actualiza las barras del lado indicado con la vida y la recarga capturadas. */
     private void showParticipantStatus(boolean right, Participant participant) {
+        // Vida recibe el valor actual y máximo. Poder recibe los segundos restantes.
         setPlayerLife(right, participant.getLife(), participant.getMaxLife());
         setPlayerPowerRemainingSeconds(right, participant.getPowerRemainingSeconds());
     }
@@ -432,6 +480,7 @@ public class MatchPanel extends BasePanel {
 
         /** Guarda la misma captura que utiliza el HUD para el siguiente repintado. */
         private void setMatch(MatchSnapshot match) {
+            // Swing redibuja más tarde con la última captura que guardó este lienzo.
             this.match = match;
             repaint();
         }
@@ -447,11 +496,15 @@ public class MatchPanel extends BasePanel {
             if (hud == null) {
                 return;
             }
+            // El HUD cubre la franja superior y conserva el ancho del lienzo.
             hud.setBounds(0, 0, getWidth(), Math.min(HUD_HEIGHT, getHeight()));
         }
 
+        /** Dibuja el fondo y las entidades de la última captura recibida.
+         * @param graphics contexto de dibujo suministrado por Swing
+         */
         @Override
-        protected void paintComponent(Graphics graphics) {
+        public void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             if (match == null) {
                 return;
@@ -465,9 +518,11 @@ public class MatchPanel extends BasePanel {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             double drawWidth = court.getWidth() * scale;
             double drawHeight = court.getHeight() * scale;
+            // Centra la ilustración en horizontal y la ancla al borde inferior.
             double offsetX = (getWidth() - drawWidth) / 2.0;
             double offsetY = getHeight() - drawHeight;
 
+            // El orden coloca arcos y personajes sobre el fondo y deja los balones al frente.
             drawCourtImage(g, offsetX, offsetY, drawWidth, drawHeight);
             drawGoals(g, court, offsetX, offsetY, scale);
             drawPlayer(g, court, offsetX, offsetY, scale, false);
@@ -496,6 +551,7 @@ public class MatchPanel extends BasePanel {
                 double offsetX, double offsetY, double scale) {
             g.setColor(new Color(255, 211, 67, 190));
             for (Bounds goal : match.getGoals()) {
+                // X usa el ancho completo. Y y el alto usan la franja jugable de la imagen.
                 int x = (int) (offsetX + (goal.getX() - court.getX()) * scale);
                 int y = (int) playY(goal.getY(), court, offsetY, scale);
                 int width = (int) (goal.getWidth() * scale);
@@ -513,9 +569,11 @@ public class MatchPanel extends BasePanel {
             }
 
             Bounds bounds = match.getParticipant(right).getBounds();
+            // La cabeza y la pata se centran en X y se apoyan en el borde inferior de la hitbox.
             double centerX = offsetX + (bounds.getX() + bounds.getWidth() / 2 - court.getX()) * scale;
             double baselineY = playY(bounds.getY() + bounds.getHeight(), court, offsetY, scale);
             double spriteHeight = bounds.getHeight() * scale;
+            // Reparte el tamaño visual entre cabeza y pata y conserva la proporción de la cabeza.
             double headRatio = CHARACTER_HEAD_HEIGHT_RATIO
                     / (CHARACTER_HEAD_HEIGHT_RATIO + CHARACTER_BODY_HEIGHT_RATIO);
             int headHeight = Math.max(1, (int) (spriteHeight * headRatio));
@@ -530,6 +588,7 @@ public class MatchPanel extends BasePanel {
                     + (int) (headHeight * CHARACTER_HEAD_BODY_OVERLAP_RATIO);
             boolean flipBody = !right != sprite.bodyFacesRightAtSource();
 
+            // Pinta la pata primero para que la cabeza cubra la unión entre ambas imágenes.
             drawCharacterPart(g, sprite.body(), bodyX, bodyY, bodyWidth, bodyHeight, flipBody);
             drawCharacterPart(g, sprite.head(), headX, headY, headWidth, headHeight, right);
         }
@@ -550,6 +609,7 @@ public class MatchPanel extends BasePanel {
                 return;
             }
             Graphics2D flipped = (Graphics2D) g.create();
+            // Refleja una copia del contexto sin invertir el resto de la cancha.
             flipped.translate(x + width, y);
             flipped.scale(-1, 1);
             flipped.drawImage(image, 0, 0, width, height, this);
@@ -557,34 +617,22 @@ public class MatchPanel extends BasePanel {
         }
 
         /** Carga el par de sprites escalados según la especie indicada por la configuración. */
-        private CharacterSprite loadCharacterSprite(String configuredHeadPath) {
-            String name = configuredHeadPath == null ? ""
-                    : configuredHeadPath.substring(configuredHeadPath.lastIndexOf('/') + 1)
-                            .toLowerCase(Locale.ROOT);
-            String headPath;
-            String bodyPath;
-            if (name.contains("tiger")) {
-                headPath = "/images/outfits/heads/Heads Scaled/tiger_escalado.png";
-                bodyPath = "/images/outfits/shoes/tiger@4x-8.png";
-            } else if (name.contains("leopard")) {
-                headPath = "/images/outfits/heads/Heads Scaled/leopard_escalado.png";
-                bodyPath = "/images/outfits/shoes/leopard@4x-8.png";
-            } else if (name.contains("bear")) {
-                headPath = "/images/outfits/heads/Heads Scaled/bear_escalado.png";
-                bodyPath = "/images/outfits/shoes/bear@4x-8.png";
-            } else if (name.contains("wolf")) {
-                headPath = "/images/outfits/heads/Heads Scaled/wolf_referencia.png";
-                bodyPath = "/images/outfits/shoes/PATAWOLF.png";
-            } else {
-                return null;
-            }
-            boolean bodyFacesRightAtSource = name.contains("wolf");
+        private CharacterSprite loadCharacterSprite(String countryCode) {
+            // El catálogo aporta las dos imágenes y la orientación original de la pata.
+            String head = PresentationOptions.character(countryCode, "preview", "");
+            String body = PresentationOptions.character(countryCode, "body", "");
+            if (head.isEmpty() || body.isEmpty()) return null;
+            String headPath = "/images/outfits/heads/Heads Scaled/" + head;
+            String bodyPath = "/images/outfits/shoes/" + body;
+            boolean bodyFacesRightAtSource = Boolean.parseBoolean(
+                    PresentationOptions.character(countryCode, "bodyFacesRight", "false"));
             return new CharacterSprite(loadTrimmedSprite(headPath), loadTrimmedSprite(bodyPath),
                     bodyFacesRightAtSource);
         }
 
         /** Recorta solo el espacio transparente para alinear y escalar el sprite visual. */
         private BufferedImage loadTrimmedSprite(String resourcePath) {
+            // Guarda tanto los recortes como los recursos que no pudieron cargarse.
             if (trimmedSprites.containsKey(resourcePath)) {
                 return trimmedSprites.get(resourcePath);
             }
@@ -603,6 +651,7 @@ public class MatchPanel extends BasePanel {
                 int minY = source.getHeight();
                 int maxX = -1;
                 int maxY = -1;
+                // El canal alfa delimita el rectángulo visible que se va a recortar.
                 for (int y = 0; y < source.getHeight(); y++) {
                     for (int x = 0; x < source.getWidth(); x++) {
                         if ((source.getRGB(x, y) >>> 24) != 0) {
@@ -630,6 +679,7 @@ public class MatchPanel extends BasePanel {
         /** Proyecta el centro del balón sobre la superficie jugable de la ilustración. */
         private void drawBall(Graphics2D g, Bounds court, double offsetX,
                 double offsetY, double scale, Ball ball) {
+            // El tamaño visual tiene un mínimo. Restar medio diámetro conserva el centro físico.
             double diameter = Math.max(ball.getRadius() * 2 * scale,
                     court.getHeight() * scale * BALL_VISUAL_DIAMETER_RATIO);
             double x = offsetX + (ball.getX() - court.getX()) * scale - diameter / 2.0;
@@ -647,12 +697,14 @@ public class MatchPanel extends BasePanel {
 
         /** Convierte una coordenada vertical de juego en una coordenada de la ilustración. */
         private double playY(double y, Bounds court, double offsetY, double scale) {
+            // Desplaza y comprime la coordenada vertical dentro de la franja de juego del fondo.
             return offsetY + (court.getHeight() * PLAY_AREA_TOP_RATIO
                     + (y - court.getY()) * PLAY_AREA_HEIGHT_RATIO) * scale;
         }
 
         /** Calcula la escala que mantiene la proporción del campo en el área disponible. */
         private double courtScale(double courtWidth, double courtHeight) {
+            // La dimensión con menos espacio fija una única escala para ambos ejes.
             return Math.min((getWidth() - FIELD_MARGIN * 2.0) / courtWidth,
                     getHeight() / courtHeight);
         }

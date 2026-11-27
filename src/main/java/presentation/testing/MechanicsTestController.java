@@ -45,6 +45,7 @@ final class MechanicsTestController {
      * @return {@code true} para la identidad del jugador 1
      */
     boolean playerIdentity(boolean rightSide) {
+        // En manual, el jugador 1 queda a la derecha. Contra bot queda a la izquierda.
         return rightSide != hasBot();
     }
 
@@ -57,6 +58,7 @@ final class MechanicsTestController {
      */
     void update() {
         if (game.isFinished()) return;
+        // Aplica primero las direcciones registradas por Swing y luego avanza la física.
         movement.update(game, playerIdentity(false));
         game.updateGame();
     }
@@ -79,6 +81,7 @@ final class MechanicsTestController {
      * @param pressed indica si la tecla está presionada
      */
     void setMovementControl(boolean rightPlayer, boolean rightDirection, boolean pressed) {
+        // Si hay bot, el lado derecho se mueve únicamente mediante el dominio.
         if (!rightPlayer || !hasBot()) movement.setControl(rightPlayer, rightDirection, pressed);
     }
 
@@ -86,6 +89,7 @@ final class MechanicsTestController {
      * @param rightSide {@code true} para el lado derecho
      */
     void jump(boolean rightSide) {
+        // El banco convierte el lado de la tecla en la identidad esperada por Game.
         if (!rightSide || !hasBot()) game.jumpPlayer(playerIdentity(rightSide));
     }
 
@@ -94,6 +98,7 @@ final class MechanicsTestController {
      * @return {@code true} si la patada alcanza el balón o al rival
      */
     boolean kick(boolean rightSide) {
+        // El retorno del dominio indica si el panel debe mostrar contacto.
         return (!rightSide || !hasBot()) && game.kickPlayer(playerIdentity(rightSide));
     }
 

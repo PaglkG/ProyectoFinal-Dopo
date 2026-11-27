@@ -67,7 +67,7 @@ public class PlayerVsBot extends GameSession {
 
     /** {@inheritDoc} */
     @Override
-    protected void updateAutonomousParticipants() {
+    public void updateAutonomousParticipants() {
         BotPlayer bot = (BotPlayer) participantsRight.get(0);
         var actions = bot.decideAction(getField(), getGoalsRight() - getGoalsLeft(), jumpSupportY(bot));
         boolean wantsKick = actions.contains("kick");
@@ -92,22 +92,16 @@ public class PlayerVsBot extends GameSession {
 
     /** Construye el perfil de bot solicitado y convierte errores de reflexión a GameException. */
     private static BotPlayer createBot(String difficulty) throws GameException {
-        if (difficulty == null) {
+        if (difficulty == null || difficulty.isBlank() || difficulty.indexOf('.') >= 0) {
             throw new GameException(GameException.NO_FOUND_SESSION);
         }
-        String className = switch (difficulty) {
-            case "Clumsy" -> Clumsy.class.getName();
-            case "Offensive" -> Offensive.class.getName();
-            case "Defensive" -> Defensive.class.getName();
-            case "Expert" -> Expert.class.getName();
-            default -> throw new GameException(GameException.NO_FOUND_SESSION);
-        };
         try {
-            Class<?> targetClass = Class.forName(className);
-            if (!BotPlayer.class.isAssignableFrom(targetClass)) {
+            Class<?> targetClass = Class.forName(BotPlayer.class.getPackageName() + "." + difficulty,
+                    false, BotPlayer.class.getClassLoader());
+            if (!GameCatalog.isConcreteSubclass(targetClass, BotPlayer.class)) {
                 throw new GameException(GameException.NO_FOUND_SESSION);
             }
-            return BotPlayer.class.cast(targetClass.getDeclaredConstructor().newInstance());
+            return targetClass.asSubclass(BotPlayer.class).getConstructor().newInstance();
         }
         catch (ClassNotFoundException e) {
             throw new GameException(GameException.NO_FOUND_SESSION);

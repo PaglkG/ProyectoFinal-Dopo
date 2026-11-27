@@ -302,17 +302,25 @@ public class ConfigurationPanel extends BasePanel
      */
     private void prepareControllerKeyButton(JButton button) 
     {
+        // El clic activa la espera y el teclado del botón entrega la tecla elegida.
         button.addActionListener(e -> startKeyCapture(button));
         button.addKeyListener(new KeyAdapter() 
         {
+            /** Entrega a la captura el evento emitido mientras el botón tiene el foco.
+             * @param e evento de teclado de Swing
+             */
             @Override
             public void keyPressed(KeyEvent e) 
             {
                 captureKey(button, e);
             }
         });
+        // Salir del botón cancela la espera y conserva la asignación anterior.
         button.addFocusListener(new FocusAdapter() 
         {
+            /** Cancela una edición pendiente cuando el foco sale del botón.
+             * @param e evento de cambio de foco
+             */
             @Override
             public void focusLost(FocusEvent e) 
             {
@@ -322,7 +330,8 @@ public class ConfigurationPanel extends BasePanel
     }
 
     /**
-     * Asocia el botón Guardar con el regreso al menú principal.
+     * Conecta el clic en Guardar con el menú principal. Las asignaciones
+     * editadas viven en los botones de este panel.
      */
     private void prepareControllerSave() 
     {
@@ -336,13 +345,15 @@ public class ConfigurationPanel extends BasePanel
      */
     private void prepareControllerBack() 
     {
+        // Volver navega al menú desde el panel que conserva los textos editados.
         backButton.addActionListener(e -> 
             navigationController.showScreen(NavigationController.MAIN_MENU));
     }
 
    
     /**
-     * Pone el botón a esperar la nueva tecla.
+     * Atiende el clic que inicia la captura. Guarda el texto anterior,
+     * muestra el aviso de espera y mueve el foco al botón.
      *
      * @param button botón de tecla
      */
@@ -352,6 +363,7 @@ public class ConfigurationPanel extends BasePanel
         {
             return;
         }
+        // Guarda el texto que debe volver a mostrarse si se cancela la captura.
         button.putClientProperty(PREVIOUS_TEXT_PROPERTY, button.getText());
         button.putClientProperty(WAITING_PROPERTY, Boolean.TRUE);
         button.setText(WAITING_TEXT);
@@ -359,7 +371,9 @@ public class ConfigurationPanel extends BasePanel
     }
 
     /**
-     * Procesa la tecla presionada mientras el botón espera una nueva tecla.
+     * Consume el evento mientras espera una tecla. Escape cancela la captura.
+     * Las demás teclas se convierten a su nombre visible y pasan a
+     * {@code assignKey()} para comprobar duplicados y actualizar el botón.
      *
      * @param button botón de tecla
      * @param event tecla presionada
@@ -370,6 +384,7 @@ public class ConfigurationPanel extends BasePanel
         {
             return;
         }
+        // El evento pertenece a la edición de teclas desde que el botón está en espera.
         event.consume();
         if (event.getKeyCode() == KeyEvent.VK_ESCAPE) 
         {
@@ -387,6 +402,7 @@ public class ConfigurationPanel extends BasePanel
      */
     private void assignKey(JButton button, String keyText) 
     {
+        // Antes de cambiar la etiqueta, comprueba si la tecla está asignada en alguna columna.
         String owner = findKeyOwner(button, keyText);
         if (owner != null) 
         {

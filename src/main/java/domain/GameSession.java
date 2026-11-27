@@ -527,7 +527,7 @@ public abstract class GameSession implements Serializable {
     }
 
     /** Ejecuta las decisiones autónomas de la modalidad, si tiene participantes de ese tipo. */
-    protected void updateAutonomousParticipants() { }
+    public void updateAutonomousParticipants() { }
 
     /**
      * Valida la posición de los participantes, desplaza los balones apoyados,
@@ -560,7 +560,7 @@ public abstract class GameSession implements Serializable {
     }
 
     /** Refleja los lados de una partida guardada con la orientación anterior. */
-    protected final void mirrorPlayingSides() {
+    public final void mirrorPlayingSides() {
         List<SessionParticipant> oldLeft = participantsLeft;
         participantsLeft = participantsRight;
         participantsRight = oldLeft;

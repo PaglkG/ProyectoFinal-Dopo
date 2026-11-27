@@ -36,7 +36,7 @@ public class BotPlayerTest {
 
     private static final class TestBot extends BotPlayer {
         @Override
-        protected BotDecisionStrategy createDecisionStrategy() {
+        public BotDecisionStrategy createDecisionStrategy() {
             return context -> "moveRight";
         }
     }

@@ -282,21 +282,26 @@ public class ResultsPanel extends BasePanel {
         setCharacter(rightAnimalLabel, rightHeadLabel, rightCountryFlagLabel,
                 configuration.countryCodeForSide(true), configuration.headImageForSide(true));
 
-        boolean byTime = configuration.typeMatch().contains("ByTime");
-        modeValueLabel.setText(byTime ? "Por tiempo" : "Por goles");
+        String rule = PresentationOptions.simpleName(configuration.typeMatch());
+        modeValueLabel.setText(PresentationOptions.get("option." + rule + ".summary",
+                PresentationOptions.label(rule)));
         if (configuration.parametersRules().size() >= 2) {
             courtValueLabel.setText(configuration.parametersRules().get(1) + " × "
                     + configuration.parametersRules().get(0));
         }
     }
 
-    /** Actualiza la pantalla con el último estado publicado por la ventana. */
+    /** Lee la captura al entrar desde un partido terminado o desde Pausa.
+     * Si hay una captura, {@code showResult()} actualiza el resumen. */
     void refreshFromState() {
+        // El resultado final y la vista desde Pausa usan la captura más reciente.
         PresentationState.getMatch().ifPresent(this::showResult);
     }
 
-    /** Muestra la configuración, el marcador y el tiempo del mismo paso. */
+    /** Traduce los goles de la captura a marcador y a texto de victoria o empate.
+     * También actualiza la configuración y formatea el tiempo en minutos y segundos. */
     private void showResult(MatchSnapshot match) {
+        // Aplica la configuración y el marcador de la misma captura.
         setMatchConfiguration(match.getConfiguration());
         int leftGoals = match.getLeftGoals();
         int rightGoals = match.getRightGoals();
@@ -304,6 +309,7 @@ public class ResultsPanel extends BasePanel {
         rightScoreLabel.setText(Integer.toString(rightGoals));
         finalScoreLabel.setText("Marcador final: " + leftGoals + " - " + rightGoals);
 
+        // Compara los goles por lado para elegir el texto de empate o victoria.
         if (leftGoals == rightGoals) {
             outcomeLabel.setText("¡EMPATE!");
         } else {
@@ -324,16 +330,21 @@ public class ResultsPanel extends BasePanel {
         prepareControllerMainMenu();
     }
 
+    /** Vincula el clic en Tienda con la apertura de la pantalla de mejoras. */
     private void prepareControllerStore() {
+        // La ventana solicita el refresco del saldo al abrir la tienda.
         storeButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.STORE_IMPROVEMENT));
     }
 
+    /** Vincula el clic en Menú principal con la navegación a la pantalla inicial. */
     private void prepareControllerMainMenu() {
+        // El clic solicita volver al menú a través del navegador.
         mainMenuButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MAIN_MENU));
     }
 
+    /** Actualiza el nombre, la cabeza y la bandera del personaje seleccionado para un lado. */
     private void setCharacter(JLabel animalLabel, JLabel headLabel, JLabel flagLabel,
             String countryCode, String imageFile) {
         CharacterInfo character = characterInfo(countryCode);
@@ -349,7 +360,7 @@ public class ResultsPanel extends BasePanel {
         }
 
         String flagFile = countryFlagFileName(countryCode);
-        URL flagUrl = flagFile == null ? null
+        URL flagUrl = flagFile.isEmpty() ? null
                 : getClass().getResource("/images/characters/countries/" + flagFile);
         if (flagUrl != null) {
             Image flag = new ImageIcon(flagUrl).getImage().getScaledInstance(
@@ -362,23 +373,19 @@ public class ResultsPanel extends BasePanel {
     }
 
     private String countryFlagFileName(String countryCode) {
-        return switch (countryCode == null ? "" : countryCode.toUpperCase(java.util.Locale.ROOT)) {
-            case "KR" -> "corea-del-sur@4x-8.png";
-            case "CM" -> "camerun@4x-8.png";
-            case "NG" -> "nigeria@4x-8.png";
-            case "US" -> "estados-unidos@4x-8.png";
-            default -> null;
-        };
+        return PresentationOptions.character(normalizeCountryCode(countryCode), "flag", "");
     }
 
+    /** Obtiene los nombres que se muestran para el código de país configurado. */
     private CharacterInfo characterInfo(String countryCode) {
-        return switch (countryCode == null ? "" : countryCode.toUpperCase(java.util.Locale.ROOT)) {
-            case "KR" -> new CharacterInfo("Tigre", "Corea del Sur", "EL TIGRE");
-            case "CM" -> new CharacterInfo("Leopardo", "Camerún", "EL LEOPARDO");
-            case "NG" -> new CharacterInfo("Lobo", "Nigeria", "EL LOBO");
-            case "US" -> new CharacterInfo("Oso", "Estados Unidos", "EL OSO");
-            default -> new CharacterInfo("Personaje", "País seleccionado", "EL PERSONAJE");
-        };
+        String code = normalizeCountryCode(countryCode);
+        return new CharacterInfo(PresentationOptions.character(code, "animal", "Personaje"),
+                PresentationOptions.character(code, "country", "País seleccionado"),
+                PresentationOptions.character(code, "winner", "EL PERSONAJE"));
+    }
+
+    private String normalizeCountryCode(String countryCode) {
+        return countryCode == null ? "" : countryCode.toUpperCase(java.util.Locale.ROOT);
     }
 
     /** Datos de texto usados para identificar al personaje en los resultados. */
@@ -413,8 +420,11 @@ public class ResultsPanel extends BasePanel {
             setBackground(new Color(0x247FA0));
         }
 
+        /** Dibuja el fondo de la pantalla de resultados.
+         * @param graphics contexto de dibujo suministrado por Swing
+         */
         @Override
-        protected void paintComponent(java.awt.Graphics graphics) {
+        public void paintComponent(java.awt.Graphics graphics) {
             super.paintComponent(graphics);
             if (image != null) {
                 graphics.drawImage(image, 0, 0, getWidth(), getHeight(), this);

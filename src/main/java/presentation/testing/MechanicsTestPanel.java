@@ -138,16 +138,20 @@ public final class MechanicsTestPanel extends JPanel {
         actionKeysDown.clear();
     }
 
-    /** Arma el selector de escenarios, las acciones de partida y el marcador. */
+    /** Conecta la barra con el escenario seleccionado, el reinicio de la ronda
+     * y la alternancia del temporizador. Reiniciar también refresca el marcador
+     * y solicita el repintado. */
     private JPanel buildToolbar() {
         JPanel toolbar = new JPanel(new BorderLayout(8, 4));
         toolbar.setOpaque(false);
         JPanel controls = new JPanel();
         controls.setOpaque(false);
         JButton runScenario = new JButton("Preparar prueba");
+        // El clic ejecuta la acción registrada en el selector de escenarios.
         runScenario.addActionListener(event -> runSelectedScenario());
         JButton reset = new JButton("Reiniciar");
         reset.addActionListener(event -> {
+            // Después del reinicio, actualiza los rótulos y repinta la cancha.
             resetRound();
             status.setText("Ronda reiniciada");
             refreshLabels();
@@ -155,6 +159,7 @@ public final class MechanicsTestPanel extends JPanel {
         });
         JButton pause = new JButton("Pausar / continuar");
         pause.addActionListener(event -> {
+            // El clic alterna el avance del banco sin reiniciar la ronda.
             if (timer.isRunning()) stop(); else start();
         });
         controls.add(scenarioMenu);
@@ -170,7 +175,8 @@ public final class MechanicsTestPanel extends JPanel {
         return toolbar;
     }
 
-    /** Construye las casillas de capas y la ayuda de teclas del modo elegido. */
+    /** Crea una casilla por capa. Cada clic copia la selección al estado de la
+     * capa y solicita el repintado del lienzo. */
     private JScrollPane buildSideMenu() {
         layerMenu.setOpaque(false);
         layerMenu.setLayout(new javax.swing.BoxLayout(layerMenu, javax.swing.BoxLayout.Y_AXIS));
@@ -183,6 +189,7 @@ public final class MechanicsTestPanel extends JPanel {
             toggle.setOpaque(false);
             toggle.setForeground(TEXT);
             toggle.addActionListener(event -> {
+                // La casilla controla el dibujo de la capa y solicita otro repintado.
                 layer.setEnabled(toggle.isSelected());
                 canvas.repaint();
             });
@@ -234,6 +241,7 @@ public final class MechanicsTestPanel extends JPanel {
 
     /** Ejecuta la preparación seleccionada y devuelve el foco a la cancha. */
     private void runSelectedScenario() {
+        // El selector guarda juntos el nombre visible y la acción a ejecutar.
         TestScenario selected = (TestScenario) scenarioMenu.getSelectedItem();
         if (selected == null) return;
         try {
@@ -247,8 +255,8 @@ public final class MechanicsTestPanel extends JPanel {
         }
     }
 
-    /** Recoloca la partida, limpia las teclas y reanuda si se detuvo por un error de actualización. */
-    /** Restablece la ronda, los controles y las animaciones de patada. */
+    /** Solicita al controlador recolocar la ronda y limpia las teclas y las
+     * animaciones de patada. Si un fallo había detenido el ciclo, lo reanuda. */
     private void resetRound() {
         controller.reset();
         actionKeysDown.clear();
@@ -259,12 +267,15 @@ public final class MechanicsTestPanel extends JPanel {
         }
     }
 
-    /** Detiene la simulación si el dominio rechaza un paso y conserva la vista para inspeccionarla. */
-    /** Avanza la simulación y pausa el banco si la partida emite una excepción. */
+    /** Solicita al controlador avanzar un paso, actualiza la animación y las
+     * etiquetas y repinta el lienzo. Ante un error pausa la simulación y deja
+     * el diagnóstico visible hasta reiniciar. */
     private void tick() {
+        // El controlador aplica las teclas sostenidas antes de avanzar la simulación.
         try {
             controller.update();
         } catch (RuntimeException exception) {
+            // Mantiene visible el estado que produjo el fallo para poder inspeccionarlo.
             stop();
             updateFailed = true;
             String detail = exception.getMessage() == null
@@ -273,6 +284,7 @@ public final class MechanicsTestPanel extends JPanel {
             canvas.repaint();
             return;
         }
+        // El paso de juego ya terminó. Avanza la animación y vuelve a leer el marcador.
         leftKickProgress = Math.max(0, leftKickProgress - 0.08);
         rightKickProgress = Math.max(0, rightKickProgress - 0.08);
         refreshLabels();
@@ -281,6 +293,7 @@ public final class MechanicsTestPanel extends JPanel {
 
     /** Actualiza el marcador y el tiempo con las consultas de Game. */
     private void refreshLabels() {
+        // El banco toma los goles y los segundos de su propia fachada de juego.
         Game game = controller.game();
         score.setText(game.getGoalsLeft() + "  :  " + game.getGoalsRight()
                 + "     " + String.format("%02d:%02d", (int) game.getElapsedSeconds() / 60,
@@ -289,10 +302,12 @@ public final class MechanicsTestPanel extends JPanel {
 
     /** Asigna teclas a los lados que controla la persona. */
     private void bindKeys() {
+        // A, D, W y F controlan el lado izquierdo en ambos modos del banco.
         bindControl(KeyEvent.VK_A, "left-player-left", false, false);
         bindControl(KeyEvent.VK_D, "left-player-right", false, true);
         bindJump(KeyEvent.VK_W, "left-jump", false);
         bindKick(KeyEvent.VK_F, "left-kick", false);
+        // En modo manual se habilitan las teclas del participante derecho.
         if (!controller.hasBot()) {
             bindControl(KeyEvent.VK_LEFT, "right-player-left", true, false);
             bindControl(KeyEvent.VK_RIGHT, "right-player-right", true, true);
@@ -303,12 +318,14 @@ public final class MechanicsTestPanel extends JPanel {
 
     /** Registra los eventos de una tecla direccional como estado sostenido. */
     private void bindControl(int keyCode, String name, boolean rightPlayer, boolean rightDirection) {
+        // Presionar o soltar cambia el estado que lee el controlador en el siguiente paso.
         bindInput(keyCode, name, pressed -> controller.setMovementControl(rightPlayer, rightDirection, pressed));
     }
 
     /** Envía una solicitud de salto por pulsación mientras la simulación está activa. */
     private void bindJump(int keyCode, String name, boolean rightSide) {
         bindInput(keyCode, name, pressed -> {
+            // El conjunto evita que la repetición del teclado dispare varios saltos.
             if (!pressed) actionKeysDown.remove(keyCode);
             else if (actionKeysDown.add(keyCode) && timer.isRunning()) controller.jump(rightSide);
         });
@@ -317,6 +334,7 @@ public final class MechanicsTestPanel extends JPanel {
     /** Envía solo una patada por pulsación, aunque el teclado repita el evento. */
     private void bindKick(int keyCode, String name, boolean rightSide) {
         bindInput(keyCode, name, pressed -> {
+            // Una patada se vuelve a habilitar cuando se libera la tecla.
             if (pressed) {
                 if (actionKeysDown.add(keyCode)) kick(rightSide);
             } else {
@@ -325,10 +343,13 @@ public final class MechanicsTestPanel extends JPanel {
         });
     }
 
-    /** Envía los dos eventos de una tecla de juego al mismo consumidor. */
+    /** Registra presión y liberación en los mapas de Swing para toda la ventana
+     * enfocada. El consumidor recibe {@code true} al presionar y
+     * {@code false} al liberar. */
     private void bindInput(int keyCode, String name, Consumer<Boolean> onInput) {
         String pressedName = name + "-pressed";
         String releasedName = name + "-released";
+        // Ambos eventos llegan al mismo consumidor, incluso si el foco está en otro control del banco.
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, false), pressedName);
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, 0, true), releasedName);
         getActionMap().put(pressedName, new AbstractAction() {
@@ -345,6 +366,7 @@ public final class MechanicsTestPanel extends JPanel {
 
     /** Inicia la animación de la pata y muestra si la patada alcanzó un objetivo. */
     private void kick(boolean rightSide) {
+        // El resultado de Game decide el mensaje. La animación representa el intento.
         if (rightSide) rightKickProgress = 1; else leftKickProgress = 1;
         boolean hit = controller.kick(rightSide);
         status.setText(hit ? "Patada: contacto" : "Patada: sin contacto");
@@ -475,10 +497,11 @@ public final class MechanicsTestPanel extends JPanel {
         /** Dibuja los recursos, entidades y capas seleccionadas según el estado escalar de Game.
          * @param graphics contexto de dibujo suministrado por Swing
          */
-        @Override protected void paintComponent(Graphics graphics) {
+        @Override public void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            // El repintado consulta la geometría actual y la convierte a píxeles.
             Game game = controller.game();
             double courtX = game.getCourtX(), courtY = game.getCourtY();
             double courtWidth = game.getCourtWidth(), courtHeight = game.getCourtHeight();

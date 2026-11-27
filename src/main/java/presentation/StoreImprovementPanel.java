@@ -340,7 +340,9 @@ public class StoreImprovementPanel extends BasePanel
     }
 
     /**
-     * Asocia cada botón Mejorar de un jugador con la compra de esa mejora.
+     * Vincula cada clic en Mejorar con la identidad humana de su columna y
+     * la clave de {@code STAT_KEYS} de su fila. El callback entrega la
+     * solicitud a la ventana, que publica otra captura tras la compra.
      *
      * @param buttons botones Mejorar del jugador
      * @param playerOne indica si los botones corresponden al jugador 1
@@ -350,6 +352,7 @@ public class StoreImprovementPanel extends BasePanel
         for (int stat = 0; stat < buttons.length; stat++) 
         {
             String statistic = STAT_KEYS[stat];
+            // El clic envía la identidad humana y la clave de esta fila a la ventana.
             buttons[stat].addActionListener(e -> upgradeAction.accept(playerOne, statistic));
         }
     }
@@ -359,49 +362,81 @@ public class StoreImprovementPanel extends BasePanel
      */
     private void prepareControllerBack() 
     {
+        // La tienda devuelve el control a la pantalla desde donde se configura la partida.
         backButton.addActionListener(e ->
             navigationController.showScreen(NavigationController.PERSONALIZATION));
     }
 
     // ----- Acciones -----
 
-    /** Refresca ambas columnas con los datos del mismo paso publicado. */
+    /** Lee la última captura al abrir la tienda o completar una compra.
+     * Las dos columnas se actualizan con esa misma captura. */
     void refreshFromState() {
+        // Reutiliza el mismo estado para que ambas columnas correspondan al mismo paso.
         MatchSnapshot match = PresentationState.getMatch().orElse(null);
         refreshPlayer(true, match);
         refreshPlayer(false, match);
     }
 
     /**
-     * Muestra los valores disponibles para la identidad indicada.
-     * {@code player.getPoints()} alimenta {@code player1PointsLabel} o
-     * {@code player2PointsLabel}. Para cambiar las barras o los precios
-     * visibles, usa el bucle que relaciona cada índice de {@code STAT_KEYS}
-     * con sus etiquetas y su botón de compra.
-     * @param playerOne indica si se refresca la columna del jugador 1
+     * Refresca la columna del jugador humano identificado por {@code playerOne}.
+     * Antes de iniciar, muestra cero puntos, nivel uno y el precio inicial.
+     * Con una captura, toma el saldo del humano y muestra un guion cuando
+     * el dato no está disponible. Cada fila actualiza su barra de nivel, su
+     * precio visible y su botón. La compra se habilita al terminar la partida
+     * si la identidad humana existe y la habilidad está por debajo del máximo.
+     * @param playerOne {@code true} para el jugador 1, {@code false} para el jugador 2
      * @param match captura publicada, o {@code null} antes de iniciar la partida
      */
     private void refreshPlayer(boolean playerOne, MatchSnapshot match)
     {
-        JLabel pointsLabel = playerOne ? player1PointsLabel : player2PointsLabel;
-        JLabel[] levelLabels = playerOne ? player1LevelLabels : player2LevelLabels;
-        JLabel[] priceLabels = playerOne ? player1PriceLabels : player2PriceLabels;
-        JButton[] buttons = playerOne ? player1UpgradeButtons : player2UpgradeButtons;
-        boolean beforeMatch = match == null;
-        Participant player = beforeMatch ? null : match.getHumanPlayer(playerOne).orElse(null);
-        String points = beforeMatch ? "0" : UNAVAILABLE;
+        JLabel pointsLabel;
+        JLabel[] levelLabels;
+        JLabel[] priceLabels;
+        JButton[] upgradeButtons;
+        // La identidad elige qué etiquetas y botones se van a escribir.
+        if (playerOne) {
+            pointsLabel = player1PointsLabel;
+            levelLabels = player1LevelLabels;
+            priceLabels = player1PriceLabels;
+            upgradeButtons = player1UpgradeButtons;
+        } else {
+            pointsLabel = player2PointsLabel;
+            levelLabels = player2LevelLabels;
+            priceLabels = player2PriceLabels;
+            upgradeButtons = player2UpgradeButtons;
+        }
 
-        if (player != null) points = Integer.toString(player.getPoints());
-        
-        pointsLabel.setText(points);
-        boolean canBuy = player != null && match.isFinished();
-        for (int stat = 0; stat < STAT_NAMES.length; stat++) {
-            int level = displayedLevel(STAT_KEYS[stat], player, beforeMatch);
-            boolean maxLevel = level >= MAX_LEVEL;
-            levelLabels[stat].setText(level == 0 ? UNAVAILABLE : buildLevelBar(level));
-            String price = beforeMatch ? "Precio: " + INITIAL_UPGRADE_PRICE : "Precio: " + UNAVAILABLE;
-            priceLabels[stat].setText(maxLevel ? MAX_PRICE_TEXT : price);
-            buttons[stat].setEnabled(canBuy && !maxLevel);
+        boolean beforeMatch = match == null;
+        Participant humanPlayer = null;
+        String pointsText;
+        String defaultPriceText;
+        // Sin captura se muestran los valores iniciales. Con captura, se busca al humano por ID.
+        if (beforeMatch) {
+            pointsText = "0";
+            defaultPriceText = "Precio: " + INITIAL_UPGRADE_PRICE;
+        } else {
+            humanPlayer = match.getHumanPlayer(playerOne).orElse(null);
+            // En una partida contra bot puede faltar la identidad humana de esta columna.
+            pointsText = humanPlayer == null ? UNAVAILABLE : Integer.toString(humanPlayer.getPoints());
+            defaultPriceText = "Precio: " + UNAVAILABLE;
+        }
+        pointsLabel.setText(pointsText);
+
+        // La captura del partido terminado habilita las compras de las identidades presentes.
+        boolean purchasesEnabled = humanPlayer != null && match.isFinished();
+        // El índice de la clave coincide con la fila y su botón de compra.
+        for (int row = 0; row < STAT_KEYS.length; row++) {
+            String statistic = STAT_KEYS[row];
+            int level = displayedLevel(statistic, humanPlayer, beforeMatch);
+            boolean atMaxLevel = level >= MAX_LEVEL;
+
+            String levelText = level == 0 ? UNAVAILABLE : buildLevelBar(level);
+            // La etiqueta de nivel máximo reemplaza el precio provisional de esta fila.
+            String priceText = atMaxLevel ? MAX_PRICE_TEXT : defaultPriceText;
+            levelLabels[row].setText(levelText);
+            priceLabels[row].setText(priceText);
+            upgradeButtons[row].setEnabled(purchasesEnabled && !atMaxLevel);
         }
     }
 
