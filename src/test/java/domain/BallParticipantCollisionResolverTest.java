@@ -18,8 +18,9 @@ class BallParticipantCollisionResolverTest {
         TestParticipant left = participant(30, power);
         Ball ball = new Ball(80, 80, 10);
         BallParticipantCollisionResolver resolver = new BallParticipantCollisionResolver();
+        SoccerField field = new SoccerField();
 
-        resolver.resolveAll(new Ball[] {ball}, List.of(left), List.of(), 0.7, 0.5);
+        resolver.resolveAll(new Ball[] {ball}, field, List.of(left), List.of(), 0.7, 0.5);
 
         assertFalse(left.isPowerActive());
         assertFalse(power.trajectoryStarted);
@@ -33,8 +34,9 @@ class BallParticipantCollisionResolverTest {
         left.power();
         Ball leftBall = new Ball(80, 80, 10);
         BallParticipantCollisionResolver resolver = new BallParticipantCollisionResolver();
+        SoccerField field = new SoccerField();
 
-        resolver.resolveAll(new Ball[] {leftBall}, List.of(left), List.of(), 0.7, 0.5);
+        resolver.resolveAll(new Ball[] {leftBall}, field, List.of(left), List.of(), 0.7, 0.5);
 
         assertTrue(leftPower.trajectoryAttackerOnLeft);
         assertEquals(400.0, leftBall.getVelocityX());
@@ -45,7 +47,7 @@ class BallParticipantCollisionResolverTest {
         right.power();
         Ball rightBall = new Ball(80, 80, 10);
 
-        resolver.resolveAll(new Ball[] {rightBall}, List.of(), List.of(right), 0.7, 0.5);
+        resolver.resolveAll(new Ball[] {rightBall}, field, List.of(), List.of(right), 0.7, 0.5);
 
         assertFalse(rightPower.trajectoryAttackerOnLeft);
         assertEquals(-400.0, rightBall.getVelocityX());
@@ -60,11 +62,12 @@ class BallParticipantCollisionResolverTest {
         left.power();
         Ball ball = new Ball(80, 80, 10);
         BallParticipantCollisionResolver resolver = new BallParticipantCollisionResolver();
+        SoccerField field = new SoccerField();
 
-        resolver.resolveAll(new Ball[] {ball}, List.of(left), List.of(), 0.7, 0.5);
+        resolver.resolveAll(new Ball[] {ball}, field, List.of(left), List.of(), 0.7, 0.5);
         ball.reposition(40, 40);
-        resolver.resolveAll(new Ball[] {ball}, List.of(), List.of(right), 0.7, 0.5);
-        resolver.resolveAll(new Ball[] {ball}, List.of(), List.of(right), 0.7, 0.5);
+        resolver.resolveAll(new Ball[] {ball}, field, List.of(), List.of(right), 0.7, 0.5);
+        resolver.resolveAll(new Ball[] {ball}, field, List.of(), List.of(right), 0.7, 0.5);
 
         assertSame(right, power.impactedParticipant);
         assertTrue(power.impactAttackerOnLeft);
