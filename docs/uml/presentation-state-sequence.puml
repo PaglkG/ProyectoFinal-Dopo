@@ -7,6 +7,7 @@ participant Game
 participant PresentationState as State
 participant MatchPanel as Match
 participant "Panel de destino" as Panel
+participant MainMenuPanel as Menu
 participant "PresentationOptions" as Options
 participant GameCatalog as Catalog
 
@@ -38,5 +39,14 @@ opt Mostrar Preparación, Resultados o Tienda
     GUI -> Panel : refreshFromState()
     Panel -> State : getMatch()
     State --> Panel : MatchSnapshot o vacío
+end
+
+opt Cargar una partida guardada desde el menú
+    Menu -> GUI : openMatch(file)
+    GUI -> GUI : leer configuración visual (.ui o archivo integrado)
+    GUI -> Game : open(file)
+    Game --> GUI : sesión restaurada
+    GUI -> State : setMatch(captura restaurada)
+    GUI -> GUI : showScreen(PAUSE)
 end
 @enduml

@@ -6,7 +6,9 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.Image;
+import java.io.File;
 import java.net.URL;
+import java.util.function.Consumer;
 
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
@@ -37,10 +39,12 @@ public class PausePanel extends BasePanel {
     private final NavigationController navigationController;
     /** Acción que muestra el resultado parcial desde la pausa. */
     private final Runnable resultsPreviewAction;
-    /** Acción de la ventana que selecciona el destino y guarda la partida. */
-    private final Runnable saveMatchAction;
-    /** Botón para guardar la partida en pausa. */
-    private JButton saveButton;
+    /** Acción que reinicia completamente el partido actual. */
+    private final Runnable restartAction;
+    /** Acción que guarda la partida en el archivo seleccionado. */
+    private final Consumer<File> saveAction;
+    /** Nombre sugerido por la ventana para un guardado nuevo. */
+    private final String defaultSaveFile;
     /** Acción que vuelve a la pantalla de partida. */
     private JButton resumeButton;
     /** Acción que solicita la vista previa del resultado. */
@@ -51,13 +55,17 @@ public class PausePanel extends BasePanel {
     /** Crea la pantalla de pausa conectada con la navegación principal.
      * @param navigationController controlador para mostrar otras pantallas
      * @param resultsPreviewAction acción que actualiza y muestra la vista previa de resultados
-     * @param saveMatchAction acción que selecciona el destino y guarda la partida
+     * @param restartAction acción que inicia de nuevo el partido completo
+     * @param defaultSaveFile nombre inicial sugerido por el selector
+     * @param saveAction acción que persiste el partido en el archivo indicado
      */
     public PausePanel(NavigationController navigationController, Runnable resultsPreviewAction,
-            Runnable saveMatchAction) {
+            Runnable restartAction, Consumer<File> saveAction, String defaultSaveFile) {
         this.navigationController = navigationController;
         this.resultsPreviewAction = resultsPreviewAction;
-        this.saveMatchAction = saveMatchAction;
+        this.restartAction = restartAction;
+        this.saveAction = saveAction;
+        this.defaultSaveFile = defaultSaveFile;
         prepareView();
         prepareController();
     }
@@ -108,13 +116,15 @@ public class PausePanel extends BasePanel {
 
         JButton restartButton = new RoundedButton("Reiniciar partida",
                 Theme.SAND, Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
+        restartButton.addActionListener(event -> restartAction.run());
         restartButton.setAlignmentX(CENTER_ALIGNMENT);
         restartButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         card.add(restartButton);
         card.add(javax.swing.Box.createVerticalStrut(8));
 
-        saveButton = new RoundedButton("Guardar partida",
+        JButton saveButton = new RoundedButton("Guardar partida",
                 Theme.SAND, Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
+        saveButton.addActionListener(event -> chooseSaveFile());
         saveButton.setAlignmentX(CENTER_ALIGNMENT);
         saveButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         card.add(saveButton);
@@ -135,7 +145,7 @@ public class PausePanel extends BasePanel {
         return card;
     }
 
-    /** Conecta reanudar, guardar, ver resultados y volver al menú. */
+    /** Conecta reanudar, vista previa, reinicio, guardado y retorno. */
     @Override
     public void prepareController() {
         // Volver a la cancha permite que la ventana reanude el reloj.
@@ -143,10 +153,18 @@ public class PausePanel extends BasePanel {
                 navigationController.showScreen(NavigationController.MATCH));
         // La acción recibida muestra los resultados a partir de la captura vigente.
         resultsButton.addActionListener(event -> resultsPreviewAction.run());
-        saveButton.addActionListener(event -> saveMatchAction.run());
         // La ventana mantiene el reloj detenido al volver al menú.
         mainMenuButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MAIN_MENU));
+    }
+
+    /** Pide la ruta de destino y delega el guardado a la ventana principal. */
+    private void chooseSaveFile() {
+        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+        chooser.setSelectedFile(new File(defaultSaveFile));
+        if (chooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
+            saveAction.accept(chooser.getSelectedFile());
+        }
     }
 
     /** Carga el logo del proyecto en el tamaño de la tarjeta. */

@@ -56,7 +56,7 @@ public class Game {
         return session;
     }
 
-    /** Reinicia la ronda sin reemplazar la sesión administrada ni su marcador.
+    /** Reinicia por completo el partido conservando estadísticas y mejoras.
      */
     public void resetSession() {
         if (session != null) session.restartRound();
@@ -124,6 +124,22 @@ public class Game {
     public int getPlayerSpeed(boolean player) { 
         return findPlayer(player).getStats().getSpeed(); 
     }
+    /** Devuelve el nivel de salto del participante seleccionado.
+     * @param player {@code true} para jugador 1; {@code false} para jugador 2
+     * @return nivel actual de salto
+     * @throws GameException si no hay sesión o el participante no existe
+     */
+    public int getPlayerJump(boolean player) {
+        return findPlayer(player).getStats().getStatistic("jump");
+    }
+    /** Devuelve el nivel de patada del participante seleccionado.
+     * @param player {@code true} para jugador 1; {@code false} para jugador 2
+     * @return nivel actual de patada
+     * @throws GameException si no hay sesión o el participante no existe
+     */
+    public int getPlayerKick(boolean player) {
+        return findPlayer(player).getStats().getStatistic("kick");
+    }
     /** Devuelve los puntos disponibles del participante seleccionado.
      * @param player {@code true} para el jugador 1; {@code false} para el jugador 2
      * @return puntos disponibles para mejoras
@@ -131,6 +147,15 @@ public class Game {
      */
     public int getPlayerPoints(boolean player) {
         return findPlayer(player).getStats().getPoints();
+    }
+
+    /** Devuelve el costo de la siguiente mejora del participante seleccionado.
+     * @param player {@code true} para jugador 1; {@code false} para jugador 2
+     * @return puntos requeridos para la siguiente compra
+     * @throws GameException si no hay sesión o el participante no existe
+     */
+    public int getPlayerNextUpgradeCost(boolean player) {
+        return findPlayer(player).getStats().getNextUpgradeCost();
     }
 
     /** Devuelve la vida actual del participante seleccionado.

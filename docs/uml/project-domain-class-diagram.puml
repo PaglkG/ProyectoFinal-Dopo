@@ -60,6 +60,7 @@ package "Sesión y reglas" {
     + mirrorPlayingSides(): void
     + updateAutonomousParticipants(): void
     + restartRound(): void
+    + resetRoundInputState(): void
     + kickPlayer(player: SessionParticipant): boolean
     {static} ~ isBallInKickReach(box: RectangularHitbox, ball: Ball): boolean
   }
@@ -67,7 +68,7 @@ package "Sesión y reglas" {
   class PlayerVsBot {
     - kickHeld: boolean
     + updateAutonomousParticipants(): void
-    + restartRound(): void
+    + resetRoundInputState(): void
     - readObject(input: ObjectInputStream): void
   }
   abstract class TypeOfMatch {

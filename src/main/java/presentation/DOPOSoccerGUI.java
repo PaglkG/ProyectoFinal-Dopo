@@ -3,18 +3,31 @@ package presentation;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
-import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
@@ -50,6 +63,8 @@ public class DOPOSoccerGUI extends JFrame
     private final Game game;
     /** Avanza la sesión mientras se muestra la cancha. */
     private final Timer matchTimer;
+    /** Teclas sostenidas para aplicar movimiento continuamente durante el juego. */
+    private final Set<Integer> pressedKeys = new HashSet<>();
     /** Configuración con la que se inició la sesión administrada. */
     private MatchConfiguration startedConfiguration;
     /** Pantalla inicial con los accesos a las demás opciones. */
@@ -118,7 +133,8 @@ public class DOPOSoccerGUI extends JFrame
         resultsPanel = new ResultsPanel(navigationController);
         matchPanel = new MatchPanel(navigationController);
         pausePanel = new PausePanel(navigationController,
-                () -> showScreen(NavigationController.RESULTS), this::saveMatch);
+                () -> showScreen(NavigationController.RESULTS), this::restartMatch,
+                this::saveMatch, Game.DEFAULT_SAVE_FILE);
     }
 
     /**
@@ -164,6 +180,7 @@ public class DOPOSoccerGUI extends JFrame
     private void prepareController() 
     {
         prepareControllerClose();
+        prepareControllerKeyboard();
     }
 
     /**
@@ -172,6 +189,83 @@ public class DOPOSoccerGUI extends JFrame
     private void prepareControllerClose() 
     {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
+    }
+
+    /** Conecta los controles predeterminados visibles en configuración con el partido activo. */
+    private void prepareControllerKeyboard() {
+        bindMatchKey(KeyEvent.VK_A, "player-one-left", null);
+        bindMatchKey(KeyEvent.VK_D, "player-one-right", null);
+        bindMatchKey(KeyEvent.VK_W, "player-one-jump",
+                () -> requestPlayerAction(true, () -> game.jumpPlayer(true)));
+        bindMatchKey(KeyEvent.VK_SPACE, "player-one-kick",
+                () -> requestPlayerAction(true, () -> game.kickPlayer(true)));
+
+        bindMatchKey(KeyEvent.VK_LEFT, "player-two-left", null);
+        bindMatchKey(KeyEvent.VK_RIGHT, "player-two-right", null);
+        bindMatchKey(KeyEvent.VK_UP, "player-two-jump",
+                () -> requestPlayerAction(false, () -> game.jumpPlayer(false)));
+        bindMatchKey(KeyEvent.VK_0, "player-two-kick",
+                () -> requestPlayerAction(false, () -> game.kickPlayer(false)));
+
+        addWindowFocusListener(new WindowAdapter() {
+            @Override
+            public void windowLostFocus(WindowEvent event) {
+                clearPressedKeys();
+            }
+        });
+    }
+
+    /** Registra una pareja de acciones Swing para la presión y liberación de una tecla. */
+    private void bindMatchKey(int keyCode, String name, Runnable pressAction) {
+        InputMap inputMap = matchPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = matchPanel.getActionMap();
+        String pressedName = name + "-pressed";
+        String releasedName = name + "-released";
+        inputMap.put(KeyStroke.getKeyStroke(keyCode, 0, false), pressedName);
+        inputMap.put(KeyStroke.getKeyStroke(keyCode, 0, true), releasedName);
+        actionMap.put(pressedName, new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                if (!matchTimer.isRunning() || !pressedKeys.add(keyCode)) return;
+                if (pressAction != null) pressAction.run();
+            }
+        });
+        actionMap.put(releasedName, new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                pressedKeys.remove(keyCode);
+            }
+        });
+    }
+
+    /** Ejecuta una acción discreta solo para el participante humano de la partida. */
+    private void requestPlayerAction(boolean playerOne, Runnable action) {
+        if (matchTimer.isRunning() && isHumanController(playerOne)) action.run();
+    }
+
+    /** Comprueba si la identidad corresponde a una persona y no al bot de la sesión. */
+    private boolean isHumanController(boolean playerOne) {
+        return startedConfiguration != null && (!startedConfiguration.againstBot()
+                || startedConfiguration.playerOne() == playerOne);
+    }
+
+    /** Aplica un paso horizontal a cada participante humano cuya tecla siga presionada. */
+    private void updateHumanMovement() {
+        updatePlayerMovement(true, KeyEvent.VK_A, KeyEvent.VK_D);
+        updatePlayerMovement(false, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT);
+    }
+
+    /** Interpreta las dos teclas de dirección para una identidad de jugador. */
+    private void updatePlayerMovement(boolean playerOne, int leftKey, int rightKey) {
+        if (!isHumanController(playerOne)) return;
+        boolean left = pressedKeys.contains(leftKey);
+        boolean right = pressedKeys.contains(rightKey);
+        if (left != right) game.movePlayer(playerOne, right);
+    }
+
+    /** Olvida las teclas sostenidas al salir de la cancha o perder el foco de la ventana. */
+    private void clearPressedKeys() {
+        pressedKeys.clear();
     }
 
     /**
@@ -186,6 +280,7 @@ public class DOPOSoccerGUI extends JFrame
     {
         // Solo la cancha de una partida activa vuelve a iniciar el temporizador.
         matchTimer.stop();
+        if (!NavigationController.MATCH.equals(screen)) clearPressedKeys();
         if (NavigationController.MATCH.equals(screen)) {
             MatchSnapshot match = PresentationState.getMatch().orElse(null);
             if (match == null) return;
@@ -207,6 +302,9 @@ public class DOPOSoccerGUI extends JFrame
         resizeWindowForScreen(screen);
         CardLayout layout = (CardLayout) getContentPane().getLayout();
         layout.show(getContentPane(), screen);
+        if (NavigationController.MATCH.equals(screen) && matchTimer.isRunning()) {
+            SwingUtilities.invokeLater(matchPanel::focusCourtForControls);
+        }
     }
 
     /** Ajusta la ventana al tamaño configurado mientras se muestran pantallas del partido.
@@ -252,9 +350,10 @@ public class DOPOSoccerGUI extends JFrame
      * @param configuration opciones de sesión seleccionadas en la presentación
      */
     public void startMatch(MatchConfiguration configuration) {
-        if (startedConfiguration != null && !startedConfiguration.equals(configuration)) {
+        if (startedConfiguration != null && !startedConfiguration.equals(configuration)
+                && !game.isFinished()) {
             throw new IllegalStateException("La sesión única ya conserva otra configuración. "
-                    + "Reinicia la aplicación para crear una partida con nuevos parámetros.");
+                    + "Termina la partida actual antes de iniciar otra configuración.");
         }
         game.startSession(configuration.parametersRules(), configuration.parametersPowers(),
                 configuration.typeGame(), configuration.typeMatch(), configuration.playerOne());
@@ -264,64 +363,87 @@ public class DOPOSoccerGUI extends JFrame
         showScreen(NavigationController.PREPARATION);
     }
 
-    /** Solicita un destino y guarda la sesión junto con su configuración de presentación. */
-    private void saveMatch() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setSelectedFile(new File(Game.DEFAULT_SAVE_FILE));
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+    /** Reinicia el partido completo y vuelve a su pantalla previa al inicio. */
+    private void restartMatch() {
+        game.resetSession();
+        publishMatch();
+        showScreen(NavigationController.PREPARATION);
+    }
 
-        Path destination = chooser.getSelectedFile().toPath().toAbsolutePath();
-        if (Files.exists(destination) && JOptionPane.showConfirmDialog(this,
-                "¿Quieres reemplazar el archivo seleccionado?", "Guardar partida",
+    /** Guarda el estado del dominio y la configuración visual necesaria para restaurarlo. */
+    private void saveMatch(File file) {
+        File visualFile = configurationFile(file);
+        if ((file.exists() || visualFile.exists()) && JOptionPane.showConfirmDialog(this,
+                "¿Quieres reemplazar el guardado seleccionado?", "Guardar partida",
                 JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
 
         try {
-            writeMatch(destination);
-            JOptionPane.showMessageDialog(this, "La partida se guardó.", "Guardar partida",
-                    JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException | IllegalArgumentException exception) {
-            JOptionPane.showMessageDialog(this, exception.getMessage(),
-                    "No se pudo guardar la partida", JOptionPane.ERROR_MESSAGE);
+            if (startedConfiguration == null) {
+                throw new IllegalStateException("No hay una configuración de partida para guardar.");
+            }
+            writeMatchFiles(file.toPath().toAbsolutePath(), visualFile.toPath());
+            JOptionPane.showMessageDialog(this, "Partida guardada correctamente.",
+                    "Partida guardada", JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException | IOException exception) {
+            JOptionPane.showMessageDialog(this, "No se pudo guardar la partida: "
+                    + exception.getMessage(), "Error al guardar", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    /** Prepara el archivo completo antes de reemplazar el destino seleccionado. */
-    private void writeMatch(Path destination) throws IOException {
-        Path temporary = Files.createTempFile(destination.getParent(), ".dopo-", ".tmp");
+    /** Prepara ambos archivos antes de reemplazar el guardado anterior. */
+    private void writeMatchFiles(Path gamePath, Path visualPath) throws IOException {
+        Path tempGame = Files.createTempFile(gamePath.getParent(), ".dopo-", ".tmp");
         try {
-            game.save(temporary.toFile());
-            MatchFile.appendConfiguration(temporary.toFile(), startedConfiguration);
-            Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+            Path tempVisual = Files.createTempFile(gamePath.getParent(), ".dopo-", ".tmp");
+            try {
+                game.save(tempGame.toFile());
+                try (ObjectOutputStream output = new ObjectOutputStream(
+                        new FileOutputStream(tempVisual.toFile()))) {
+                    output.writeObject(startedConfiguration);
+                }
+                Files.move(tempGame, gamePath, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(tempVisual, visualPath, StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                Files.deleteIfExists(tempVisual);
+            }
         } finally {
-            Files.deleteIfExists(temporary);
+            Files.deleteIfExists(tempGame);
         }
     }
 
-    /** Restaura la partida elegida y publica su primera captura antes de mostrarla. */
-    private void openMatch() {
-        JFileChooser chooser = new JFileChooser();
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
-
-        File file = chooser.getSelectedFile();
+    /** Restaura el dominio y su configuración de presentación desde el guardado. */
+    private void openMatch(File file) {
         try {
-            MatchConfiguration configuration = MatchFile.readConfiguration(file);
+            MatchConfiguration configuration = readMatchConfiguration(file);
             game.open(file);
             startedConfiguration = configuration;
             publishMatch();
-            showScreen(NavigationController.MATCH);
-        } catch (IOException | IllegalArgumentException exception) {
-            JOptionPane.showMessageDialog(this, exception.getMessage(),
-                    "No se pudo abrir la partida", JOptionPane.ERROR_MESSAGE);
+            showScreen(NavigationController.PAUSE);
+        } catch (RuntimeException | IOException | ClassNotFoundException exception) {
+            JOptionPane.showMessageDialog(this, "No se pudo cargar la partida: "
+                    + exception.getMessage(), "Error al cargar", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    /**
-     * Atiende un tick del temporizador Swing. Avanza el juego, publica la
-     * captura nueva y luego refresca la cancha. Si la captura indica el final,
-     * navega a Resultados con ese último marcador y tiempo.
-     */
+    /** Lee el auxiliar visual o la configuración integrada de los guardados anteriores. */
+    private MatchConfiguration readMatchConfiguration(File file)
+            throws IOException, ClassNotFoundException {
+        File visualFile = configurationFile(file);
+        if (!visualFile.exists()) return MatchFile.readConfiguration(file);
+        try (ObjectInputStream input = new ObjectInputStream(new FileInputStream(visualFile))) {
+            if (input.readObject() instanceof MatchConfiguration configuration) return configuration;
+            throw new IOException("El archivo no contiene la configuración visual de la partida.");
+        }
+    }
+
+    /** Archivo auxiliar con configuración de personajes y cancha de la interfaz. */
+    private File configurationFile(File gameFile) {
+        return new File(gameFile.getAbsolutePath() + ".ui");
+    }
+
+    /** Avanza un paso, publica su estado y refresca la vista que muestra el partido. */
     private void updateGame() {
-        // Primero avanza el dominio. Después publica y dibuja el resultado de ese paso.
+        updateHumanMovement();
         game.updateGame();
         MatchSnapshot match = publishMatch();
         matchPanel.refreshMatchView();
@@ -368,7 +490,7 @@ public class DOPOSoccerGUI extends JFrame
 
     /**
      * Es el punto donde los getters de {@code Game} alimentan la hitbox,
-     * la vida, la recarga, los puntos y la velocidad de cada participante.
+     * la vida, la recarga, los puntos, los niveles de mejora y su próximo costo.
      * Los paneles acceden a esos valores a través de {@link MatchSnapshot.Participant}.
      * @param playerOne indica si se consulta la identidad del jugador 1
      * @return datos del participante para la captura que se va a publicar
@@ -379,7 +501,8 @@ public class DOPOSoccerGUI extends JFrame
                 game.getPlayerWidth(playerOne), game.getPlayerHeight(playerOne));
         return new Participant(bounds, game.getPlayerLife(playerOne), game.getPlayerMaxLife(playerOne),
                 game.getPlayerPowerRemainingSeconds(playerOne), game.getPlayerPoints(playerOne),
-                game.getPlayerSpeed(playerOne));
+                game.getPlayerSpeed(playerOne), game.getPlayerJump(playerOne),
+                game.getPlayerKick(playerOne), game.getPlayerNextUpgradeCost(playerOne));
     }
 
     /**

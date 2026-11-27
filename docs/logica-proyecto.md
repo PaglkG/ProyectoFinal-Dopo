@@ -14,13 +14,13 @@
 ### Arquitectura
 
 - La capa de presentación solo puede comunicarse con la clase `Game`; no debe comunicarse directamente con otras clases del dominio.
-- `GameSession` y todas sus clases hijas comparten una sola instancia. La primera creación determina la clase concreta y configura modalidad, reglas, participantes y poderes; las solicitudes posteriores reutilizan esa sesión e ignoran nuevos parámetros. `Game` mantiene una referencia a esa sesión compartida una vez iniciada.
+- `GameSession` y todas sus clases hijas comparten una sola instancia activa. Mientras la partida no termine, las solicitudes posteriores reutilizan esa sesión e ignoran nuevos parámetros. Tras terminar, una nueva solicitud crea otra partida con la configuración seleccionada y conserva puntos y niveles de mejora de los jugadores humanos por ID. `Game` mantiene una referencia a la sesión activa.
 - Las operaciones de `Game` sobre la partida única no reciben un objeto `GameSession` ni un índice de sesión: la fachada usa internamente la instancia administrada.
-- `Game.resetSession` reinicia la ronda de la instancia administrada: centra y detiene los balones y recoloca los participantes. Conserva marcador, modalidad, tiempo transcurrido y estado de finalización.
+- `Game.resetSession` reinicia el partido completo de la instancia administrada: marcador y reloj vuelven a cero, se recolocan los participantes y balones, y se limpia el estado temporal. Conserva modalidad, personajes, puntos y niveles de mejora.
 
 ### Persistencia
 
-- `Game.save(File)` guarda la sesión administrada en el archivo indicado. El selector del banco propone inicialmente `partida.dat`.
+- `Game.save(File)` guarda la sesión administrada en el archivo indicado. El selector del banco propone inicialmente `partida.dat`. La interfaz guarda junto a ese archivo un auxiliar `.ui` con la selección visual necesaria para reabrirlo en la presentación.
 
 ### Identidad y lado de juego
 
@@ -124,23 +124,23 @@
 
 - Las modalidades, los poderes, StatusEffect y GameException están directamente en domain desde el aplanado de paquetes.
 - La presentación principal consulta y modifica el juego a través de la fachada `Game`, que expone getters escalares para dibujar. La subcapa `presentation.testing` también usa `Game` para consultar el estado, reiniciar, mover y patear participantes; no puede establecer posiciones ni velocidades directamente.
-- La presentación consulta `Game` mediante getters escalares para posición, dimensiones, marcador y tiempo; la cancha se dibuja como un solo rectángulo. `movePlayer` y `kickPlayer` seleccionan identidad con booleano (`true`: jugador 1; `false`: jugador 2). El banco repite el movimiento horizontal mientras se mantiene la tecla y anima visualmente la pata al patear. `Game` expone puntos, vida actual, vida máxima y segundos restantes de recarga mediante getters por identidad. Los paneles todavía deben conectar esas consultas.
+- La presentación consulta `Game` mediante getters escalares para posición, dimensiones, marcador y tiempo; la cancha se dibuja como un solo rectángulo. `movePlayer` y `kickPlayer` seleccionan identidad con booleano (`true`: jugador 1; `false`: jugador 2). `DOPOSoccerGUI` conecta los controles predeterminados A/D/W/Espacio para el jugador 1 y flechas arriba/izquierda/derecha más 0 para el jugador 2; en modo contra bot solo responde el humano seleccionado. El movimiento se repite mientras se mantiene una dirección y la ventana libera las teclas sostenidas al perder foco o salir de la cancha. La cancha dibuja el aura asociada al personaje detrás de su sprite cuando la recarga está completa, escalada con la altura renderizada del personaje. El HUD conserva las barras sencillas incluidas en las imágenes de jugador, sin agregar barras Swing duplicadas. La tienda muestra niveles, puntos y costo de la siguiente mejora mediante getters de `Game`.
 - `Game.getSessionTypes()`, `getMatchTypes()` y `getBotTypes()` devuelven nombres simples de las clases concretas disponibles; `getSessionType()` devuelve el nombre simple de la sesión activa.
-- `DOPOSoccerGUI.startMatch` también lanza `IllegalStateException` si se intenta iniciar otra configuración tras fijar la sesión singleton. Esto es una excepción explícita de presentación que no coincide con la regla confirmada de usar `GameException` para las excepciones explícitas de la aplicación.
+- `DOPOSoccerGUI.startMatch` permite seleccionar otra configuración cuando la partida anterior terminó; durante una partida activa conserva su configuración. El resultado presenta el saldo acumulado por participante humano.
 - `Game.movePlayer` delega en `GameSession`. La sesión comprueba pertenencia, estado de partida y aturdimiento, y comprueba todo el recorrido del paso antes de mover. Un paso que tocaría un lateral, otro participante o un arco queda bloqueado. El banco puede procesar ambos jugadores en el mismo ciclo y continuar si un paso está bloqueado. `SessionParticipant` aplica `150 × speed / 60`; `speed` inicia en 1.
-- `Game.startSession` obtiene reflectivamente la subclase singleton de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, y guarda la única referencia administrada.
+- `Game.startSession` obtiene reflectivamente la subclase singleton activa de `GameSession`, le pasa `player`, la modalidad, sus parámetros y la lista ordenada de nombres de clase de poderes/perfil, conserva las estadísticas por ID al crear una partida posterior y guarda la referencia administrada.
 - `PlayerVsBot` construye un jugador humano y un bot; `PlayerVsPlayer` construye dos jugadores humanos.
 - PlayerVsPlayer y PlayerVsBot asocian los poderes elegidos mediante nombres completos de clase (domain.BlueAura, etc.); PlayerVsBot también crea el perfil indicado. `Power` comparte la recarga: inicia vacía, se completa en 600 pasos de 1/60 s, recibe 150 pasos por gol recibido y se limita al máximo. `GameSession.updateGame` actualiza ambos lados y no avanza una sesión terminada. `Power.usePower` consume únicamente una carga completa. `SessionParticipant.power` y `Game.powerPlayer` siguen sin conectar la activación; el aura, el bloqueo por poder activo, el tiro, el daño y los efectos específicos permanecen pendientes.
 - `BotPlayer.decideAction` usa Template Method: comprueba si puede actuar, construye una observación y prioriza el salto hacia un balón alto alcanzable antes de solicitar otras acciones a su `BotDecisionStrategy`. `PlayerVsBot` ejecuta las acciones en el mismo paso de la sesión. Si un movimiento del bot queda bloqueado por un rival, la sesión solicita el salto con las mismas condiciones que aplica al humano. `Clumsy` mantiene su elección aleatoria durante 18 pasos, `Offensive` se acerca al balón y patea al alcance, `Defensive` protege el espacio entre balón y arco propio y despeja al alcance, y `Expert` reutiliza la defensa con ventaja y el ataque en empate o desventaja.
 - `PlayerVsBot` trata una solicitud mantenida de patada como una sola pulsación, igual que el banco con la tecla humana. La siguiente solicitud se habilita cuando el bot deja de pedir la acción o se reinicia la ronda.
-- El banco visual permite elegir partida manual o perfil de bot antes de crear la sesión única. En modo bot, el participante izquierdo se controla desde el banco y el derecho recibe sus acciones del dominio.
+- El banco visual permite elegir partida manual o perfil de bot antes de crear la sesión. En modo bot, el participante izquierdo se controla desde el banco y el derecho recibe sus acciones del dominio. Desde pausa, reiniciar inicia de nuevo la partida sin perder saldo ni niveles; guardar persiste estado y un archivo auxiliar de configuración visual. El menú principal carga ambos archivos y muestra la partida restaurada en pausa.
 - El banco solicita el salto a `Game.jumpPlayer` con `W` (izquierda) o flecha arriba (derecha, solo en modo manual). El personaje y su contorno se dibujan con la misma posición que devuelve `Game`. La sesión reinicia el salto al recolocar a los participantes.
 - La sesión permite deslizarse en paralelo por un borde sin bloquear el paso. Al abrir un guardado con la geometría anterior, ajusta la altura de la hitbox conservando la posición de los pies. El banco libera teclas sostenidas al perder el foco o al pausar.
 - Stats inicia `speed`, `jump`, `kick` y `survival` en 1. `speed` se usa para el movimiento horizontal; `kick` calcula el daño de patadas y tiros de poder; `survival` determina la vida máxima. `jump` todavía no tiene efecto conectado al flujo de juego actual.
 - SessionParticipant.applyStatusEffect reemplaza efectos anteriores del mismo tipo, pero conserva simultáneamente efectos de tipos distintos. Esto no cumple la regla confirmada de que un efecto nuevo reemplaza al anterior sin acumulación.
 - `PlayerVsPlayer` coloca al jugador 1 a la derecha y al jugador 2 a la izquierda. `PlayerVsBot` coloca al humano a la izquierda y al bot a la derecha para ambas identidades humanas. Al abrir una partida antigua con los lados invertidos, refleja posiciones y velocidad horizontal del balón e intercambia los goles para conservar el resultado por participante.
 - `GameSession` instancia una subclase de `TypeOfMatch` mediante reflexión.
-- `Game` registra la referencia a la sesión singleton al iniciarla. Los niveles y puntos siguen asociados a los `SessionParticipant` de esa instancia; `Game` no mantiene un mapa duplicado de estadísticas.
+- `Game` registra la referencia a la sesión singleton activa al iniciarla. Los niveles y puntos siguen asociados a los `SessionParticipant`; la fábrica de sesiones transfiere el objeto `Stats` de cada ID humano a la partida siguiente. `Game` no mantiene un mapa duplicado de estadísticas.
 - `Game.startSession` recibe en `parametersRules` la altura como primer parámetro, la anchura como segundo y el parámetro propio de la modalidad como tercero. `ByGoals` usa el tercero como límite de goles; `ByTime` lo usa como minutos del partido. `ByTime.check` recibe los marcadores en las posiciones 0 y 1 y el tiempo transcurrido en la posición 2.
 - `ByTime.suddenDeath` se activa cuando se agota el tiempo con empate; en ese caso `check` devuelve `true` y, si un marcador queda desigual, se apaga al terminar.
 - En el código actual no existen Scoreboard, Outfit, Head, Shoe, Rule ni Side en el dominio. `BotPlayer.decideAction` conserva su tipo de retorno `Set<String>` para nombres de acciones.
@@ -174,6 +174,12 @@
 - `open(File)` deserializa una partida guardada y reemplaza la sesión única administrada.
 - El guardado conserva la sesión completa: modalidad, marcador, tiempo, cancha, participantes, balones, estadísticas y objetos asociados. Los errores de archivo se reportan mediante `GameException` con los códigos `INVALID_SAVE_FILE`, `SAVE_FAILED` o `OPEN_FAILED`.
 
+### Sesiones y puntuación
+
+- Se puede iniciar otra partida en la misma ejecución después de finalizar la anterior y cambiar la configuración de personajes. El estado del nuevo partido comienza desde cero y las estadísticas acumuladas se conservan por ID.
+- Al reiniciar desde pausa se reinicia el partido completo, incluyendo marcador, reloj, vida, efectos temporales, carga de poderes, balón y posiciones; los puntos y las mejoras permanecen.
+- Los resultados muestran los puntos acumulados de cada jugador humano. El bot no recibe puntos.
+
 ## Registro de decisiones
 
 | Fecha | Decisión | Confirmada por |
@@ -191,8 +197,8 @@
 | 2026-11-17 | Se definen los poderes BlueAura, Lightning, Tornado e Illusion con sus trayectorias, efectos, duración y daño base del anexo del PDF; el orden y formato de la lista de poderes/perfil al iniciar sesión; y las prioridades de los cuatro perfiles de bot. | Pablo |
 | 2026-11-17 | Se confirma que `Game.movePlayer` usa `true` para derecha y `false` para izquierda, y aplica por llamada un paso de 1/60 s a 150 unidades/s multiplicadas por `speed`. | Pablo |
 | 2026-11-21 | En el banco de mecánicas, el balón apoyado sobre la cabeza acompaña al jugador durante el salto y vuelve a la física normal al aterrizar; aumentar 10 % la velocidad inicial visual del salto (de 110 a 121), sin cambiar la gravedad. | Pablo |
-| 2026-11-19 | `GameSession` comparte una única instancia entre todas sus clases hijas; la primera clase concreta creada permanece y las solicitudes posteriores la reutilizan. | Pablo |
-| 2026-11-19 | Reiniciar la sesión reinicia solo la ronda: balón al centro y participantes a sus posiciones; marcador, modalidad, tiempo y estado de finalización se conservan. | Pablo |
+| 2026-11-19 | `GameSession` comparte una única instancia activa entre todas sus clases hijas; mientras está activa, la primera clase concreta permanece y las solicitudes posteriores la reutilizan. Tras finalizar, la próxima solicitud crea otra partida y conserva estadísticas humanas por ID. | Pablo |
+| 2026-11-19 | Reiniciar una partida reinicia su marcador, reloj y estado físico, pero conserva puntos y niveles de mejora. | Pablo |
 | 2026-11-17 | `GameSession.improveStatistics(true, ...)` selecciona derecha/jugador 1 y `false` izquierda/jugador 2. Las excepciones explícitas de la aplicación son `GameException`. | Pablo |
 | 2026-11-17 | Los puntos y niveles se conservan para el mismo ID de jugador entre sesiones administradas por una misma instancia de `Game`. | Pablo |
 | 2026-11-17 | Alcanzar cero activa un aturdimiento de 3 segundos con `StatusEffect` y recuperación de vida al expirar. | Pablo |

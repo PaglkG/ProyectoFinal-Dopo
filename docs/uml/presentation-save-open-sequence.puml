@@ -10,24 +10,29 @@ participant MatchFile as Format
 participant PresentationState as State
 
 Jugador -> Pause : Guardar partida
-Pause -> GUI : saveMatch()
-GUI -> Jugador : Elegir destino y confirmar reemplazo si existe
+Pause -> Jugador : Elegir destino
+Pause -> GUI : saveMatch(archivo)
+GUI -> Jugador : Confirmar reemplazo si existe
 opt Destino confirmado
-    GUI -> GUI : writeMatch(destino)
+    GUI -> GUI : writeMatchFiles(destino, auxiliar)
     GUI -> Game : save(archivo temporal)
-    GUI -> Format : appendConfiguration(temporal, configuración)
-    GUI -> GUI : Mover archivo completo al destino
+    GUI -> GUI : Escribir configuración visual en un temporal
+    GUI -> GUI : Mover ambos archivos a su destino
 end
 
 Jugador -> Menu : Abrir Partida
-Menu -> GUI : openMatch()
-GUI -> Jugador : Elegir archivo
+Menu -> Jugador : Elegir archivo
+Menu -> GUI : openMatch(archivo)
 opt Archivo confirmado
-    GUI -> Format : readConfiguration(archivo)
-    Format --> GUI : MatchConfiguration
+    alt Existe el auxiliar .ui
+        GUI -> GUI : Leer la configuración visual del auxiliar
+    else Guardado anterior
+        GUI -> Format : readConfiguration(archivo)
+        Format --> GUI : MatchConfiguration
+    end
     GUI -> Game : open(archivo)
     GUI -> Game : Consultar la sesión restaurada
     GUI -> State : setMatch(captura de la sesión restaurada)
-    GUI -> GUI : showScreen(MATCH)
+    GUI -> GUI : showScreen(PAUSE)
 end
 @enduml

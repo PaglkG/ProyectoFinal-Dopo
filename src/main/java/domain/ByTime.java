@@ -18,6 +18,9 @@ public class ByTime extends TypeOfMatch {
      */
     public boolean isSuddenDeath() { return suddenDeath; }
 
+    /** Limpia la muerte súbita al reiniciar una partida. */
+    void reset() { suddenDeath = false; }
+
 
     /**
      * Lee el primer parámetro como duración límite en minutos y rechaza valores

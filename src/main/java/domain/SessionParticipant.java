@@ -137,6 +137,14 @@ public abstract class SessionParticipant implements Serializable, Collidable {
         life = stats.getMaxLife();
     }
 
+    /** Restaura vida, efectos y salto al comenzar un partido, sin tocar estadísticas. */
+    void resetForNewMatch() {
+        life = stats.getMaxLife();
+        status.clear();
+        finishJump();
+        if (specialPower != null) specialPower.resetCharge();
+    }
+
     /**
      * Devuelve la hitbox mediante la interfaz general de colisiones.
      *

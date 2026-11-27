@@ -33,9 +33,8 @@ import presentation.MatchSnapshot.Participant;
  *       la compra con {@code Game.improveStatistics()} y vuelve a publicar el estado.</li>
  *   <li><strong>Actualización:</strong> {@code refreshPlayer()} escribe el saldo,
  *       actualiza las barras, los precios y la habilitación de los botones.
- *       {@code displayedLevel()} consulta la velocidad y deriva el nivel de vida
- *       a partir de la vida máxima. Los niveles de salto y patada y el precio
- *       de la siguiente compra requieren datos adicionales en la captura.</li>
+ *       {@code displayedLevel()} consulta los cuatro niveles y muestra el costo
+ *       de la siguiente compra desde la captura.</li>
  * </ul>
  */
 public class StoreImprovementPanel extends BasePanel 
@@ -408,35 +407,22 @@ public class StoreImprovementPanel extends BasePanel
         }
 
         boolean beforeMatch = match == null;
-        Participant humanPlayer = null;
-        String pointsText;
-        String defaultPriceText;
-        // Sin captura se muestran los valores iniciales. Con captura, se busca al humano por ID.
-        if (beforeMatch) {
-            pointsText = "0";
-            defaultPriceText = "Precio: " + INITIAL_UPGRADE_PRICE;
-        } else {
-            humanPlayer = match.getHumanPlayer(playerOne).orElse(null);
-            // En una partida contra bot puede faltar la identidad humana de esta columna.
-            pointsText = humanPlayer == null ? UNAVAILABLE : Integer.toString(humanPlayer.getPoints());
-            defaultPriceText = "Precio: " + UNAVAILABLE;
-        }
-        pointsLabel.setText(pointsText);
+        Participant player = beforeMatch ? null : match.getHumanPlayer(playerOne).orElse(null);
+        String points = beforeMatch ? "0" : UNAVAILABLE;
+        if (player != null) points = Integer.toString(player.getPoints());
 
-        // La captura del partido terminado habilita las compras de las identidades presentes.
-        boolean purchasesEnabled = humanPlayer != null && match.isFinished();
-        // El índice de la clave coincide con la fila y su botón de compra.
-        for (int row = 0; row < STAT_KEYS.length; row++) {
-            String statistic = STAT_KEYS[row];
-            int level = displayedLevel(statistic, humanPlayer, beforeMatch);
-            boolean atMaxLevel = level >= MAX_LEVEL;
-
-            String levelText = level == 0 ? UNAVAILABLE : buildLevelBar(level);
-            // La etiqueta de nivel máximo reemplaza el precio provisional de esta fila.
-            String priceText = atMaxLevel ? MAX_PRICE_TEXT : defaultPriceText;
-            levelLabels[row].setText(levelText);
-            priceLabels[row].setText(priceText);
-            upgradeButtons[row].setEnabled(purchasesEnabled && !atMaxLevel);
+        pointsLabel.setText(points);
+        boolean canBuy = player != null && match.isFinished();
+        for (int stat = 0; stat < STAT_KEYS.length; stat++) {
+            int level = displayedLevel(STAT_KEYS[stat], player, beforeMatch);
+            boolean maxLevel = level >= MAX_LEVEL;
+            levelLabels[stat].setText(level == 0 ? UNAVAILABLE : buildLevelBar(level));
+            String price = beforeMatch ? "Precio: " + INITIAL_UPGRADE_PRICE
+                    : player == null ? "Precio: " + UNAVAILABLE
+                    : "Precio: " + player.getNextUpgradeCost();
+            priceLabels[stat].setText(maxLevel ? MAX_PRICE_TEXT : price);
+            upgradeButtons[stat].setEnabled(canBuy && !maxLevel
+                    && player.getPoints() >= player.getNextUpgradeCost());
         }
     }
 
@@ -446,6 +432,8 @@ public class StoreImprovementPanel extends BasePanel
         if (player == null) return 0;
         return switch (statistic) {
             case "speed" -> player.getSpeedLevel();
+            case "jump" -> player.getJumpLevel();
+            case "kick" -> player.getKickLevel();
             case "survival" -> 1 + (player.getMaxLife() - 100) / 10;
             default -> 0;
         };

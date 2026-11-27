@@ -1,6 +1,7 @@
 package domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -224,24 +225,56 @@ class GameTest {
     }
 
     @Test
-    void resetSessionRestartsOnlyTheRoundOfTheManagedSingleton() throws Exception {
+    void resetSessionRestartsTheWholeMatchAndPreservesPointsAndImprovements() throws Exception {
         game.startSession(List.of("150", "450", "5"),
                 List.of("domain.BlueAura", "domain.Lightning"), PlayerVsPlayer.class.getName(),
                 ByGoals.class.getName(), true);
         GameSession session = managedSession(game);
         session.goal("right");
+        Stats stats = session.getParticipantsRight().get(0).getStats();
+        for (int win = 0; win < 6; win++) stats.awardWin();
+        stats.improveStatistics("speed");
         session.getField().getBalls()[0].reposition(80, 50);
         session.getField().getBalls()[0].applyImpulse(6, -2);
         session.getParticipantsRight().get(0).resetPosition(100, 20);
+        session.getParticipantsRight().get(0).takeDamage(30);
 
         game.resetSession();
 
-        assertEquals(1, game.getGoalsRight());
+        assertEquals(0, game.getGoalsLeft());
+        assertEquals(0, game.getGoalsRight());
+        assertEquals(0, game.getElapsedSeconds());
+        assertFalse(game.isFinished());
         assertEquals(225, game.getBallX(0));
         assertEquals(75, game.getBallY(0));
         assertEquals(0, game.getBallVelocityX(0));
         assertEquals(0, game.getBallVelocityY(0));
         assertEquals(326.25, game.getPlayerX(true));
+        assertEquals(100, game.getPlayerLife(true));
+        assertEquals(100, game.getPlayerPoints(true));
+        assertEquals(2, game.getPlayerSpeed(true));
+    }
+
+    @Test
+    void startingANewMatchAfterAWinPreservesStatisticsByPlayerId() throws Exception {
+        GameSession first = game.startSession(List.of("150", "450", "1"),
+                List.of("domain.BlueAura", "domain.Lightning"), PlayerVsPlayer.class.getName(),
+                ByGoals.class.getName(), true);
+        Stats winnerStats = first.getParticipantsRight().get(0).getStats();
+        for (int win = 0; win < 5; win++) winnerStats.awardWin();
+        winnerStats.improveStatistics("speed");
+        first.goal("right");
+
+        GameSession next = game.startSession(List.of("150", "450", "7"),
+                List.of("domain.Lightning", "domain.BlueAura"), PlayerVsPlayer.class.getName(),
+                ByGoals.class.getName(), false);
+
+        assertTrue(first != next);
+        assertEquals(0, game.getGoalsLeft());
+        assertEquals(0, game.getGoalsRight());
+        assertEquals(Stats.POINTS_PER_WIN, game.getPlayerPoints(true));
+        assertEquals(2, game.getPlayerSpeed(true));
+        assertEquals(winnerStats, next.getParticipantsRight().get(0).getStats());
     }
 
     @Test

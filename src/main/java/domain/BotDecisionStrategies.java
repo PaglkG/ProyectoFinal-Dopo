@@ -33,7 +33,6 @@ final class BotDecisionStrategies {
     /** Busca el balón más cercano y solicita una patada cuando está al alcance. */
     static final class Attack implements BotDecisionStrategy {
         private static final long serialVersionUID = 1L;
-
         /** {@inheritDoc} */
         @Override
         public String chooseAction(BotDecisionContext context) {
