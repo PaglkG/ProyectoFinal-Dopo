@@ -44,9 +44,9 @@ public abstract class GameSession implements Serializable {
     }
 
     /**
-     * Devuelve la única sesión compartida por todas las clases concretas.
-     * La primera llamada crea la subclase indicada; llamadas posteriores
-     * devuelven esa sesión sin aplicar nuevos parámetros ni cambiar modalidad.
+     * Devuelve la sesión activa compartida por todas las clases concretas.
+     * Las llamadas durante una partida la reutilizan; después de finalizarla
+     * crean otra sesión y transfieren las estadísticas por identidad humana.
      * @param typeGame nombre completo de la clase concreta de sesión
      * @param player identidad humana seleccionada por las modalidades que la usan
      * @param typeMatche nombre completo de la clase de regla del partido
@@ -57,7 +57,8 @@ public abstract class GameSession implements Serializable {
      */
     public static GameSession getInstance(String typeGame, boolean player,
             String typeMatche, List<String> parametersRules, List<String> parametersPowers) throws GameException {
-        if (instance != null) return instance;
+        GameSession previous = instance;
+        if (previous != null && !previous.finished) return previous;
         try {
             Class<? extends GameSession> targetClass = findSessionSubclass(typeGame);
             Constructor<?> constructor = targetClass.getDeclaredConstructor(
@@ -65,13 +66,33 @@ public abstract class GameSession implements Serializable {
             
             // La fábrica puede acceder al constructor privado de las subclases.
             constructor.setAccessible(true);
-            instance = GameSession.class.cast(constructor.newInstance(
+            GameSession created = GameSession.class.cast(constructor.newInstance(
                     player, typeMatche, parametersRules, parametersPowers));
+            if (previous != null) created.preservePlayerProgress(previous);
+            instance = created;
             return instance;
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw new GameException(GameException.NO_CONSTRUCTOR_FOUND);
         } catch (InstantiationException | java.lang.reflect.InvocationTargetException e) {
             throw new GameException(GameException.NO_INSTANTIATE_CLASS, e);
+        }
+    }
+
+    /** Conserva puntos y mejoras al crear una partida nueva en la misma ejecución. */
+    private void preservePlayerProgress(GameSession previous) {
+        List<SessionParticipant> oldParticipants = new ArrayList<>(previous.participantsLeft);
+        oldParticipants.addAll(previous.participantsRight);
+        List<SessionParticipant> newParticipants = new ArrayList<>(participantsLeft);
+        newParticipants.addAll(participantsRight);
+        for (SessionParticipant current : newParticipants) {
+            if (!(current instanceof Player currentPlayer)) continue;
+            for (SessionParticipant old : oldParticipants) {
+                if (old instanceof Player oldPlayer
+                        && oldPlayer.getUserId() == currentPlayer.getUserId()) {
+                    current.setStats(old.getStats());
+                    break;
+                }
+            }
         }
     }
 
@@ -274,15 +295,29 @@ public abstract class GameSession implements Serializable {
         return separation != 0 && separation * displacement <= 0;
     }
 
-    /**
-     * Reinicia cada balón en el centro de la cancha, recoloca los participantes
-     * y limpia el estado de la ronda.
+    /** Reinicia marcador, reloj y estado físico del partido, conservando estadísticas.
      */
     public void restartRound() {
+        goalsLeft = 0;
+        goalsRight = 0;
+        timeLeft = 0;
+        finished = false;
+        if (TypeOfMatch instanceof ByTime timeRule) timeRule.reset();
+        for (SessionParticipant participant : participantsLeft) participant.resetForNewMatch();
+        for (SessionParticipant participant : participantsRight) participant.resetForNewMatch();
+        resetPositionsAfterGoal();
+    }
+
+    /** Recoloca balón y participantes al registrar un gol, sin reiniciar la partida. */
+    private void resetPositionsAfterGoal() {
+        resetRoundInputState();
         field.resetBall(field.courtX() + field.courtWidth() / 2,
                 field.courtY() + field.courtHeight() / 2);
         positionParticipants();
     }
+
+    /** Punto de extensión para limpiar entradas retenidas tras gol o reinicio. */
+    protected void resetRoundInputState() { }
 
 
     /**
@@ -301,7 +336,7 @@ public abstract class GameSession implements Serializable {
         for (SessionParticipant participant : concedingSide) {
             if (participant.getSpecialPower() != null) participant.getSpecialPower().addGoalBonus();
         }
-        restartRound();
+        resetPositionsAfterGoal();
         checkTypeOfMatch();
     }
 

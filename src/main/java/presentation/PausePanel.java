@@ -6,7 +6,9 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.Image;
+import java.io.File;
 import java.net.URL;
+import java.util.function.Consumer;
 
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
@@ -37,6 +39,10 @@ public class PausePanel extends BasePanel {
     private final NavigationController navigationController;
     /** Acción que muestra el resultado parcial desde la pausa. */
     private final Runnable resultsPreviewAction;
+    /** Acción que reinicia completamente el partido actual. */
+    private final Runnable restartAction;
+    /** Acción que guarda la partida en el archivo seleccionado. */
+    private final Consumer<File> saveAction;
     /** Acción que vuelve a la pantalla de partida. */
     private JButton resumeButton;
     /** Acción que solicita la vista previa del resultado. */
@@ -47,10 +53,15 @@ public class PausePanel extends BasePanel {
     /** Crea la pantalla de pausa conectada con la navegación principal.
      * @param navigationController controlador para mostrar otras pantallas
      * @param resultsPreviewAction acción que actualiza y muestra la vista previa de resultados
+     * @param restartAction acción que inicia de nuevo el partido completo
+     * @param saveAction acción que persiste el partido en el archivo indicado
      */
-    public PausePanel(NavigationController navigationController, Runnable resultsPreviewAction) {
+    public PausePanel(NavigationController navigationController, Runnable resultsPreviewAction,
+            Runnable restartAction, Consumer<File> saveAction) {
         this.navigationController = navigationController;
         this.resultsPreviewAction = resultsPreviewAction;
+        this.restartAction = restartAction;
+        this.saveAction = saveAction;
         prepareView();
         prepareController();
     }
@@ -101,6 +112,7 @@ public class PausePanel extends BasePanel {
 
         JButton restartButton = new RoundedButton("Reiniciar partida",
                 Theme.SAND, Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
+        restartButton.addActionListener(event -> restartAction.run());
         restartButton.setAlignmentX(CENTER_ALIGNMENT);
         restartButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         card.add(restartButton);
@@ -108,6 +120,7 @@ public class PausePanel extends BasePanel {
 
         JButton saveButton = new RoundedButton("Guardar partida",
                 Theme.SAND, Theme.DARK_GREEN, Theme.SAND_BORDER, 14);
+        saveButton.addActionListener(event -> chooseSaveFile());
         saveButton.setAlignmentX(CENTER_ALIGNMENT);
         saveButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         card.add(saveButton);
@@ -128,7 +141,7 @@ public class PausePanel extends BasePanel {
         return card;
     }
 
-    /** Conecta reanudar, vista previa y retorno; reiniciar y guardar siguen sin acción. */
+    /** Conecta reanudar, vista previa, reinicio, guardado y retorno. */
     @Override
     public void prepareController() {
         resumeButton.addActionListener(event ->
@@ -136,6 +149,15 @@ public class PausePanel extends BasePanel {
         resultsButton.addActionListener(event -> resultsPreviewAction.run());
         mainMenuButton.addActionListener(event ->
                 navigationController.showScreen(NavigationController.MAIN_MENU));
+    }
+
+    /** Pide la ruta de destino y delega el guardado a la ventana principal. */
+    private void chooseSaveFile() {
+        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+        chooser.setSelectedFile(new File(domain.Game.DEFAULT_SAVE_FILE));
+        if (chooser.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
+            saveAction.accept(chooser.getSelectedFile());
+        }
     }
 
     /** Carga el logo del proyecto en el tamaño de la tarjeta. */

@@ -87,8 +87,11 @@ public class PlayerVsBot extends GameSession {
     @Override
     public void restartRound() {
         super.restartRound();
-        kickHeld = false;
     }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void resetRoundInputState() { kickHeld = false; }
 
     /** Construye el perfil de bot solicitado y convierte errores de reflexión a GameException. */
     private static BotPlayer createBot(String difficulty) throws GameException {

@@ -60,6 +60,8 @@ public class ResultsPanel extends BasePanel {
     private JLabel outcomeLabel;
     /** Marcador combinado en el resumen de resultados. */
     private JLabel finalScoreLabel;
+    /** Puntos acumulados por los participantes humanos al terminar el partido. */
+    private JLabel pointsValueLabel;
     /** Duración de la partida que figura en el resumen. */
     private JLabel durationValueLabel;
     /** Modalidad que figura en el resumen de la partida. */
@@ -189,7 +191,13 @@ public class ResultsPanel extends BasePanel {
         finalScoreLabel.setAlignmentX(CENTER_ALIGNMENT);
         card.add(Box.createVerticalStrut(5));
         card.add(finalScoreLabel);
-        card.add(Box.createVerticalStrut(18));
+        pointsValueLabel = new JLabel("Puntos actuales: —", SwingConstants.CENTER);
+        pointsValueLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        pointsValueLabel.setForeground(Theme.DARK_GREEN);
+        pointsValueLabel.setAlignmentX(CENTER_ALIGNMENT);
+        card.add(Box.createVerticalStrut(7));
+        card.add(pointsValueLabel);
+        card.add(Box.createVerticalStrut(12));
         card.add(prepareViewSummary());
         card.add(Box.createVerticalGlue());
 
@@ -303,6 +311,11 @@ public class ResultsPanel extends BasePanel {
         leftScoreLabel.setText(Integer.toString(leftGoals));
         rightScoreLabel.setText(Integer.toString(rightGoals));
         finalScoreLabel.setText("Marcador final: " + leftGoals + " - " + rightGoals);
+        String leftPoints = Integer.toString(match.getParticipant(false).getPoints());
+        String rightPoints = match.getConfiguration().againstBot()
+                ? "bot" : Integer.toString(match.getParticipant(true).getPoints());
+        pointsValueLabel.setText("Puntos acumulados — Izquierda: " + leftPoints
+                + " · Derecha: " + rightPoints);
 
         if (leftGoals == rightGoals) {
             outcomeLabel.setText("¡EMPATE!");

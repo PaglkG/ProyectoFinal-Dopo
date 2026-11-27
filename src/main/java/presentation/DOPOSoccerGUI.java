@@ -3,12 +3,28 @@ package presentation;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
@@ -44,6 +60,8 @@ public class DOPOSoccerGUI extends JFrame
     private final Game game;
     /** Avanza la sesión mientras se muestra la cancha. */
     private final Timer matchTimer;
+    /** Teclas sostenidas para aplicar movimiento continuamente durante el juego. */
+    private final Set<Integer> pressedKeys = new HashSet<>();
     /** Configuración con la que se inició la sesión administrada. */
     private MatchConfiguration startedConfiguration;
     /** Pantalla inicial con los accesos a las demás opciones. */
@@ -102,7 +120,7 @@ public class DOPOSoccerGUI extends JFrame
      */
     private void prepareViewPanels() 
     {
-        mainMenuPanel = new MainMenuPanel(navigationController);
+        mainMenuPanel = new MainMenuPanel(navigationController, this::openMatch);
         configurationPanel = new ConfigurationPanel(navigationController);
         personalizationPanel = new PersonalizationPanel(navigationController);
         storeImprovementPanel = new StoreImprovementPanel(navigationController, this::improveStatistic);
@@ -110,7 +128,7 @@ public class DOPOSoccerGUI extends JFrame
         resultsPanel = new ResultsPanel(navigationController);
         matchPanel = new MatchPanel(navigationController);
         pausePanel = new PausePanel(navigationController,
-                () -> showScreen(NavigationController.RESULTS));
+                () -> showScreen(NavigationController.RESULTS), this::restartMatch, this::saveMatch);
     }
 
     /**
@@ -156,6 +174,7 @@ public class DOPOSoccerGUI extends JFrame
     private void prepareController() 
     {
         prepareControllerClose();
+        prepareControllerKeyboard();
     }
 
     /**
@@ -166,6 +185,83 @@ public class DOPOSoccerGUI extends JFrame
         setDefaultCloseOperation(EXIT_ON_CLOSE);
     }
 
+    /** Conecta los controles predeterminados visibles en configuración con el partido activo. */
+    private void prepareControllerKeyboard() {
+        bindMatchKey(KeyEvent.VK_A, "player-one-left", null);
+        bindMatchKey(KeyEvent.VK_D, "player-one-right", null);
+        bindMatchKey(KeyEvent.VK_W, "player-one-jump",
+                () -> requestPlayerAction(true, () -> game.jumpPlayer(true)));
+        bindMatchKey(KeyEvent.VK_SPACE, "player-one-kick",
+                () -> requestPlayerAction(true, () -> game.kickPlayer(true)));
+
+        bindMatchKey(KeyEvent.VK_LEFT, "player-two-left", null);
+        bindMatchKey(KeyEvent.VK_RIGHT, "player-two-right", null);
+        bindMatchKey(KeyEvent.VK_UP, "player-two-jump",
+                () -> requestPlayerAction(false, () -> game.jumpPlayer(false)));
+        bindMatchKey(KeyEvent.VK_0, "player-two-kick",
+                () -> requestPlayerAction(false, () -> game.kickPlayer(false)));
+
+        addWindowFocusListener(new WindowAdapter() {
+            @Override
+            public void windowLostFocus(WindowEvent event) {
+                clearPressedKeys();
+            }
+        });
+    }
+
+    /** Registra una pareja de acciones Swing para la presión y liberación de una tecla. */
+    private void bindMatchKey(int keyCode, String name, Runnable pressAction) {
+        InputMap inputMap = matchPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = matchPanel.getActionMap();
+        String pressedName = name + "-pressed";
+        String releasedName = name + "-released";
+        inputMap.put(KeyStroke.getKeyStroke(keyCode, 0, false), pressedName);
+        inputMap.put(KeyStroke.getKeyStroke(keyCode, 0, true), releasedName);
+        actionMap.put(pressedName, new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                if (!matchTimer.isRunning() || !pressedKeys.add(keyCode)) return;
+                if (pressAction != null) pressAction.run();
+            }
+        });
+        actionMap.put(releasedName, new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                pressedKeys.remove(keyCode);
+            }
+        });
+    }
+
+    /** Ejecuta una acción discreta solo para el participante humano de la partida. */
+    private void requestPlayerAction(boolean playerOne, Runnable action) {
+        if (matchTimer.isRunning() && isHumanController(playerOne)) action.run();
+    }
+
+    /** Comprueba si la identidad corresponde a una persona y no al bot de la sesión. */
+    private boolean isHumanController(boolean playerOne) {
+        return startedConfiguration != null && (!startedConfiguration.againstBot()
+                || startedConfiguration.playerOne() == playerOne);
+    }
+
+    /** Aplica un paso horizontal a cada participante humano cuya tecla siga presionada. */
+    private void updateHumanMovement() {
+        updatePlayerMovement(true, KeyEvent.VK_A, KeyEvent.VK_D);
+        updatePlayerMovement(false, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT);
+    }
+
+    /** Interpreta las dos teclas de dirección para una identidad de jugador. */
+    private void updatePlayerMovement(boolean playerOne, int leftKey, int rightKey) {
+        if (!isHumanController(playerOne)) return;
+        boolean left = pressedKeys.contains(leftKey);
+        boolean right = pressedKeys.contains(rightKey);
+        if (left != right) game.movePlayer(playerOne, right);
+    }
+
+    /** Olvida las teclas sostenidas al salir de la cancha o perder el foco de la ventana. */
+    private void clearPressedKeys() {
+        pressedKeys.clear();
+    }
+
     /**
      * Muestra la pantalla indicada.
      *
@@ -174,6 +270,7 @@ public class DOPOSoccerGUI extends JFrame
     public void showScreen(String screen) 
     {
         matchTimer.stop();
+        if (!NavigationController.MATCH.equals(screen)) clearPressedKeys();
         if (NavigationController.MATCH.equals(screen)) {
             MatchSnapshot match = PresentationState.getMatch().orElse(null);
             if (match == null) return;
@@ -194,6 +291,9 @@ public class DOPOSoccerGUI extends JFrame
         resizeWindowForScreen(screen);
         CardLayout layout = (CardLayout) getContentPane().getLayout();
         layout.show(getContentPane(), screen);
+        if (NavigationController.MATCH.equals(screen) && matchTimer.isRunning()) {
+            SwingUtilities.invokeLater(matchPanel::focusCourtForControls);
+        }
     }
 
     /** Ajusta la ventana al tamaño configurado mientras se muestran pantallas del partido.
@@ -239,9 +339,10 @@ public class DOPOSoccerGUI extends JFrame
      * @param configuration opciones de sesión seleccionadas en la presentación
      */
     public void startMatch(MatchConfiguration configuration) {
-        if (startedConfiguration != null && !startedConfiguration.equals(configuration)) {
+        if (startedConfiguration != null && !startedConfiguration.equals(configuration)
+                && !game.isFinished()) {
             throw new IllegalStateException("La sesión única ya conserva otra configuración. "
-                    + "Reinicia la aplicación para crear una partida con nuevos parámetros.");
+                    + "Termina la partida actual antes de iniciar otra configuración.");
         }
         game.startSession(configuration.parametersRules(), configuration.parametersPowers(),
                 configuration.typeGame(), configuration.typeMatch(), configuration.playerOne());
@@ -250,8 +351,60 @@ public class DOPOSoccerGUI extends JFrame
         showScreen(NavigationController.PREPARATION);
     }
 
+    /** Reinicia el partido completo y vuelve a su pantalla previa al inicio. */
+    private void restartMatch() {
+        game.resetSession();
+        publishMatch();
+        showScreen(NavigationController.PREPARATION);
+    }
+
+    /** Guarda el estado del dominio y la configuración visual necesaria para restaurarlo. */
+    private void saveMatch(File file) {
+        try {
+            if (startedConfiguration == null) {
+                throw new IllegalStateException("No hay una configuración de partida para guardar.");
+            }
+            try (ObjectOutputStream output = new ObjectOutputStream(
+                    new FileOutputStream(configurationFile(file)))) {
+                output.writeObject(startedConfiguration);
+            }
+            game.save(file);
+            JOptionPane.showMessageDialog(this, "Partida guardada correctamente.",
+                    "Partida guardada", JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException | IOException exception) {
+            JOptionPane.showMessageDialog(this, "No se pudo guardar la partida: "
+                    + exception.getMessage(), "Error al guardar", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** Restaura el dominio y su configuración de presentación desde el guardado. */
+    private void openMatch(File file) {
+        try {
+            try (ObjectInputStream input = new ObjectInputStream(
+                    new FileInputStream(configurationFile(file)))) {
+                Object restored = input.readObject();
+                if (!(restored instanceof MatchConfiguration configuration)) {
+                    throw new IOException("El archivo no contiene la configuración visual de la partida.");
+                }
+                startedConfiguration = configuration;
+            }
+            game.open(file);
+            publishMatch();
+            showScreen(NavigationController.PAUSE);
+        } catch (RuntimeException | IOException | ClassNotFoundException exception) {
+            JOptionPane.showMessageDialog(this, "No se pudo cargar la partida: "
+                    + exception.getMessage(), "Error al cargar", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** Archivo auxiliar con configuración de personajes y cancha de la interfaz. */
+    private File configurationFile(File gameFile) {
+        return new File(gameFile.getAbsolutePath() + ".ui");
+    }
+
     /** Avanza un paso, publica su estado y refresca la vista que muestra el partido. */
     private void updateGame() {
+        updateHumanMovement();
         game.updateGame();
         MatchSnapshot match = publishMatch();
         matchPanel.refreshMatchView();
@@ -288,7 +441,7 @@ public class DOPOSoccerGUI extends JFrame
 
     /**
      * Es el punto donde los getters de {@code Game} alimentan la hitbox,
-     * la vida, la recarga, los puntos y la velocidad de cada participante.
+     * la vida, la recarga, los puntos, los niveles de mejora y su próximo costo.
      * Los paneles acceden a esos valores a través de {@link MatchSnapshot.Participant}.
      * @param playerOne indica si se consulta la identidad del jugador 1
      * @return datos del participante para la captura que se va a publicar
@@ -298,7 +451,8 @@ public class DOPOSoccerGUI extends JFrame
                 game.getPlayerWidth(playerOne), game.getPlayerHeight(playerOne));
         return new Participant(bounds, game.getPlayerLife(playerOne), game.getPlayerMaxLife(playerOne),
                 game.getPlayerPowerRemainingSeconds(playerOne), game.getPlayerPoints(playerOne),
-                game.getPlayerSpeed(playerOne));
+                game.getPlayerSpeed(playerOne), game.getPlayerJump(playerOne),
+                game.getPlayerKick(playerOne), game.getPlayerNextUpgradeCost(playerOne));
     }
 
     /** Solicita la compra para el humano seleccionado y publica el saldo resultante. */

@@ -35,6 +35,11 @@ public abstract class Power implements Serializable {
         chargePower = Math.min(FULL_CHARGE_STEPS, chargePower + FULL_CHARGE_STEPS / 4);
     }
 
+    /** Reinicia la carga al comenzar una partida nueva. */
+    final void resetCharge() {
+        chargePower = 0;
+    }
+
     /** Devuelve el tiempo que falta para completar la carga.
      * @return segundos restantes entre cero y diez
      */

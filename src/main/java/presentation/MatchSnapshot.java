@@ -190,16 +190,22 @@ public final class MatchSnapshot {
         private final double powerRemainingSeconds;
         private final int points;
         private final int speedLevel;
+        private final int jumpLevel;
+        private final int kickLevel;
+        private final int nextUpgradeCost;
 
-        /** Guarda la geometría, la vida, la recarga, los puntos y el nivel de velocidad. */
+        /** Guarda la geometría, estado de juego, estadísticas y costo de mejora del participante. */
         Participant(Bounds bounds, int life, int maxLife, double powerRemainingSeconds,
-                int points, int speedLevel) {
+                int points, int speedLevel, int jumpLevel, int kickLevel, int nextUpgradeCost) {
             this.bounds = bounds;
             this.life = life;
             this.maxLife = maxLife;
             this.powerRemainingSeconds = powerRemainingSeconds;
             this.points = points;
             this.speedLevel = speedLevel;
+            this.jumpLevel = jumpLevel;
+            this.kickLevel = kickLevel;
+            this.nextUpgradeCost = nextUpgradeCost;
         }
 
         /** Devuelve la hitbox del participante.
@@ -231,5 +237,20 @@ public final class MatchSnapshot {
          * @return nivel actual de velocidad
          */
         public int getSpeedLevel() { return speedLevel; }
+
+        /** Devuelve el nivel de salto.
+         * @return nivel actual de salto
+         */
+        public int getJumpLevel() { return jumpLevel; }
+
+        /** Devuelve el nivel de patada.
+         * @return nivel actual de patada
+         */
+        public int getKickLevel() { return kickLevel; }
+
+        /** Devuelve el costo de la siguiente mejora.
+         * @return costo en puntos
+         */
+        public int getNextUpgradeCost() { return nextUpgradeCost; }
     }
 }

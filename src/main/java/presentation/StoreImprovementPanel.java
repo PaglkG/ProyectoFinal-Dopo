@@ -33,9 +33,8 @@ import presentation.MatchSnapshot.Participant;
  *       la compra con {@code Game.improveStatistics()} y vuelve a publicar el estado.</li>
  *   <li><strong>Actualización:</strong> {@code refreshPlayer()} escribe el saldo,
  *       actualiza las barras, los precios y la habilitación de los botones.
- *       {@code displayedLevel()} consulta la velocidad y deriva el nivel de vida
- *       a partir de la vida máxima. Los niveles de salto y patada y el precio
- *       de la siguiente compra requieren datos adicionales en la captura.</li>
+ *       {@code displayedLevel()} consulta los cuatro niveles y muestra el costo
+ *       de la siguiente compra desde la captura.</li>
  * </ul>
  */
 public class StoreImprovementPanel extends BasePanel 
@@ -399,9 +398,12 @@ public class StoreImprovementPanel extends BasePanel
             int level = displayedLevel(STAT_KEYS[stat], player, beforeMatch);
             boolean maxLevel = level >= MAX_LEVEL;
             levelLabels[stat].setText(level == 0 ? UNAVAILABLE : buildLevelBar(level));
-            String price = beforeMatch ? "Precio: " + INITIAL_UPGRADE_PRICE : "Precio: " + UNAVAILABLE;
+            String price = beforeMatch ? "Precio: " + INITIAL_UPGRADE_PRICE
+                    : player == null ? "Precio: " + UNAVAILABLE
+                    : "Precio: " + player.getNextUpgradeCost();
             priceLabels[stat].setText(maxLevel ? MAX_PRICE_TEXT : price);
-            buttons[stat].setEnabled(canBuy && !maxLevel);
+            buttons[stat].setEnabled(canBuy && !maxLevel
+                    && player.getPoints() >= player.getNextUpgradeCost());
         }
     }
 
@@ -411,6 +413,8 @@ public class StoreImprovementPanel extends BasePanel
         if (player == null) return 0;
         return switch (statistic) {
             case "speed" -> player.getSpeedLevel();
+            case "jump" -> player.getJumpLevel();
+            case "kick" -> player.getKickLevel();
             case "survival" -> 1 + (player.getMaxLife() - 100) / 10;
             default -> 0;
         };

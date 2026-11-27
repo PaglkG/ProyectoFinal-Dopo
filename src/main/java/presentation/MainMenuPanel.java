@@ -12,7 +12,9 @@ import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.RenderingHints;
+import java.io.File;
 import java.net.URL;
+import java.util.function.Consumer;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -32,8 +34,8 @@ import javax.swing.SwingConstants;
  *       del menú y {@code loadLogo()} lee la imagen del classpath.</li>
  *   <li><strong>Modificación:</strong> {@code prepareController()} conecta los
  *       botones con {@link NavigationController}. {@code openMatch()} recibe
- *       la selección del archivo mediante un {@code JFileChooser}. La carga
- *       queda pendiente de enlazar con la fachada del juego.</li>
+ *       la selección del archivo mediante un {@code JFileChooser} y delega su
+ *       restauración a la ventana principal.</li>
  *   <li><strong>Actualización:</strong> {@code loadLogo()} asigna la imagen o
  *       el título alternativo. La ventana muestra el menú al navegar a él.</li>
  * </ul>
@@ -65,6 +67,8 @@ public class MainMenuPanel extends BasePanel
  
     /** Controlador que coordina los cambios de pantalla. */
     private NavigationController navigationController;
+    /** Acción que restaura una partida desde el archivo seleccionado. */
+    private final Consumer<File> openMatchAction;
     /** Rótulo de título del menú inicial. */
     private JLabel titleLabel;
     /** Acción para ir a la configuración de una nueva partida. */
@@ -80,10 +84,12 @@ public class MainMenuPanel extends BasePanel
      * Crea el panel del menú principal.
      *
      * @param navigationController controlador que cambia de pantalla
+     * @param openMatchAction operación que restaura el archivo seleccionado
      */
-    public MainMenuPanel(NavigationController navigationController) 
+    public MainMenuPanel(NavigationController navigationController, Consumer<File> openMatchAction)
     {
         this.navigationController = navigationController;
+        this.openMatchAction = openMatchAction;
         prepareView();
         prepareController();
     }
@@ -293,7 +299,7 @@ public class MainMenuPanel extends BasePanel
         JFileChooser chooser = new JFileChooser();
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) 
         {
-            // Pendiente: abrir chooser.getSelectedFile() cuando el dominio implemente Game.open(File).
+            openMatchAction.accept(chooser.getSelectedFile());
         }
     }
 

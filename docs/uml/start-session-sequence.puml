@@ -8,10 +8,13 @@ participant "type: TypeOfMatch" as T
 Cliente -> G: startSession(parametersRules, parametersPowers, typeGame, typeMatche, player)
 activate G
 G -> S: getInstance(typeGame, player, typeMatche, parametersRules, parametersPowers)
-alt no existe sesión
-  S -> S: construir primera subclase concreta por reflexión
-else ya existe sesión
-  S -> S: reutilizar instancia guardada
+alt no existe sesión o la anterior terminó
+  S -> S: construir subclase concreta por reflexión
+  opt existía una partida anterior
+    S -> S: transferir Stats de jugadores con el mismo ID
+  end
+else la partida sigue activa
+  S -> S: reutilizar instancia y configuración actuales
 end
 note right of S
   PlayerVsPlayer recibe dos clases Power:
@@ -29,7 +32,7 @@ S -> S: crear SoccerField y fijar timeLeft = 0
 opt sesión nueva con ambos lados
   S -> S: colocar participantes y ajustar hitboxes a la coronilla
 end
-S --> G: instancia única de sesión
+S --> G: instancia activa de sesión
 G -> G: session = instancia
 G --> Cliente: session
 deactivate G

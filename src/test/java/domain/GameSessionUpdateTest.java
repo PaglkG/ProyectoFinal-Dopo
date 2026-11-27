@@ -78,6 +78,22 @@ class GameSessionUpdateTest {
     }
 
     @Test
+    void timeLimitWithTiedScoreWaitsForSuddenDeathWinnerAndAwardsPoints() throws Exception {
+        PlayerVsPlayer session = session(PlayerVsPlayer.class, ByTime.class.getName(),
+                List.of("150", "450", "0"));
+
+        session.checkTypeOfMatch();
+        assertFalse(session.isFinished());
+        session.goal("right");
+
+        assertTrue(session.isFinished());
+        assertEquals(Stats.POINTS_PER_WIN,
+                session.getParticipantsRight().get(0).getStats().getPoints());
+        assertEquals(Stats.POINTS_PER_LOSS,
+                session.getParticipantsLeft().get(0).getStats().getPoints());
+    }
+
+    @Test
     void improveStatisticsSelectsRightForTrueAndLeftForFalse() {
         PlayerVsPlayer session = session(5);
         Stats rightStats = session.getParticipantsRight().get(0).getStats();

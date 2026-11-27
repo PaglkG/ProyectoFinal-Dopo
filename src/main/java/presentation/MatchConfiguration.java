@@ -9,16 +9,27 @@ import java.util.Objects;
  * {@link MatchSnapshot}. Preparación, cancha y resultados usan sus datos de
  * países, personajes y modalidad al refrescarse.
  */
-public final class MatchConfiguration {
+public final class MatchConfiguration implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
+    /** Parámetros ordenados de la regla del partido. */
     private final List<String> parametersRules;
+    /** Poderes elegidos y perfil de bot, cuando aplica. */
     private final List<String> parametersPowers;
+    /** Nombre de la clase de sesión. */
     private final String typeGame;
+    /** Nombre de la clase de regla del partido. */
     private final String typeMatch;
+    /** Identidad humana seleccionada. */
     private final boolean playerOne;
+    /** Indica si el oponente es un bot. */
     private final boolean againstBot;
+    /** País elegido para el primer participante. */
     private final String playerOneCountryCode;
+    /** País elegido para el segundo participante. */
     private final String playerTwoCountryCode;
+    /** Recurso de cabeza elegido para el primer participante. */
     private final String playerOneHeadImage;
+    /** Recurso de cabeza elegido para el segundo participante. */
     private final String playerTwoHeadImage;
 
     /** Crea una configuración y copia sus listas para mantenerlas inmutables.
